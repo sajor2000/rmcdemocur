@@ -40,8 +40,9 @@ Central index for architecture, schema, plans, and bootstrap.
 2. `npm install` + place F2F materials locally
 3. `npm run copy:frameworks && npm run db:push`
 4. `npm run db:bootstrap:smoke` — schema, incremental framework embed, seed, Case 1 process, verify
-5. `npm run db:bootstrap:full` — remaining 13 documents (skip-complete)
-6. `npm run dev` → http://localhost:3000/courses/1
+5. `npm run db:audit-bootstrap` — read-only reconcile manifest / DB / cache
+6. `npm run db:bootstrap:full` — remaining 13 documents (skip-complete)
+7. `npm run dev` → http://localhost:3000/courses/1
 
 **Manual chain (legacy):**
 

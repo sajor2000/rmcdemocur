@@ -64,7 +64,36 @@ async function verifySmoke(caseNumber: number): Promise<string[]> {
   }
 
   if (!(await isDocumentPipelineComplete(doc.id))) {
-    errors.push(`Case ${caseNumber} pipeline incomplete (no chunks/alignments)`);
+    errors.push(`Case ${caseNumber} pipeline incomplete (chunks/embed/alignments)`);
+    return errors;
+  }
+
+  const giAlignments = await db.execute(sql`
+    SELECT a.framework_id
+    FROM alignments a
+    JOIN chunks c ON c.id = a.chunk_id
+    WHERE c.document_id = ${doc.id}
+      AND a.framework = 'usmle'
+      AND a.framework_id LIKE '%gastrointestinal%'
+  `);
+  const giRows = giAlignments.rows as { framework_id: string }[];
+  const hasGiSystem = giRows.some((r) =>
+    r.framework_id.startsWith("usmle:gastrointestinal-system:"),
+  );
+  const hasMislabeledGi = giRows.some(
+    (r) =>
+      r.framework_id.includes("social-sciences") &&
+      r.framework_id.includes("gastrointestinal"),
+  );
+  if (giRows.length > 0 && !hasGiSystem) {
+    errors.push(
+      "Case 1 USMLE GI alignments missing usmle:gastrointestinal-system:* prefix",
+    );
+  }
+  if (hasMislabeledGi) {
+    errors.push(
+      "Case 1 has mislabeled usmle:social-sciences:* GI alignments — re-run db:seed-frameworks --force",
+    );
   }
 
   return errors;
