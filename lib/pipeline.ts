@@ -104,8 +104,17 @@ export async function runFullPipeline(options: {
           : "No objective sections detected";
     await setStage("extracting_objectives", 22, objMsg);
 
+    const [docMeta] = await db
+      .select({ caseTitle: documents.caseTitle })
+      .from(documents)
+      .where(eq(documents.id, documentId))
+      .limit(1);
+
     await setStage("chunking", 25, "Chunking content into ~500-token segments...");
-    const built = buildChunksFromDocument(parsed.text);
+    const built = buildChunksFromDocument(
+      parsed.text,
+      docMeta?.caseTitle ?? undefined,
+    );
 
     await setStage("embedding", 40, "Generating embeddings (Azure AI Foundry)...");
     const insertedChunkIds: number[] = [];
@@ -113,7 +122,7 @@ export async function runFullPipeline(options: {
     for (let i = 0; i < built.length; i += BATCH_SIZE) {
       const batch = built.slice(i, i + BATCH_SIZE);
       for (const item of batch) {
-        const embedding = await generateEmbedding(item.content);
+        const embedding = await generateEmbedding(item.embedText);
         const [row] = await db
           .insert(chunks)
           .values({

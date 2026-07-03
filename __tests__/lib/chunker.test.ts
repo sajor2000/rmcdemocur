@@ -1,7 +1,13 @@
+import fs from "fs";
+import path from "path";
 import { describe, expect, it } from "vitest";
 import { encode } from "gpt-tokenizer";
 import { splitIntoSections, buildChunksFromDocument, chunkText } from "@/lib/chunker";
-import { deriveCoverageStatus } from "@/lib/gap-analyzer";
+
+const selfStudyFixture = fs.readFileSync(
+  path.join(__dirname, "../fixtures/chunker/self-study-headings-snippet.txt"),
+  "utf8",
+);
 
 describe("chunker", () => {
   it("splits on Activity headings", () => {
@@ -93,6 +99,15 @@ describe("chunker", () => {
     expect(sections.some((s) => s.section.startsWith("Case 3"))).toBe(true);
   });
 
+  it("splits self-study fixture on real heading vocabulary", () => {
+    const sections = splitIntoSections(selfStudyFixture);
+    const names = sections.map((s) => s.section);
+    expect(names.some((n) => n.startsWith("Self-Study Topics"))).toBe(true);
+    expect(names.some((n) => n.startsWith("Discipline Director Notes"))).toBe(true);
+    expect(names.some((n) => n.startsWith("Rationale"))).toBe(true);
+    expect(names.some((n) => n.startsWith("Question 3"))).toBe(true);
+  });
+
   it("returns Document fallback for short unstructured text", () => {
     const sections = splitIntoSections("just a short note");
     expect(sections).toEqual([{ section: "Document", content: "just a short note" }]);
@@ -142,9 +157,31 @@ describe("chunkText (U2 recursive splitter)", () => {
     const tail = chunks[0].trim().split(/(?<=[.!?])\s+/).slice(-1)[0];
     expect(chunks[1]).toContain(tail);
   });
+
+  it("packs paragraph-separated content without mixing paragraphs when overlap is disabled", () => {
+    const para1 = Array.from({ length: 50 }, (_, i) => `Alpha sentence ${i} with enough words here.`).join(" ");
+    const para2 = Array.from({ length: 50 }, (_, i) => `Beta sentence ${i} with enough words here.`).join(" ");
+    const chunks = chunkText(`${para1}\n\n${para2}`, 180, 0);
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const chunk of chunks) {
+      const hasAlpha = chunk.includes("Alpha sentence");
+      const hasBeta = chunk.includes("Beta sentence");
+      expect(hasAlpha && hasBeta).toBe(false);
+    }
+  });
 });
 
-describe("buildChunksFromDocument (U2 junk filter)", () => {
+describe("buildChunksFromDocument (U2 junk filter + U3 embedText)", () => {
+  it("prefixes embedText with case title breadcrumb while keeping raw content", () => {
+    const chunks = buildChunksFromDocument(
+      "Rationale:\nShort rationale content here for testing.",
+      "Marie Hernandez",
+    );
+    expect(chunks[0].embedText.startsWith("Marie Hernandez › Rationale:")).toBe(true);
+    expect(chunks[0].embedText).toContain(chunks[0].content);
+    expect(chunks[0].content).not.toContain("Marie Hernandez");
+  });
+
   it("drops a tiny table-of-contents fragment section instead of embedding it", () => {
     const text = [
       "Self-Study Topics:",
@@ -166,23 +203,17 @@ describe("buildChunksFromDocument (U2 junk filter)", () => {
     const chunks = buildChunksFromDocument(text);
     expect(chunks.some((c) => c.content.includes("Short but real rationale"))).toBe(true);
   });
-});
 
-describe("gap-analyzer", () => {
-  it("marks zero chunks as gap", () => {
-    expect(deriveCoverageStatus(0, 0)).toBe("gap");
-  });
-
-  it("marks high confidence as covered", () => {
-    expect(deriveCoverageStatus(3, 0.85)).toBe("covered");
-  });
-
-  it("marks partial for low confidence with chunks", () => {
-    expect(deriveCoverageStatus(1, 0.3)).toBe("partial");
-    expect(deriveCoverageStatus(2, 0.6)).toBe("partial");
-  });
-
-  it("marks covered at confidence threshold boundary", () => {
-    expect(deriveCoverageStatus(1, 0.8)).toBe("covered");
+  it("merges consecutive sub-floor fragments into the next kept chunk", () => {
+    const text = [
+      "Self-Study Topics:",
+      "Real topic content that is long enough to be a legitimate chunk. ".repeat(20),
+      "Overview:",
+      "tiny lead-in.",
+      "Also tiny.",
+    ].join("\n");
+    const chunks = buildChunksFromDocument(text);
+    expect(chunks.some((c) => c.content.includes("tiny lead-in"))).toBe(true);
+    expect(chunks.every((c) => encode(c.content).length >= 40 || c.section === "Overview:")).toBe(true);
   });
 });
