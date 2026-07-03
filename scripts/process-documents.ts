@@ -1,8 +1,16 @@
 import "./load-env";
 import fs from "fs/promises";
 import path from "path";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { documents } from "../drizzle/schema";
+import {
+  CheckpointTimer,
+  loadBootstrapState,
+  maybeCheckpoint,
+  saveBootstrapState,
+  type BootstrapPhase,
+  type BootstrapState,
+} from "../lib/bootstrap-state";
 import { getDb } from "../lib/db";
 import { runFullPipeline } from "../lib/pipeline";
 
@@ -82,16 +90,55 @@ async function ensureCurriculumFiles() {
   }
 }
 
-async function main() {
+function markDocumentProcessed(state: BootstrapState, documentId: number) {
+  if (!state.processedDocumentIds.includes(documentId)) {
+    state.processedDocumentIds.push(documentId);
+  }
+}
+
+export async function isDocumentPipelineComplete(documentId: number): Promise<boolean> {
+  const db = getDb();
+  const result = await db.execute(sql`
+    SELECT EXISTS (
+      SELECT 1
+      FROM alignments a
+      JOIN chunks c ON c.id = a.chunk_id
+      WHERE c.document_id = ${documentId}
+    ) AS complete
+  `);
+  return Boolean((result.rows[0] as { complete: boolean })?.complete);
+}
+
+export async function processDocuments(options?: {
+  onlyCase?: number | null;
+  skipComplete?: boolean;
+  force?: boolean;
+  bootstrapPhase?: BootstrapPhase;
+}) {
   await ensureCurriculumFiles();
   const db = getDb();
-  const docs = await db.select().from(documents).orderBy(documents.caseNumber);
-  const onlyCase = process.env.PROCESS_CASE_NUMBER
-    ? Number.parseInt(process.env.PROCESS_CASE_NUMBER, 10)
-    : null;
+  const docs = await db
+    .select({
+      id: documents.id,
+      caseNumber: documents.caseNumber,
+      filename: documents.filename,
+    })
+    .from(documents)
+    .orderBy(documents.caseNumber);
+
+  const tracking = Boolean(options?.bootstrapPhase);
+  const state = tracking ? await loadBootstrapState() : undefined;
+  const checkpoint = tracking ? new CheckpointTimer() : undefined;
+  let dirty = false;
+
+  if (state && options?.bootstrapPhase) {
+    state.phase = options.bootstrapPhase;
+    await saveBootstrapState(state);
+  }
 
   for (const doc of docs) {
-    if (onlyCase && doc.caseNumber !== onlyCase) continue;
+    if (options?.onlyCase && doc.caseNumber !== options.onlyCase) continue;
+
     const filePath = path.join(process.cwd(), "data/curriculum", doc.filename);
     try {
       await fs.access(filePath);
@@ -99,13 +146,65 @@ async function main() {
       console.warn(`File not found, skipping: ${doc.filename}`);
       continue;
     }
+
+    if (
+      options?.skipComplete &&
+      !options?.force &&
+      (await isDocumentPipelineComplete(doc.id))
+    ) {
+      console.log(`Skip complete: ${doc.filename}`);
+      if (state) {
+        markDocumentProcessed(state, doc.id);
+        dirty = true;
+      }
+      continue;
+    }
+
     console.log(`Processing ${doc.filename}...`);
     await runFullPipeline({ documentId: doc.id, filePath });
+
+    if (state) {
+      markDocumentProcessed(state, doc.id);
+      dirty = true;
+      await maybeCheckpoint(
+        checkpoint!,
+        state,
+        `processed document ${doc.id} (${doc.filename})`,
+      );
+    }
   }
+
+  if (state && dirty) {
+    await saveBootstrapState(state);
+  }
+
   console.log("Done.");
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+function parseBootstrapPhase(): BootstrapPhase | undefined {
+  if (process.argv.includes("--smoke")) return "process-smoke";
+  if (process.argv.includes("--full")) return "process-full";
+  if (process.argv.includes("--track-bootstrap")) return "process-full";
+  return undefined;
+}
+
+async function main() {
+  const onlyCase = process.env.PROCESS_CASE_NUMBER
+    ? Number.parseInt(process.env.PROCESS_CASE_NUMBER, 10)
+    : null;
+
+  await processDocuments({
+    onlyCase,
+    skipComplete: process.argv.includes("--skip-complete"),
+    force: process.argv.includes("--force"),
+    bootstrapPhase: parseBootstrapPhase(),
+  });
+}
+
+const isCli = path.basename(process.argv[1] ?? "") === "process-documents.ts";
+if (isCli) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

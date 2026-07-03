@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ideation: Checkpointed Bootstrap Seeding</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --rush-green: #00843D;
+      --rush-dark: #353535;
+      --rush-medium: #494949;
+      --bg: #fafafa;
+      --card: #ffffff;
+      --border: #e5e5e5;
+      --accent-soft: #e8f5ee;
+      --accent-text: #006B30;
+      --warn-soft: #fef3c7;
+      --info-soft: #eff6ff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Inter, system-ui, sans-serif; font-size: 15px; line-height: 1.65; color: var(--rush-dark); background: var(--bg); }
+    .page { max-width: 880px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+    h1, h2, h3 { font-family: Sora, Inter, sans-serif; color: var(--rush-dark); }
+    h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+    h2 { font-size: 1.25rem; margin: 2.5rem 0 1rem; padding-bottom: 0.4rem; border-bottom: 2px solid var(--rush-green); }
+    h3 { font-size: 1.05rem; margin-bottom: 0.5rem; }
+    .meta { color: var(--rush-medium); font-size: 0.875rem; margin-bottom: 2rem; }
+    .meta dt { display: inline; font-weight: 600; }
+    .meta dd { display: inline; margin-right: 1.25rem; }
+    .jump-list { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .jump-list a { display: inline-block; padding: 0.35rem 0.75rem; background: var(--accent-soft); color: var(--accent-text); border-radius: 999px; font-size: 0.8rem; text-decoration: none; font-weight: 500; }
+    article.idea { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin-bottom: 1.25rem; }
+    article.idea .rank { font-family: Sora, sans-serif; font-weight: 700; color: var(--rush-green); margin-right: 0.5rem; }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.75rem 0; }
+    .chip { font-size: 0.75rem; font-weight: 500; padding: 0.2rem 0.6rem; border-radius: 999px; border: 1px solid var(--border); }
+    .chip.axis { background: var(--info-soft); color: #1e40af; }
+    .chip.cx-low { background: var(--accent-soft); color: var(--accent-text); }
+    .chip.cx-med { background: var(--warn-soft); color: #92400e; }
+    dl.fields { display: grid; grid-template-columns: 7rem 1fr; gap: 0.35rem 0.75rem; font-size: 0.875rem; margin-top: 0.75rem; }
+    dl.fields dt { font-weight: 600; color: var(--rush-medium); text-transform: uppercase; font-size: 0.7rem; }
+    .diagram { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; font-family: ui-monospace, monospace; font-size: 0.8rem; overflow-x: auto; margin: 1rem 0; white-space: pre; }
+    .rejected { font-size: 0.875rem; color: var(--rush-medium); }
+    .rejected li { margin-bottom: 0.5rem; }
+    code { background: #f1f5f9; padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.85em; }
+  </style>
+</head>
+<body>
+<div class="page">
+  <h1>Checkpointed Bootstrap Seeding</h1>
+  <dl class="meta">
+    <dt>Date</dt><dd>2026-07-03</dd>
+    <dt>Topic</dt><dd>checkpointed-bootstrap</dd>
+    <dt>Focus</dt><dd>Seed in chunks with resume checkpoints when long runs die</dd>
+    <dt>Mode</dt><dd>repo-grounded</dd>
+  </dl>
+
+  <section>
+    <h2>Grounding Context</h2>
+    <p>Treating this as a topic in this codebase — making the Neon bootstrap chain resumable after kills, timeouts, or Ctrl-C.</p>
+    <ul>
+      <li><strong>Chain today:</strong> <code>db:push</code> → <code>db:seed-frameworks</code> (~614 USMLE + ~100 AAMC + ~40 keywords, each Azure-embedded) → <code>db:seed</code> → <code>db:process</code> (14 docs, multi-stage pipeline each).</li>
+      <li><strong>Recent failure:</strong> <code>db:seed-frameworks</code> killed at 120/614 USMLE embeds — zero DB progress despite 2+ minutes of Azure spend (embeddings held in memory until full batch completes).</li>
+      <li><strong>Partial fix already shipped:</strong> delete framework tables only <em>after</em> all embeddings finish — still loses in-flight embed work on kill.</li>
+      <li><strong>Constraint:</strong> <code>drizzle-orm/neon-http</code> throws on <code>db.transaction()</code> — no interactive transactions without switching to <code>neon-serverless</code> Pool.</li>
+      <li><strong>Existing hooks:</strong> parsed JSON cache in <code>data/frameworks/parsed/</code>; <code>processing_jobs</code> table tracks upload pipeline stages; <code>clearDocumentArtifacts</code> makes per-document reprocess idempotent.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Topic Axes</h2>
+    <ul>
+      <li><strong>Framework embedding durability</strong> — survive kill mid-USMLE/AAMC/keyword embed</li>
+      <li><strong>DB write granularity</strong> — when rows land in Neon vs stay in memory/files</li>
+      <li><strong>Document processing resume</strong> — skip or continue per faculty/self-study guide</li>
+      <li><strong>Orchestrator / operator UX</strong> — one command, visible status, safe resume</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Ranked Ideas</h2>
+    <ul class="jump-list">
+      <li><a href="#idea-1">#1 Incremental upsert loop</a></li>
+      <li><a href="#idea-2">#2 Local embedding cache</a></li>
+      <li><a href="#idea-3">#3 Bootstrap manifest</a></li>
+      <li><a href="#idea-4">#4 Skip-processed docs</a></li>
+      <li><a href="#idea-5">#5 Three-phase framework CLI</a></li>
+    </ul>
+
+    <article class="idea" id="idea-1">
+      <h3><span class="rank">#1</span>Incremental embed → upsert loop (stable_id as resume key)</h3>
+      <div class="chip-row">
+        <span class="chip axis">Framework embedding</span>
+        <span class="chip axis">DB write granularity</span>
+        <span class="chip cx-med">Complexity: Medium</span>
+      </div>
+      <p>Replace batch-then-bulk-insert with a per-row loop: for each USMLE/AAMC/keyword row, skip if DB already has <code>stable_id</code> with non-null <code>embedding</code>; else embed one text, upsert immediately.</p>
+      <div class="diagram">for row in usmle:
+  if already_embedded(stable_id): continue
+  vec = await embed(row.text)
+  upsert usmle_domains ON stable_id</div>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>direct:</code> scripts/seed-frameworks.ts:107-121 embeds entire catalog before any INSERT; today's kill at 120/614 wasted Azure calls.</dd>
+        <dt>Rationale</dt><dd>Neon row is the checkpoint — no new tables, no transactions needed. Re-run is naturally idempotent.</dd>
+        <dt>Downsides</dt><dd>Slower than bulk delete+insert for full refresh; need UNIQUE on stable_id (or upsert logic). Full catalog replace requires explicit <code>--force</code> flag to delete stale rows.</dd>
+        <dt>Confidence</dt><dd>92%</dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="idea-2">
+      <h3><span class="rank">#2</span>Append-only local embedding cache (JSONL sidecar)</h3>
+      <div class="chip-row">
+        <span class="chip axis">Framework embedding</span>
+        <span class="chip cx-low">Complexity: Low</span>
+      </div>
+      <p>After each successful Azure embed, append <code>{stable_id, model, dims, vector}</code> to <code>data/frameworks/.embedding-cache.jsonl</code>. On resume, read cache first; only call Azure for missing IDs. Flush to Neon in batches of N.</p>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>direct:</code> parsed JSON already cached at data/frameworks/parsed/ — embeddings are the expensive recomputable artifact.</dd>
+        <dt>Rationale</dt><dd>Protects Azure spend even when DB is empty or wiped. Cache survives <code>db:push</code> reset. Gitignore the file.</dd>
+        <dt>Downsides</dt><dd>Disk size (~750 × 1536 floats ≈ few MB); must invalidate cache when embed model/dims change.</dd>
+        <dt>Confidence</dt><dd>88%</dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="idea-3">
+      <h3><span class="rank">#3</span>Bootstrap manifest + <code>npm run db:bootstrap</code></h3>
+      <div class="chip-row">
+        <span class="chip axis">Orchestrator UX</span>
+        <span class="chip cx-med">Complexity: Medium</span>
+      </div>
+      <p>Track progress in <code>data/bootstrap-state.json</code>:</p>
+      <div class="diagram">{
+  "schema": "done",
+  "frameworks": { "usmle": "614/614", "aamc": "done", "keywords": "pending" },
+  "course_seed": "done",
+  "processed_document_ids": [1, 2, 5]
+}</div>
+      <p>Single orchestrator reads manifest, runs next incomplete step, updates after each chunk. Operator runs one command; Ctrl-C and re-run continues.</p>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>direct:</code> plan 004 KTD-2 strict order + manual 4-command chain; user stopped automated run because they lost control/visibility.</dd>
+        <dt>Rationale</dt><dd>Unifies resume semantics across framework + process stages; manifest is human-readable checkpoint log.</dd>
+        <dt>Downsides</dt><dd>Manifest can drift from DB truth if someone runs scripts manually — orchestrator should reconcile counts from DB on start.</dd>
+        <dt>Confidence</dt><dd>85%</dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="idea-4">
+      <h3><span class="rank">#4</span>Skip already-processed documents in <code>db:process</code></h3>
+      <div class="chip-row">
+        <span class="chip axis">Document processing resume</span>
+        <span class="chip cx-low">Complexity: Low</span>
+      </div>
+      <p>Before <code>runFullPipeline</code>, query: doc has chunks with embeddings AND alignments? If yes and not <code>--force</code>, log skip and continue. Optional <code>--from-document-id=N</code>.</p>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>direct:</code> lib/pipeline.ts clearDocumentArtifacts + processing_jobs already support idempotent re-upload; db:process has no skip logic today.</dd>
+        <dt>Rationale</dt><dd>Case 1 smoke then full run becomes safe without re-spending hours on completed guides.</dd>
+        <dt>Downsides</dt><dd>Partial failure (chunks but no alignments) looks "done" unless check includes pipeline stage completeness.</dd>
+        <dt>Confidence</dt><dd>90%</dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="idea-5">
+      <h3><span class="rank">#5</span>Split framework seed into three resumable CLIs</h3>
+      <div class="chip-row">
+        <span class="chip axis">Orchestrator UX</span>
+        <span class="chip cx-med">Complexity: Low–Medium</span>
+      </div>
+      <p><code>db:seed-usmle</code>, <code>db:seed-aamc</code>, <code>db:seed-keywords</code> — each incremental-upsert its table only. Orchestrator or operator runs them separately; failure in keywords doesn't touch USMLE rows.</p>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>direct:</code> seed-frameworks.ts already has three logical blocks (~614 / ~24 / ~40 rows) with separate embed batches.</dd>
+        <dt>Rationale</dt><dd>Coarse checkpoints without new infrastructure; matches mental model of bootstrap phases.</dd>
+        <dt>Downsides</dt><dd>More npm scripts; doesn't help within a 614-row USMLE run unless combined with #1.</dd>
+        <dt>Confidence</dt><dd>82%</dd>
+      </dl>
+    </article>
+  </section>
+
+  <section>
+    <h2>Recommended Combination</h2>
+    <p><strong>Ship #1 + #2 together</strong> for framework seed (incremental upsert + JSONL cache). Add <strong>#4</strong> for process resume. Layer <strong>#3</strong> when you want a single operator command — it should call the incremental scripts, not replace them.</p>
+    <div class="diagram">db:bootstrap
+  ├─ push (skip if tables exist)
+  ├─ seed-frameworks --resume   [#1 upsert + #2 cache]
+  ├─ seed (skip if course 1 exists)
+  └─ process --skip-complete    [#4]</div>
+  </section>
+
+  <section>
+    <h2>What We Rejected (and why)</h2>
+    <ul class="rejected">
+      <li><strong>Migrate all of lib/db.ts to neon-serverless Pool for transactions</strong> — heavy infra change; upsert-per-row achieves durability without it.</li>
+      <li><strong>Store embeddings in git</strong> — binary bloat; local gitignored cache is enough.</li>
+      <li><strong>Redis / external job queue</strong> — overkill for a local demo bootstrap.</li>
+      <li><strong>Keep current batch-in-memory embed</strong> — proven failure mode today (120/614 lost).</li>
+      <li><strong>Manual 20-step runbook only</strong> — doesn't scale; manifest (#3) automates the same checkpoints.</li>
+      <li><strong>Separate SQLite bootstrap DB</strong> — second source of truth; Neon + JSONL/manifest suffices.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Next Steps</h2>
+    <ul>
+      <li><strong>Brainstorm one idea</strong> — e.g. <code>/ce-brainstorm docs/ideation/2026-07-03-checkpointed-bootstrap-ideation.html</code> picking #1+#2</li>
+      <li><strong>Discuss or refine</strong> — chunk size (1 vs 10), force-refresh semantics, manifest location</li>
+      <li><strong>Done</strong> — park until bootstrap retry</li>
+    </ul>
+  </section>
+</div>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ideation: Checkpointed Bootstrap Hardening &amp; Audit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --rush-green: #00843D;
+      --rush-dark: #353535;
+      --rush-medium: #494949;
+      --bg: #fafafa;
+      --card: #ffffff;
+      --border: #e5e5e5;
+      --accent-soft: #e8f5ee;
+      --accent-text: #006B30;
+      --warn-soft: #fef3c7;
+      --info-soft: #eff6ff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Inter, system-ui, sans-serif; font-size: 15px; line-height: 1.65; color: var(--rush-dark); background: var(--bg); }
+    .page { max-width: 880px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+    h1, h2, h3 { font-family: Sora, Inter, sans-serif; color: var(--rush-dark); }
+    h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+    h2 { font-size: 1.25rem; margin: 2.5rem 0 1rem; padding-bottom: 0.4rem; border-bottom: 2px solid var(--rush-green); }
+    h3 { font-size: 1.05rem; margin-bottom: 0.5rem; }
+    .meta { color: var(--rush-medium); font-size: 0.875rem; margin-bottom: 2rem; }
+    .meta dt { display: inline; font-weight: 600; }
+    .meta dd { display: inline; margin-right: 1.25rem; }
+    .jump-list { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .jump-list a { display: inline-block; padding: 0.35rem 0.75rem; background: var(--accent-soft); color: var(--accent-text); border-radius: 999px; font-size: 0.8rem; text-decoration: none; font-weight: 500; }
+    article.idea { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin-bottom: 1.25rem; }
+    article.idea .rank { font-family: Sora, sans-serif; font-weight: 700; color: var(--rush-green); margin-right: 0.5rem; }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.75rem 0; }
+    .chip { font-size: 0.75rem; font-weight: 500; padding: 0.2rem 0.6rem; border-radius: 999px; border: 1px solid var(--border); }
+    .chip.axis { background: var(--info-soft); color: #1e40af; }
+    .chip.cx-low { background: var(--accent-soft); color: var(--accent-text); }
+    .chip.cx-med { background: var(--warn-soft); color: #92400e; }
+    dl.fields { display: grid; grid-template-columns: 7rem 1fr; gap: 0.35rem 0.75rem; font-size: 0.875rem; margin-top: 0.75rem; }
+    dl.fields dt { font-weight: 600; color: var(--rush-medium); text-transform: uppercase; font-size: 0.7rem; }
+    .diagram { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; font-family: ui-monospace, monospace; font-size: 0.8rem; overflow-x: auto; margin: 1rem 0; white-space: pre; }
+    table.reject { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    table.reject th, table.reject td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+    table.reject th { background: #f8fafc; }
+    code { background: #f1f5f9; padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.85em; }
+    footer.composition-signal { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--rush-medium); }
+  </style>
+</head>
+<body>
+<div class="page">
+  <h1>Checkpointed Bootstrap — Hardening &amp; Audit</h1>
+  <dl class="meta">
+    <dt>Date</dt><dd>2026-07-03</dd>
+    <dt>Topic</dt><dd>checkpointed-bootstrap-hardening</dd>
+    <dt>Focus</dt><dd>Harden and audit resume bootstrap without schema changes</dd>
+    <dt>Mode</dt><dd>repo-grounded</dd>
+    <dt>Extends</dt><dd><a href="2026-07-03-checkpointed-bootstrap-ideation.html">checkpointed-bootstrap ideation</a></dd>
+  </dl>
+
+  <section>
+    <h2>Grounding Context</h2>
+    <p>Resume mechanics (#1 incremental upsert, #2 JSONL cache, #4 skip-processed docs) are scoped in the parent ideation. This pass asks: <strong>how do we harden and audit</strong> so operators trust checkpoints and catch partial failures before burning Azure spend?</p>
+    <ul>
+      <li><strong>Scaffold on disk:</strong> <code>lib/bootstrap-state.ts</code>, <code>lib/embedding-cache.ts</code>, <code>scripts/bootstrap.ts</code>, partial <code>process-documents.ts</code> exports — not wired to <code>package.json</code> yet.</li>
+      <li><strong>Still batch-embed:</strong> <code>seed-frameworks.ts</code> embeds all ~614 USMLE rows before any DB write — kill at 120/614 still loses work.</li>
+      <li><strong>Weak complete check:</strong> <code>isDocumentPipelineComplete</code> only checks alignments exist, not chunk embeddings — partial pipeline can look "done".</li>
+      <li><strong>No audit CLI:</strong> manifest, JSONL cache, and Neon counts can drift with no reconcile command.</li>
+      <li><strong>Constraint:</strong> no new Drizzle tables or migrations — use existing <code>stable_id</code> + <code>embedding</code> columns as checkpoints.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Topic Axes</h2>
+    <ul>
+      <li><strong>Framework durability</strong> — per-row embed + cache + skip-if-embedded</li>
+      <li><strong>Completion truth</strong> — when is a document or framework phase actually done?</li>
+      <li><strong>Operator audit</strong> — read-only reconcile manifest ↔ DB ↔ cache</li>
+      <li><strong>Smoke gates</strong> — block full run until Case 1 passes domain spot-checks</li>
+      <li><strong>Test &amp; CI contracts</strong> — unit tests for resume predicates without live Azure</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Ranked Ideas</h2>
+    <ul class="jump-list">
+      <li><a href="#idea-1">#1 Incremental upsert loop</a></li>
+      <li><a href="#idea-2">#2 Strict completion predicate</a></li>
+      <li><a href="#idea-3">#3 Audit CLI reconcile</a></li>
+      <li><a href="#idea-4">#4 Cache model fingerprint</a></li>
+      <li><a href="#idea-5">#5 Smoke GI spot-check</a></li>
+      <li><a href="#idea-6">#6 Wire bootstrap npm scripts</a></li>
+    </ul>
+
+    <article class="idea" id="idea-1">
+      <h3><span class="rank">#1</span>Incremental embed → upsert (no bulk delete on resume)</h3>
+      <div class="chip-row">
+        <span class="chip axis">Framework durability</span>
+        <span class="chip cx-med">Complexity: Medium</span>
+      </div>
+      <p>For each framework row: skip if DB already has <code>stable_id</code> with non-null <code>embedding</code>; else embed one text, upsert immediately. Only bulk-delete with <code>--force</code>.</p>
+      <div class="diagram">for row in usmle:
+  if db.has_embedding(stable_id): continue
+  vec = cache.get(id) ?? await azure.embed(text)
+  cache.append(id, vec)
+  db.upsert_by_stable_id(row, vec)
+  manifest.frameworks.usmle.embedded++</div>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>direct:</code> scripts/seed-frameworks.ts:107-126 still batch-embeds then deletes all tables.</dd>
+        <dt>Rationale</dt><dd>Neon row is the checkpoint; re-run after kill continues from last persisted embed.</dd>
+        <dt>Downsides</dt><dd>Slower full refresh; stale rows need explicit <code>--force</code>.</dd>
+        <dt>Confidence</dt><dd>94%</dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="idea-2">
+      <h3><span class="rank">#2</span>Strict pipeline-complete predicate</h3>
+      <div class="chip-row">
+        <span class="chip axis">Completion truth</span>
+        <span class="chip cx-low">Complexity: Low</span>
+      </div>
+      <p><code>isDocumentPipelineComplete</code> returns true only when: chunks exist, every chunk has a non-null embedding, and at least one alignment exists. Export helper <code>getDocumentPipelineStatus</code> for audit output (complete | partial-chunks | partial-embed | partial-align).</p>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>direct:</code> process-documents.ts:91-107 only counts alignments — chunks-without-embeddings would skip incorrectly.</dd>
+        <dt>Rationale</dt><dd>Prevents false "skip complete" on half-finished pipeline runs.</dd>
+        <dt>Downsides</dt><dd>Re-align-only workflows need <code>--force</code> to reprocess.</dd>
+        <dt>Confidence</dt><dd>91%</dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="idea-3">
+      <h3><span class="rank">#3</span>Read-only <code>db:audit-bootstrap</code> reconcile CLI</h3>
+      <div class="chip-row">
+        <span class="chip axis">Operator audit</span>
+        <span class="chip cx-med">Complexity: Medium</span>
+      </div>
+      <p>Print side-by-side: manifest phase, DB embed counts per table, cache line count, per-document pipeline status for all 14 docs. Exit non-zero on drift or any partial doc when smoke/full expected.</p>
+      <div class="diagram">USMLE:  412/614 embedded (DB) | 412 lines (cache) | manifest: 412/614
+Docs:   3 complete | 1 partial-embed | 10 pending
+Smoke:  NOT VERIFIED</div>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>reasoned:</code> parent ideation #3 warns manifest can drift from DB if scripts run manually.</dd>
+        <dt>Rationale</dt><dd>Single operator command before/after long runs; CI can run in dry mode with mocked DB.</dd>
+        <dt>Downsides</dt><dd>Another script to maintain; must stay read-only.</dd>
+        <dt>Confidence</dt><dd>88%</dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="idea-4">
+      <h3><span class="rank">#4</span>Embedding cache model/dims fingerprint</h3>
+      <div class="chip-row">
+        <span class="chip axis">Framework durability</span>
+        <span class="chip cx-low">Complexity: Low</span>
+      </div>
+      <p>Store <code>{ stableId, model, dimensions, vector }</code> in JSONL. On read, ignore entries when deploy model or <code>AZURE_OPENAI_EMBEDDING_DIMENSIONS</code> differs. Log cache invalidation count at seed start.</p>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>direct:</code> lib/embedding-cache.ts stores only stableId+vector today.</dd>
+        <dt>Rationale</dt><dd>Prevents silent wrong-vector reuse after model upgrade.</dd>
+        <dt>Downsides</dt><dd>Full re-embed after model change (expected).</dd>
+        <dt>Confidence</dt><dd>90%</dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="idea-5">
+      <h3><span class="rank">#5</span>Smoke gate with USMLE GI domain spot-check</h3>
+      <div class="chip-row">
+        <span class="chip axis">Smoke gates</span>
+        <span class="chip cx-low">Complexity: Low</span>
+      </div>
+      <p>Extend <code>verifySmoke()</code> in bootstrap.ts: Case 1 faculty alignments must include <code>usmle:gastrointestinal-system:%</code> and must NOT use <code>usmle:social-sciences:gastrointestinal-system</code> (plan 005 parser fix validation).</p>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>direct:</code> docs/plans/2026-07-03-005 — GI content was mislabeled under social-sciences.</dd>
+        <dt>Rationale</dt><dd>Catches bad framework seed before 13 more documents process.</dd>
+        <dt>Downsides</dt><dd>Case-1-specific; may need update if demo course changes.</dd>
+        <dt>Confidence</dt><dd>86%</dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="idea-6">
+      <h3><span class="rank">#6</span>Wire <code>db:bootstrap:*</code> + gitignore runtime artifacts</h3>
+      <div class="chip-row">
+        <span class="chip axis">Operator audit</span>
+        <span class="chip cx-low">Complexity: Low</span>
+      </div>
+      <p>Add npm scripts for smoke/full/status/audit. Gitignore <code>data/bootstrap-state.json</code> and <code>data/frameworks/.embedding-cache.jsonl</code>. Document bootstrap chain in docs/README.md.</p>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>direct:</code> scripts/bootstrap.ts exists but package.json has no entry points.</dd>
+        <dt>Rationale</dt><dd>Discoverability and no accidental commit of local checkpoint state.</dd>
+        <dt>Downsides</dt><dd>None significant.</dd>
+        <dt>Confidence</dt><dd>95%</dd>
+      </dl>
+    </article>
+  </section>
+
+  <section>
+    <h2>Recommended Ship Set</h2>
+    <p>Implement <strong>#1 + #4</strong> together in <code>seed-frameworks.ts</code>, <strong>#2</strong> in <code>process-documents.ts</strong>, <strong>#5 + #6</strong> in <code>bootstrap.ts</code> + package.json, <strong>#3</strong> as follow-up audit CLI. All without schema migration.</p>
+    <div class="diagram">npm run db:bootstrap:smoke   → push → frameworks(resume) → seed → case1 process → verifySmoke
+npm run db:audit-bootstrap   → reconcile manifest / DB / cache (read-only)
+npm run db:bootstrap:full    → only if smoke verified</div>
+  </section>
+
+  <section>
+    <h2>Rejection Summary</h2>
+    <table class="reject">
+      <thead><tr><th>#</th><th>Idea</th><th>Reason Rejected</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>neon-serverless Pool for transactions</td><td>Heavy infra; per-row upsert achieves durability without it (parent ideation)</td></tr>
+        <tr><td>2</td><td>UNIQUE index migration on stable_id</td><td>User constraint: no schema changes; SELECT-by-stable_id suffices</td></tr>
+        <tr><td>3</td><td>Redis job queue</td><td>Overkill for local demo bootstrap</td></tr>
+        <tr><td>4</td><td>Commit embeddings to git</td><td>Binary bloat; gitignored JSONL cache is enough</td></tr>
+        <tr><td>5</td><td>Browser MCP audit of /courses/1</td><td>UI audit is valuable but secondary to CLI reconcile before Azure spend</td></tr>
+        <tr><td>6</td><td>Auto-reconcile manifest writes in audit CLI</td><td>Audit must stay read-only; separate <code>--fix-manifest</code> could come later</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Next Steps</h2>
+    <ul>
+      <li><strong>Brainstorm</strong> — <code>/ce-brainstorm docs/ideation/2026-07-03-checkpointed-bootstrap-hardening-ideation.html</code> picking #1–#6 ship set</li>
+      <li><strong>Work</strong> — <code>/ce-work</code> on the unified plan once brainstormed</li>
+      <li><strong>Run</strong> — <code>npm run db:bootstrap:smoke</code> when Azure/VPN available</li>
+    </ul>
+  </section>
+
+  <footer class="composition-signal">Composed 2026-07-03T19:21Z by ce-ideate from <code>docs/ideation/2026-07-03-checkpointed-bootstrap-ideation.html</code> + repo grounding</footer>
+</div>
+</body>
+</html>
