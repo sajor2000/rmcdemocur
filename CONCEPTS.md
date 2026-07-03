@@ -48,3 +48,6 @@ A searchable learning under `docs/solutions/` with YAML frontmatter (`module`, `
 
 ### Implementation plan
 A unified plan under `docs/plans/` with requirements and implementation units. Execution progress comes from git, not checkboxes in the file.
+
+### Compound refresh
+A maintenance pass (`ce-compound-refresh`) that audits existing solution docs against the current codebase and updates or marks stale entries.

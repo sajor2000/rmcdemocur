@@ -4,10 +4,10 @@ Searchable learnings from `/ce-compound`. Each file has YAML frontmatter: `modul
 
 ## Index
 
-| Doc | Type | Summary |
-|-----|------|---------|
-| [logic-errors/bootstrap-resume-false-complete-and-destructive-rerun.md](logic-errors/bootstrap-resume-false-complete-and-destructive-rerun.md) | bug | Smoke/skip-complete false positives, destructive re-seed, atomic bootstrap state |
-| [conventions/ce-artifacts-git-vs-local.md](conventions/ce-artifacts-git-vs-local.md) | convention | What to commit vs keep local for CE skills |
+| Doc | Type | Last refreshed | Summary |
+|-----|------|----------------|---------|
+| [logic-errors/bootstrap-resume-false-complete-and-destructive-rerun.md](logic-errors/bootstrap-resume-false-complete-and-destructive-rerun.md) | bug | 2026-07-03 | Smoke/skip-complete false positives, destructive re-seed, atomic bootstrap state |
+| [conventions/ce-artifacts-git-vs-local.md](conventions/ce-artifacts-git-vs-local.md) | convention | 2026-07-03 | What to commit vs keep local for CE skills |
 
 ## How to search
 

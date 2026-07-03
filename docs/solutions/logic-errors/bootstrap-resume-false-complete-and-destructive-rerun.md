@@ -1,6 +1,7 @@
 ---
 title: Bootstrap resume marked documents complete too early and re-seed wiped pipeline data
 date: 2026-07-03
+last_refreshed: 2026-07-03
 category: logic-errors
 module: Bootstrap
 problem_type: logic_error
@@ -56,7 +57,7 @@ Two commits on `main`:
 - `verifySmoke` loops all documents for the case; GI label checks still run on the faculty doc for case 1.
 - `seedCourse()` runs only when `courseSeeded` is false; fresh seed clears `processedDocumentIds`.
 - Framework progress: `complete: total > 0 && embedded >= total`.
-- `loadBootstrapState`: ENOENT -> default; corrupt JSON or wrong version -> throw (except unknown version falls back to default).
+- `loadBootstrapState`: ENOENT -> default; corrupt JSON -> throw; unknown `version` -> default.
 
 **`959e861` — resume accuracy and durability**
 
@@ -76,7 +77,7 @@ Smoke gate now matches what smoke actually processes. Idempotent seed preserves 
 - When adding a bootstrap phase, ask: **what DB rows must exist before marking this phase done?** Test with partial failure (kill mid-alignment) and re-run audit.
 - Document pipeline status must be **per-chunk**, not per-alignment-row or per-document heuristic.
 - Any destructive seed step needs a **guard flag** (`courseSeeded`, `frameworks.*.complete`) — never unconditional truncate on re-entry.
-- Add unit tests for status derivation edge cases (partial embed, partial align, full complete) — see `__tests__/scripts/process-documents.test.ts`.
+- Add unit tests for status derivation edge cases (partial embed, partial align, full complete) — see `__tests__/scripts/process-documents.test.ts` (uses `alignedChunkCount`, not alignment row count).
 - After code review on bootstrap scripts, run `npm test` and `npm run db:audit-bootstrap` before trusting `--skip-complete`.
 
 ## Related Issues
