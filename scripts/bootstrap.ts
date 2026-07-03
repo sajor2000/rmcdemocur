@@ -24,6 +24,41 @@ function runScript(script: string, args: string[] = []): Promise<void> {
   });
 }
 
+async function verifyGiUsmleLabels(documentId: number): Promise<string[]> {
+  const db = getDb();
+  const giAlignments = await db.execute(sql`
+    SELECT a.framework_id
+    FROM alignments a
+    JOIN chunks c ON c.id = a.chunk_id
+    WHERE c.document_id = ${documentId}
+      AND a.framework = 'usmle'
+      AND a.framework_id LIKE '%gastrointestinal%'
+  `);
+  const giRows = giAlignments.rows as { framework_id: string }[];
+  const errors: string[] = [];
+
+  const hasGiSystem = giRows.some((r) =>
+    r.framework_id.startsWith("usmle:gastrointestinal-system:"),
+  );
+  const hasMislabeledGi = giRows.some(
+    (r) =>
+      r.framework_id.includes("social-sciences") &&
+      r.framework_id.includes("gastrointestinal"),
+  );
+
+  if (giRows.length > 0 && !hasGiSystem) {
+    errors.push(
+      "Case 1 USMLE GI alignments missing usmle:gastrointestinal-system:* prefix",
+    );
+  }
+  if (hasMislabeledGi) {
+    errors.push(
+      "Case 1 has mislabeled usmle:social-sciences:* GI alignments — re-run db:seed-frameworks --force",
+    );
+  }
+  return errors;
+}
+
 async function verifySmoke(caseNumber: number): Promise<string[]> {
   const db = getDb();
   const errors: string[] = [];
@@ -68,32 +103,8 @@ async function verifySmoke(caseNumber: number): Promise<string[]> {
     return errors;
   }
 
-  const giAlignments = await db.execute(sql`
-    SELECT a.framework_id
-    FROM alignments a
-    JOIN chunks c ON c.id = a.chunk_id
-    WHERE c.document_id = ${doc.id}
-      AND a.framework = 'usmle'
-      AND a.framework_id LIKE '%gastrointestinal%'
-  `);
-  const giRows = giAlignments.rows as { framework_id: string }[];
-  const hasGiSystem = giRows.some((r) =>
-    r.framework_id.startsWith("usmle:gastrointestinal-system:"),
-  );
-  const hasMislabeledGi = giRows.some(
-    (r) =>
-      r.framework_id.includes("social-sciences") &&
-      r.framework_id.includes("gastrointestinal"),
-  );
-  if (giRows.length > 0 && !hasGiSystem) {
-    errors.push(
-      "Case 1 USMLE GI alignments missing usmle:gastrointestinal-system:* prefix",
-    );
-  }
-  if (hasMislabeledGi) {
-    errors.push(
-      "Case 1 has mislabeled usmle:social-sciences:* GI alignments — re-run db:seed-frameworks --force",
-    );
+  if (caseNumber === 1) {
+    errors.push(...(await verifyGiUsmleLabels(doc.id)));
   }
 
   return errors;

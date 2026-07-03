@@ -20,12 +20,9 @@
     "db:bootstrap:smoke": "tsx scripts/bootstrap.ts smoke",
     "db:bootstrap:full": "tsx scripts/bootstrap.ts full",
     "db:bootstrap:status": "tsx scripts/bootstrap.ts status",
+    "db:audit-bootstrap": "tsx scripts/audit-bootstrap.ts",
     "db:extract-objectives": "tsx scripts/extract-objectives.ts",
-    "db:realign": "tsx scripts/realign.ts",
-    "db:bootstrap:smoke": "tsx scripts/bootstrap.ts smoke",
-    "db:bootstrap:full": "tsx scripts/bootstrap.ts full",
-    "db:bootstrap:status": "tsx scripts/bootstrap.ts status",
-    "db:audit-bootstrap": "tsx scripts/audit-bootstrap.ts"
+    "db:realign": "tsx scripts/realign.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.5",
