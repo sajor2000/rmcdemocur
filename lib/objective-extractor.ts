@@ -3,6 +3,7 @@ export type ExtractedObjective = {
   ordinal: number;
   sectionHeading: string;
   sourceLineStart: number;
+  sourceExcerpt: string;
   extractionMethod: "regex" | "llm_cleanup";
   confidence: "high" | "medium" | "low";
   eoCode?: string;
@@ -65,9 +66,31 @@ const NOISE_LINE_PATTERNS = [
   /^-+$/,
   /^\d+\s*$/,
   /^Page\s+\d+/i,
+  /^ISBN[:\s]/i,
+  /^Authors?:/i,
+  /^Publisher:/i,
+  /^Additional Information:/i,
+  /^Recommended Materials/i,
+  /^Prerequisites/i,
+  /^Required Materials/i,
+  /^EReserves Information/i,
+  /^Log in with your/i,
+  /^On the main screen/i,
+  /^Select "Install/i,
+  /^https?:\/\//i,
+  /^There are no prerequisites/i,
+  /^Attendance and punctuality/i,
+  /^Students should attempt/i,
+  /^Students should not assume/i,
+  /^Requests for any planned absence/i,
+  /^Students can expect/i,
+  /Illustrated Reviews Series\)/i,
+  /available through (Clinical Key|Access Medicine)/i,
+  /This book is used in multiple courses/i,
+  /development of professional identity as a physician/i,
 ];
 
-const BULLET_PREFIX = /^\s*(?:[-•▪o*]|\d+[.)])\s+/;
+const BULLET_PREFIX = /^\s*(?:[-•▪●o*]|\d+[.)])\s+/;
 const EO_CODE_PATTERN = /\((EO-\d{4})\)\s*$/;
 const VERB_START =
   /^(?:Describe|Explain|Identify|Discuss|Define|Compare|Contrast|List|Name|Demonstrate|Apply|Analyze|Evaluate|Recognize|Interpret|Differentiate|Summarize|Outline|Predict|Calculate|Perform|Develop|Formulate|Integrate|Correlate|Review|Understand|Distinguish|Classify|Relate|Assess|Manage|Treat|Diagnose|Order|Counsel|Educate|Communicate|Document|Prioritize|Select|Recommend|Utilize|Employ|Construct|Draw|Label|Locate|Recall|State|Use|Show|Given|Given\s+a|Given\s+the)/i;
@@ -105,12 +128,19 @@ function cleanObjectiveLine(line: string): string {
   return text;
 }
 
+function isCompleteObjective(text: string): boolean {
+  if (EO_CODE_PATTERN.test(text)) return true;
+  const trimmed = text.trim();
+  return /[.!?)]$/.test(trimmed);
+}
+
 function looksLikeObjective(line: string): boolean {
   const cleaned = cleanObjectiveLine(line);
   if (isNoiseLine(cleaned) || isIntroLine(cleaned)) return false;
+  if (cleaned.length > 800 && !EO_CODE_PATTERN.test(cleaned)) return false;
   if (EO_CODE_PATTERN.test(cleaned)) return cleaned.length >= 20;
+  if (!isCompleteObjective(cleaned)) return false;
   if (VERB_START.test(cleaned)) return cleaned.length >= 15;
-  if (cleaned.length >= 40 && /[.!?]$/.test(cleaned)) return true;
   return false;
 }
 
@@ -178,6 +208,7 @@ function parseObjectiveLines(
   sectionLines: string[],
   sectionHeading: string,
   startLineOffset: number,
+  sourceExcerpt: string,
 ): ExtractedObjective[] {
   const objectives: ExtractedObjective[] = [];
   let buffer: string[] = [];
@@ -197,6 +228,7 @@ function parseObjectiveLines(
       ordinal: objectives.length + 1,
       sectionHeading,
       sourceLineStart: bufferStartLine,
+      sourceExcerpt,
       extractionMethod: "regex",
       confidence: scoreObjective(text),
       eoCode: eoMatch?.[1],
@@ -250,6 +282,7 @@ export function extractObjectivesFromText(text: string): ExtractedObjective[] {
       sectionLines,
       section.heading,
       section.startLine + 1,
+      section.excerpt,
     );
     for (const obj of parsed) {
       all.push({ ...obj, ordinal: all.length + 1 });
@@ -285,10 +318,36 @@ export function needsLlmCleanup(
   const lowCount = objectives.filter((o) => o.confidence === "low").length;
   if (lowCount > 0 && lowCount >= objectives.length * 0.5) return true;
 
-  const hasRunOn = objectives.some((o) => o.text.length > 400);
+  const hasRunOn = objectives.some(
+    (o) =>
+      o.text.length > 400 &&
+      o.confidence !== "high" &&
+      !o.eoCode,
+  );
   if (hasRunOn) return true;
 
   return false;
+}
+
+export function mergeCleanedWithRegex(
+  regex: ExtractedObjective[],
+  cleaned: ExtractedObjective[],
+  reason: "missing" | "messy",
+): ExtractedObjective[] {
+  const llmItems = cleaned.filter((o) => o.extractionMethod === "llm_cleanup");
+  if (llmItems.length === 0) return regex;
+
+  if (reason === "missing") {
+    return dedupeObjectives([...regex, ...llmItems]);
+  }
+
+  const llmKeys = new Set(llmItems.map((o) => normalizeForMatch(o.text)));
+  const keptRegex = regex.filter((o) => {
+    if (o.confidence === "high" || o.eoCode) return true;
+    if (o.confidence === "low") return false;
+    return !llmKeys.has(normalizeForMatch(o.text));
+  });
+  return dedupeObjectives([...keptRegex, ...llmItems]);
 }
 
 export function getSourceExcerptForCleanup(

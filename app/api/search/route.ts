@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { generateEmbedding, synthesizeSearchAnswer } from "@/lib/azure-ai";
+import {
+  checkRateLimit,
+  clientRateLimitKey,
+} from "@/lib/rate-limit";
 import { searchChunks } from "@/lib/queries";
 
 const bodySchema = z.object({
@@ -9,6 +13,11 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const rateKey = clientRateLimitKey(request, "search");
+  if (!checkRateLimit(rateKey, 30, 60_000)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   try {
     const { query, courseId } = bodySchema.parse(await request.json());
     const embedding = await generateEmbedding(query);

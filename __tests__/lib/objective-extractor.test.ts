@@ -3,6 +3,7 @@ import {
   dedupeObjectives,
   extractObjectivesFromText,
   findObjectiveSections,
+  mergeCleanedWithRegex,
   needsLlmCleanup,
 } from "@/lib/objective-extractor";
 import { validateCleanedObjectives } from "@/lib/objective-cleanup";
@@ -48,6 +49,7 @@ describe("objective-extractor", () => {
         ordinal: 1,
         sectionHeading: "Learning Objectives",
         sourceLineStart: 0,
+        sourceExcerpt: "Learning Objectives",
         extractionMethod: "regex" as const,
         confidence: "high" as const,
       },
@@ -56,11 +58,29 @@ describe("objective-extractor", () => {
         ordinal: 2,
         sectionHeading: "Learning Objectives",
         sourceLineStart: 1,
+        sourceExcerpt: "Learning Objectives",
         extractionMethod: "regex" as const,
         confidence: "high" as const,
       },
     ];
     expect(dedupeObjectives(duped)).toHaveLength(1);
+  });
+
+  it("does not flag LLM cleanup for long high-confidence EO objectives", () => {
+    const longEo: Parameters<typeof needsLlmCleanup>[0] = [
+      {
+        text: "Identify the abdominal viscera of the foregut (i.e., stomach, duodenum, liver, pancreas, gallbladder, and spleen), describe their internal and external features, describe their relationships to adjacent structures, explain their major functional roles, and name their arterial supply and venous drainage. (EO-0052)",
+        ordinal: 1,
+        sectionHeading: "Case Specific Objectives",
+        sourceLineStart: 0,
+        sourceExcerpt: "Case Specific Objectives",
+        extractionMethod: "regex",
+        confidence: "high",
+        eoCode: "EO-0052",
+      },
+    ];
+    const sections = findObjectiveSections(fixture);
+    expect(needsLlmCleanup(longEo, sections)).toBe(false);
   });
 
   it("flags LLM cleanup when section found but no objectives", () => {
@@ -71,6 +91,65 @@ describe("objective-extractor", () => {
     expect(sections.length).toBeGreaterThan(0);
     expect(objectives.length).toBe(0);
     expect(needsLlmCleanup(objectives, sections)).toBe(true);
+  });
+
+  it("filters bibliography noise from objectives", () => {
+    const text = `Learning Objectives:
+
+Describe the role of nutrition in health.
+
+ISBN: 9780323680424
+Authors: Frank H. Netter
+Publisher: Elsevier
+
+Explain how macronutrients are metabolized.`;
+
+    const objectives = extractObjectivesFromText(text);
+    expect(objectives).toHaveLength(2);
+    expect(objectives.every((o) => !/ISBN|Authors|Publisher/i.test(o.text))).toBe(true);
+  });
+});
+
+describe("mergeCleanedWithRegex", () => {
+  const base = (overrides: Partial<Parameters<typeof mergeCleanedWithRegex>[0][0]>) => ({
+    text: "Describe the liver.",
+    ordinal: 1,
+    sectionHeading: "Learning Objectives",
+    sourceLineStart: 0,
+    sourceExcerpt: "Learning Objectives",
+    extractionMethod: "regex" as const,
+    confidence: "medium" as const,
+    ...overrides,
+  });
+
+  it("keeps regex objectives when LLM adds missing ones", () => {
+    const regex = [base({ confidence: "high" })];
+    const cleaned = [
+      {
+        ...base({ text: "Explain pancreatic function." }),
+        extractionMethod: "llm_cleanup" as const,
+        confidence: "high" as const,
+      },
+    ];
+    const merged = mergeCleanedWithRegex(regex, cleaned, "missing");
+    expect(merged).toHaveLength(2);
+  });
+
+  it("drops low-confidence regex when LLM cleanup runs for messy output", () => {
+    const regex = [
+      base({ confidence: "low", text: "Describe the liver and pancreas and spleen and kidneys and gallbladder in one run-on sentence that keeps going." }),
+      base({ confidence: "high", text: "Identify foregut structures. (EO-0052)", eoCode: "EO-0052" }),
+    ];
+    const cleaned = [
+      {
+        ...base({ text: "Describe the liver." }),
+        extractionMethod: "llm_cleanup" as const,
+        confidence: "high" as const,
+      },
+    ];
+    const merged = mergeCleanedWithRegex(regex, cleaned, "messy");
+    expect(merged.some((o) => o.eoCode === "EO-0052")).toBe(true);
+    expect(merged.some((o) => o.confidence === "low")).toBe(false);
   });
 });
 
@@ -84,9 +163,9 @@ describe("objective-cleanup validation", () => {
     expect(valid).toHaveLength(1);
   });
 
-  it("rejects fabricated objectives not in source", () => {
+  it("rejects paraphrased objectives not verbatim in source", () => {
     const valid = validateCleanedObjectives(
-      ["Perform open-heart surgery without supervision."],
+      ["Describe mucosal immune components in general terms."],
       fixture,
     );
     expect(valid).toHaveLength(0);

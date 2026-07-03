@@ -1,6 +1,5 @@
 import { Sidebar } from "@/components/layout/Sidebar";
 import { getCourseWithDocuments } from "@/lib/queries";
-import { DEMO_CASES } from "@/lib/demo-data";
 
 type CaseItem = {
   id: number;
@@ -16,38 +15,23 @@ export default async function CourseLayout({
   children: React.ReactNode;
   params: { courseId: string };
 }) {
-  let course = {
-    id: 1,
+  const courseId = Number(params.courseId);
+  const data = await getCourseWithDocuments(courseId).catch(() => null);
+
+  const course = data?.course ?? {
+    id: courseId,
     code: "RMD 563",
     title: "Food to Fuel",
-    director: "Dr. Kathryn Solka, PhD",
+    director: "",
   };
-  let docs: CaseItem[] = DEMO_CASES.map((c) => ({
-    id: c.id,
-    caseNumber: c.caseNumber,
-    caseTitle: c.caseTitle,
-    diagnosis: c.diagnosis,
-  }));
 
-  try {
-    const data = await getCourseWithDocuments(Number(params.courseId));
-    if (data.course) {
-      course = {
-        id: data.course.id,
-        code: data.course.code,
-        title: data.course.title,
-        director: data.course.director ?? "",
-      };
-      docs = data.documents.map((d) => ({
-        id: d.id,
-        caseNumber: d.caseNumber ?? 0,
-        caseTitle: d.caseTitle,
-        diagnosis: d.diagnosis,
-      }));
-    }
-  } catch {
-    // Demo fallback without DATABASE_URL
-  }
+  const docs: CaseItem[] =
+    data?.documents.map((d) => ({
+      id: d.id,
+      caseNumber: d.caseNumber ?? 0,
+      caseTitle: d.caseTitle,
+      diagnosis: d.diagnosis,
+    })) ?? [];
 
   return (
     <div className="flex min-h-[calc(100vh-8rem)]">
@@ -55,7 +39,7 @@ export default async function CourseLayout({
         courseId={course.id}
         courseCode={course.code}
         courseTitle={course.title}
-        director={course.director}
+        director={course.director ?? ""}
         cases={docs}
       />
       <div className="flex-1 overflow-auto p-6">{children}</div>

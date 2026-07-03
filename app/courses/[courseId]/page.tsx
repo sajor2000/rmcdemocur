@@ -5,34 +5,38 @@ import {
   MetricCard,
 } from "@/components/dashboard/MetricCard";
 import { getCourseSummary } from "@/lib/queries";
-import { DEMO_SUMMARY } from "@/lib/demo-data";
 
 export default async function CourseDashboardPage({
   params,
 }: {
   params: { courseId: string };
 }) {
-  let summary = null;
-  try {
-    summary = await getCourseSummary(Number(params.courseId));
-  } catch {
-    summary = null;
+  const courseId = Number(params.courseId);
+  const summary = await getCourseSummary(courseId).catch(() => null);
+
+  if (!summary?.course) {
+    return (
+      <div className="space-y-4 rounded-lg border border-dashed p-8 text-center">
+        <h1 className="font-heading text-2xl font-bold">Course Dashboard</h1>
+        <p className="text-rush-medium">
+          No course data found. Run the bootstrap chain to seed Neon and process
+          documents:
+        </p>
+        <pre className="mx-auto max-w-lg rounded bg-gray-50 p-4 text-left text-xs">
+          npm run db:push{"\n"}
+          npm run db:seed-frameworks{"\n"}
+          npm run db:seed{"\n"}
+          npm run db:process
+        </pre>
+      </div>
+    );
   }
 
-  const metrics = summary?.metrics ?? DEMO_SUMMARY.metrics;
-  const aamcData =
-    summary?.aamcDomainCoverage?.length
-      ? summary.aamcDomainCoverage.map((d) => ({
-          domain: d.domain.replace("Interpersonal & Communication Skills", "ICS").slice(0, 18),
-          percent: d.percent,
-        }))
-      : DEMO_SUMMARY.aamcDomainCoverage.map((d) => ({
-          domain: d.domain.slice(0, 18),
-          percent: d.percent,
-        }));
-
-  const heatmap = summary?.heatmap ?? [];
-  const alignments = summary?.recentAlignments ?? [];
+  const { metrics, aamcDomainCoverage, heatmap, recentAlignments } = summary;
+  const aamcData = aamcDomainCoverage.map((d) => ({
+    domain: d.domain.replace("Interpersonal & Communication Skills", "ICS").slice(0, 18),
+    percent: d.percent,
+  }));
 
   const domains = [
     "Gastrointestinal",
@@ -49,11 +53,21 @@ export default async function CourseDashboardPage({
     "Pathology",
   ];
 
+  const caseNumbers = Array.from(
+    new Set(
+      summary.documents
+        .map((d) => d.caseNumber)
+        .filter((n): n is number => n != null),
+    ),
+  ).sort((a, b) => a - b);
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-bold">Course Dashboard</h1>
-        <p className="text-rush-medium">Alignment health for RMD 563</p>
+        <p className="text-rush-medium">
+          Alignment health for {summary.course.code}
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -82,13 +96,13 @@ export default async function CourseDashboardPage({
             domainId: h.domainId,
             status: h.status,
           }))}
-          cases={[1, 2, 3, 4]}
+          cases={caseNumbers.length ? caseNumbers : [1]}
           domains={domains}
         />
       </div>
 
       <AlignmentTable
-        rows={alignments.map((a) => ({
+        rows={recentAlignments.map((a) => ({
           id: a.id,
           excerpt: a.excerpt,
           framework: a.framework,

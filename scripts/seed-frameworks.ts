@@ -15,7 +15,7 @@ const FRAMEWORKS_DIR = path.join(process.cwd(), "data/frameworks");
 const PARSED_DIR = path.join(FRAMEWORKS_DIR, "parsed");
 const USMLE_STABLE_ID_MAX = 120;
 
-function assertUsmleStableIdLengths(
+export function assertUsmleStableIdLengths(
   rows: { stableId: string; parentStableId: string | null }[],
 ) {
   for (let i = 0; i < rows.length; i++) {
@@ -36,15 +36,31 @@ function assertUsmleStableIdLengths(
   }
 }
 
+function hasAzureEmbeddingConfig(): boolean {
+  return (
+    Boolean(process.env.AZURE_OPENAI_ENDPOINT) &&
+    Boolean(process.env.AZURE_OPENAI_API_KEY) &&
+    Boolean(process.env.AZURE_OPENAI_DEPLOYMENT_EMBED)
+  );
+}
+
+function requireAzureForEmbeddings(skipEmbeddings?: boolean) {
+  if (skipEmbeddings) return;
+  if (!hasAzureEmbeddingConfig()) {
+    throw new Error(
+      "Azure OpenAI embedding credentials are required for db:seed-frameworks. " +
+        "Set AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, and AZURE_OPENAI_DEPLOYMENT_EMBED, " +
+        "or pass --skip-embeddings for a metadata-only seed.",
+    );
+  }
+}
+
 async function embedBatch(
   texts: string[],
   batchSize = 10,
 ): Promise<(number[] | null)[]> {
   const results: (number[] | null)[] = [];
-  const hasAzure =
-    Boolean(process.env.AZURE_OPENAI_ENDPOINT) &&
-    Boolean(process.env.AZURE_OPENAI_API_KEY) &&
-    Boolean(process.env.AZURE_OPENAI_DEPLOYMENT_EMBED);
+  const hasAzure = hasAzureEmbeddingConfig();
 
   for (let i = 0; i < texts.length; i += batchSize) {
     const batch = texts.slice(i, i + batchSize);
@@ -66,10 +82,13 @@ async function embedBatch(
 }
 
 export async function seedFrameworks(options?: { skipEmbeddings?: boolean }) {
+  requireAzureForEmbeddings(options?.skipEmbeddings);
+
   const db = getDb();
   await db.execute(sql`CREATE EXTENSION IF NOT EXISTS vector`);
 
   const bundle = await parseAllFrameworkSources(FRAMEWORKS_DIR);
+  assertUsmleStableIdLengths(bundle.usmle);
 
   await fs.mkdir(PARSED_DIR, { recursive: true });
   await fs.writeFile(
@@ -85,15 +104,26 @@ export async function seedFrameworks(options?: { skipEmbeddings?: boolean }) {
     JSON.stringify(bundle.aamcCompetencies, null, 2),
   );
 
-  await db.delete(aamcKeywords);
-  await db.delete(aamcCompetencies);
-  await db.delete(usmleDomains);
-
-  assertUsmleStableIdLengths(bundle.usmle);
-
   const usmleEmbeddings = options?.skipEmbeddings
     ? bundle.usmle.map(() => null)
     : await embedBatch(bundle.usmle.map((r) => r.fullText || r.domain));
+
+  const aamcEmbeddings = options?.skipEmbeddings
+    ? bundle.aamcCompetencies.map(() => null)
+    : await embedBatch(bundle.aamcCompetencies.map((r) => r.fullText));
+
+  const kwEmbeddings = options?.skipEmbeddings
+    ? bundle.aamcKeywords.map(() => null)
+    : await embedBatch(
+        bundle.aamcKeywords.map(
+          (k) => `${k.keyword}. ${k.definition}`.slice(0, 8000),
+        ),
+      );
+
+  // Wipe only after parse + embeddings succeed so a mid-run failure keeps prior catalog.
+  await db.delete(aamcKeywords);
+  await db.delete(aamcCompetencies);
+  await db.delete(usmleDomains);
 
   for (let i = 0; i < bundle.usmle.length; i++) {
     const row = bundle.usmle[i];
@@ -110,10 +140,6 @@ export async function seedFrameworks(options?: { skipEmbeddings?: boolean }) {
     });
   }
 
-  const aamcEmbeddings = options?.skipEmbeddings
-    ? bundle.aamcCompetencies.map(() => null)
-    : await embedBatch(bundle.aamcCompetencies.map((r) => r.fullText));
-
   for (let i = 0; i < bundle.aamcCompetencies.length; i++) {
     const row = bundle.aamcCompetencies[i];
     await db.insert(aamcCompetencies).values({
@@ -128,14 +154,6 @@ export async function seedFrameworks(options?: { skipEmbeddings?: boolean }) {
       embedding: aamcEmbeddings[i] ?? undefined,
     });
   }
-
-  const kwEmbeddings = options?.skipEmbeddings
-    ? bundle.aamcKeywords.map(() => null)
-    : await embedBatch(
-        bundle.aamcKeywords.map(
-          (k) => `${k.keyword}. ${k.definition}`.slice(0, 8000),
-        ),
-      );
 
   for (let i = 0; i < bundle.aamcKeywords.length; i++) {
     const row = bundle.aamcKeywords[i];

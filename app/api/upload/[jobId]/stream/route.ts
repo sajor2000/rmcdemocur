@@ -17,10 +17,10 @@ export async function GET(
         );
       };
 
-      let attempts = 0;
-      const maxAttempts = 120;
+      const pollIntervalMs = 1000;
+      const maxAttempts = 3600;
 
-      while (attempts < maxAttempts) {
+      for (let attempts = 0; attempts < maxAttempts; attempts++) {
         try {
           const db = getDb();
           const [job] = await db
@@ -44,14 +44,12 @@ export async function GET(
             break;
           }
         } catch (error) {
-          send({
-            error: error instanceof Error ? error.message : "Stream error",
-          });
+          console.error(error);
+          send({ error: "Stream error" });
           break;
         }
 
-        await new Promise((r) => setTimeout(r, 1000));
-        attempts++;
+        await new Promise((r) => setTimeout(r, pollIntervalMs));
       }
 
       controller.close();
