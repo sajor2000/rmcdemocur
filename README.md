@@ -61,6 +61,7 @@ npm install
 | `AZURE_OPENAI_DEPLOYMENT_CHAT` | Chat model (default `gpt-4.1`) |
 | `AZURE_OPENAI_DEPLOYMENT_EMBED` | Embedding model (default `text-embedding-3-large`) |
 | `AZURE_OPENAI_EMBEDDING_DIMENSIONS` | Must be `1536` (matches `vector(1536)` schema) |
+| `API_SECRET` | Optional — when set, all `/api/*` routes require `Authorization: Bearer ...` |
 
 ### 2. Framework authority files
 
@@ -179,17 +180,16 @@ docs/plans/           Implementation plans (see docs/README.md)
 
 ## Documentation
 
-- [docs/README.md](docs/README.md) — plan index, implementation status, roadmap
-- [docs/plans/](docs/plans/) — detailed feature and fix plans
-- [docs/ideation/](docs/ideation/) — curriculum map UX ideation artifacts
+| Doc | Description |
+|-----|-------------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Pipeline stages, API routes, module map, data flow |
+| [docs/SCHEMA.md](docs/SCHEMA.md) | Postgres tables, ER diagram, framework ID conventions |
+| [docs/README.md](docs/README.md) | Doc index, bootstrap checklist, plan status |
+| [docs/plans/](docs/plans/) | Implementation plans |
+| [docs/ideation/](docs/ideation/) | Curriculum map UX ideation |
 
 ---
 
 ## Branches
 
-| Branch | Status |
-|--------|--------|
-| `main` | Production line — all merged features |
-| `feat/course-objectives-extraction` | Merged into `main` (objectives explorer + review fixes) |
-
-**Planned (not yet implemented):** Concept Bridge curriculum map (graph + spreadsheet) — see [plan 006](docs/plans/2026-07-03-006-feat-concept-bridge-curriculum-map-plan.md).
+**`main`** is the only active branch. Feature work is merged via pull request.
