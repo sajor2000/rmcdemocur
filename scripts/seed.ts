@@ -1,4 +1,5 @@
 import "./load-env";
+import path from "path";
 import { sql } from "drizzle-orm";
 import {
   alignments,
@@ -113,7 +114,7 @@ const DEMO_DOCUMENTS = [
   },
 ];
 
-async function main() {
+export async function seedCourse(): Promise<void> {
   const db = getDb();
   await db.execute(sql`CREATE EXTENSION IF NOT EXISTS vector`);
 
@@ -155,7 +156,14 @@ async function main() {
   );
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+async function main() {
+  await seedCourse();
+}
+
+const isCli = path.basename(process.argv[1] ?? "") === "seed.ts";
+if (isCli) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
