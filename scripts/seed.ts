@@ -22,8 +22,8 @@ const DEMO_DOCUMENTS = [
     diagnosis: "GERD with gastric ulcer",
   },
   {
-    filename: "RMD563_FacultyGuide_Case2_JessicaDonner.docx",
-    fileType: "docx",
+    filename: "RMD563_FacultyGuide_Case2_JessicaDonner.pdf",
+    fileType: "pdf",
     caseNumber: 2,
     caseTitle: "Jessica Donner",
     diagnosis: "Pediatric GI/nutrition case",

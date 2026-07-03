@@ -16,8 +16,8 @@ export const FACULTY_GUIDES: CurriculumFileMapping[] = [
     caseNumber: 1,
   },
   {
-    source: `${F2F_DIR}/2026.07.02 RMD 563 Faculty Guide 02 Jessica Donner.docx`,
-    dest: "RMD563_FacultyGuide_Case2_JessicaDonner.docx",
+    source: `${F2F_DIR}/2026.07.02 RMD 563 Faculty Guide 02 Jessica Donner.pdf`,
+    dest: "RMD563_FacultyGuide_Case2_JessicaDonner.pdf",
     caseNumber: 2,
   },
   {
