@@ -5,6 +5,13 @@ import { passesDistance, resolveMaxDistance } from "@/lib/retrieval-config";
 
 const DEFAULT_K = 20;
 
+/** Drop candidate rows whose cosine distance exceeds the configured floor
+ * (no-op when the floor is unset). Each row carries a `distance` column. */
+function withinDistanceFloor<T extends { distance?: unknown }>(rows: T[]): T[] {
+  const maxDistance = resolveMaxDistance();
+  return rows.filter((r) => passesDistance(Number(r.distance), maxDistance));
+}
+
 export async function retrieveUsmleCandidates(
   chunkEmbedding: number[],
   k = DEFAULT_K,
@@ -14,7 +21,6 @@ export async function retrieveUsmleCandidates(
   }
   const db = getDb();
   const vec = `[${chunkEmbedding.join(",")}]`;
-  const maxDistance = resolveMaxDistance();
   const rows = await db.execute(sql`
     SELECT stable_id, domain, subdomain, full_text,
            embedding <=> ${vec}::vector AS distance
@@ -24,13 +30,11 @@ export async function retrieveUsmleCandidates(
     LIMIT ${k}
   `);
 
-  return (rows.rows as Record<string, unknown>[])
-    .filter((r) => passesDistance(Number(r.distance), maxDistance))
-    .map((r) => ({
-      stableId: String(r.stable_id),
-      label: `${r.domain}${r.subdomain ? ` — ${r.subdomain}` : ""}`,
-      description: String(r.full_text ?? r.description ?? "").slice(0, 500),
-    }));
+  return withinDistanceFloor(rows.rows as Record<string, unknown>[]).map((r) => ({
+    stableId: String(r.stable_id),
+    label: `${r.domain}${r.subdomain ? ` — ${r.subdomain}` : ""}`,
+    description: String(r.full_text ?? r.description ?? "").slice(0, 500),
+  }));
 }
 
 export async function retrieveAamcCandidates(
@@ -42,7 +46,6 @@ export async function retrieveAamcCandidates(
   }
   const db = getDb();
   const vec = `[${chunkEmbedding.join(",")}]`;
-  const maxDistance = resolveMaxDistance();
   const rows = await db.execute(sql`
     SELECT stable_id, sub_id, domain_name, description, full_text,
            embedding <=> ${vec}::vector AS distance
@@ -52,13 +55,11 @@ export async function retrieveAamcCandidates(
     LIMIT ${k}
   `);
 
-  return (rows.rows as Record<string, unknown>[])
-    .filter((r) => passesDistance(Number(r.distance), maxDistance))
-    .map((r) => ({
-      stableId: String(r.stable_id ?? r.sub_id),
-      label: `${r.sub_id}: ${r.domain_name} — ${r.description}`,
-      description: String(r.full_text ?? r.description ?? "").slice(0, 500),
-    }));
+  return withinDistanceFloor(rows.rows as Record<string, unknown>[]).map((r) => ({
+    stableId: String(r.stable_id ?? r.sub_id),
+    label: `${r.sub_id}: ${r.domain_name} — ${r.description}`,
+    description: String(r.full_text ?? r.description ?? "").slice(0, 500),
+  }));
 }
 
 export async function retrieveKeywordCandidates(
@@ -67,7 +68,6 @@ export async function retrieveKeywordCandidates(
 ): Promise<{ stableId: string; keyword: string; definition: string }[]> {
   const db = getDb();
   const vec = `[${chunkEmbedding.join(",")}]`;
-  const maxDistance = resolveMaxDistance();
   const rows = await db.execute(sql`
     SELECT stable_id, keyword, definition,
            embedding <=> ${vec}::vector AS distance
@@ -77,13 +77,11 @@ export async function retrieveKeywordCandidates(
     LIMIT ${k}
   `);
 
-  return (rows.rows as Record<string, unknown>[])
-    .filter((r) => passesDistance(Number(r.distance), maxDistance))
-    .map((r) => ({
-      stableId: String(r.stable_id),
-      keyword: String(r.keyword),
-      definition: String(r.definition ?? ""),
-    }));
+  return withinDistanceFloor(rows.rows as Record<string, unknown>[]).map((r) => ({
+    stableId: String(r.stable_id),
+    keyword: String(r.keyword),
+    definition: String(r.definition ?? ""),
+  }));
 }
 
 /** Text overlap fallback when framework embeddings are unavailable. */

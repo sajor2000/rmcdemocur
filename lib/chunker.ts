@@ -47,7 +47,7 @@ const HEADING_STOPLIST = new Set([
 const MAX_HEADING_LENGTH = 80;
 // ToC lines ("Heading<TAB>14" / "Heading....14") only count near the document head,
 // so tab-separated table rows deeper in the body (e.g. lab values) survive.
-const TOC_LINE = /(?:\t\s*\d+|\.{2,}\s*\d+)\s*$/;
+export const TOC_LINE = /(?:\t\s*\d+|\.{2,}\s*\d+)\s*$/;
 const TOC_SCAN_LINES = 300;
 const TOC_MIN_RUN = 3;
 
@@ -186,7 +186,7 @@ export function chunkText(
   const seedOverlap = () => {
     // Overlap: seed the next chunk with trailing sentences of the previous one.
     if (overlapTokens <= 0 || !chunks.length) return;
-    const prevUnits = chunks[chunks.length - 1].split(/(?<=[.!?])\s+/);
+    const prevUnits = splitLineIntoSentences(chunks[chunks.length - 1]);
     const carry: string[] = [];
     let carryTokens = 0;
     for (let i = prevUnits.length - 1; i >= 0; i--) {

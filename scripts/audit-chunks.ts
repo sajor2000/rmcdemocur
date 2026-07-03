@@ -14,7 +14,12 @@ import fs from "fs/promises";
 import path from "path";
 import { encode } from "gpt-tokenizer";
 import { parseDocument } from "../lib/document-parser";
-import { splitIntoSections, buildChunksFromDocument } from "../lib/chunker";
+import {
+  splitIntoSections,
+  buildChunksFromDocument,
+  MIN_CHUNK_TOKENS,
+  TOC_LINE,
+} from "../lib/chunker";
 
 const CURRICULUM_DIR = path.join(process.cwd(), "data/curriculum");
 
@@ -32,8 +37,8 @@ const SECTION_COLLAPSE_SHARE = 0.4;
 // Boundary severing is near-zero after U2; the small residual is the unavoidable
 // hard-split of a single sentence that alone exceeds the token budget.
 const MAX_MID_SENTENCE_RATE = 0.1;
-const MIN_CHUNK_TOKENS = 40; // sole-chunk sections are whitelisted (chunker preserves them)
-const TOC_FRAGMENT = /(?:\t\s*\d+|\.{2,}\s*\d+)\s*$/;
+// MIN_CHUNK_TOKENS and TOC_LINE are imported from the chunker so the gate always
+// grades against the same floor/pattern the chunker actually uses.
 
 type DocReport = {
   file: string;
@@ -96,7 +101,7 @@ async function auditFile(filePath: string): Promise<DocReport> {
     const tokens = encode(c.content).length;
     const soleChunkOfBlock = (chunksPerBlock.get(c.blockIndex) ?? 1) === 1;
     if (tokens < MIN_CHUNK_TOKENS && !soleChunkOfBlock) tiny++;
-    if (TOC_FRAGMENT.test(c.content.trim()) && tokens < MIN_CHUNK_TOKENS) tocFragments++;
+    if (TOC_LINE.test(c.content.trim()) && tokens < MIN_CHUNK_TOKENS) tocFragments++;
   }
 
   return {

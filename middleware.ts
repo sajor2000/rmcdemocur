@@ -4,11 +4,14 @@ import {
   AUTH_COOKIE,
   DEFAULT_TOKEN_TTL_SECONDS,
   signToken,
+  tokenSecondsRemaining,
   verifyBearer,
   verifyToken,
 } from "@/lib/api-auth";
 
-const SESSION_SCOPE = "session";
+// Re-issue the session cookie only when it has less than this much life left,
+// so an active browsing session slides forward without re-signing every request.
+const RENEW_WHEN_UNDER_SECONDS = 5 * 60;
 
 export async function middleware(request: NextRequest) {
   const apiSecret = process.env.API_SECRET?.trim();
@@ -17,37 +20,32 @@ export async function middleware(request: NextRequest) {
   if (!apiSecret) return NextResponse.next();
 
   const nowSeconds = Date.now() / 1000;
-  const isApi = request.nextUrl.pathname.startsWith("/api/");
+  const existingCookie = request.cookies.get(AUTH_COOKIE)?.value;
 
-  if (!isApi) {
-    // Page navigation: issue a short-lived signed session cookie so the browser's
-    // subsequent /api/* calls — including EventSource, which cannot send headers —
-    // authenticate automatically on the same origin.
+  if (!request.nextUrl.pathname.startsWith("/api/")) {
+    // Page navigation: ensure the browser holds a fresh signed session cookie so
+    // its subsequent /api/* calls — including EventSource, which cannot send
+    // headers — authenticate automatically on the same origin.
     const response = NextResponse.next();
-    const token = await signToken(apiSecret, SESSION_SCOPE, nowSeconds);
-    response.cookies.set(AUTH_COOKIE, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: DEFAULT_TOKEN_TTL_SECONDS,
-    });
+    if (tokenSecondsRemaining(existingCookie, nowSeconds) < RENEW_WHEN_UNDER_SECONDS) {
+      const token = await signToken(apiSecret, nowSeconds);
+      response.cookies.set(AUTH_COOKIE, token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: DEFAULT_TOKEN_TTL_SECONDS,
+      });
+    }
     return response;
   }
 
-  // /api/*: require a valid credential.
-  // 1. Raw secret bearer (server-to-server).
+  // /api/*: require the raw-secret bearer (server-to-server) or a valid session
+  // cookie (browser fetch + EventSource).
   if (verifyBearer(request.headers.get("authorization"), apiSecret)) {
     return NextResponse.next();
   }
-  // 2. Minted session cookie (browser fetch + EventSource).
-  const cookieToken = request.cookies.get(AUTH_COOKIE)?.value;
-  if (cookieToken && (await verifyToken(cookieToken, apiSecret, nowSeconds, SESSION_SCOPE))) {
-    return NextResponse.next();
-  }
-  // 3. Explicit ?token= query param (per-link access).
-  const queryToken = request.nextUrl.searchParams.get("token");
-  if (queryToken && (await verifyToken(queryToken, apiSecret, nowSeconds, SESSION_SCOPE))) {
+  if (existingCookie && (await verifyToken(existingCookie, apiSecret, nowSeconds))) {
     return NextResponse.next();
   }
 
