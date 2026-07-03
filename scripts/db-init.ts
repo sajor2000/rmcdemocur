@@ -1,4 +1,5 @@
 import "./load-env";
+import path from "path";
 import { neon } from "@neondatabase/serverless";
 
 function directUrl(): string {
@@ -122,7 +123,7 @@ const DDL = [
   )`,
 ];
 
-async function main() {
+export async function pushSchema(): Promise<void> {
   const sql = neon(directUrl());
   for (const statement of DDL) {
     await sql(statement);
@@ -130,7 +131,14 @@ async function main() {
   console.log("Schema ready (pgvector + RushMap tables).");
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+async function main() {
+  await pushSchema();
+}
+
+const isCli = path.basename(process.argv[1] ?? "") === "db-init.ts";
+if (isCli) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

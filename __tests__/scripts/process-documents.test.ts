@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   deriveDocumentPipelineStatus,
   isDocumentPipelineComplete,
+  loadDocumentPipelineStatusMap,
 } from "../../scripts/process-documents";
 
 describe("deriveDocumentPipelineStatus", () => {
@@ -49,5 +50,11 @@ describe("deriveDocumentPipelineStatus", () => {
 describe("isDocumentPipelineComplete", () => {
   it("is exported for bootstrap smoke verification", () => {
     expect(typeof isDocumentPipelineComplete).toBe("function");
+  });
+});
+
+describe("loadDocumentPipelineStatusMap", () => {
+  it("is exported for batch audit queries", () => {
+    expect(typeof loadDocumentPipelineStatusMap).toBe("function");
   });
 });

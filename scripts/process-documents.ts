@@ -13,82 +13,7 @@ import {
 } from "../lib/bootstrap-state";
 import { getDb } from "../lib/db";
 import { runFullPipeline } from "../lib/pipeline";
-
-const F2F = "2026 Curriculum Inventory Project F2F materials";
-
-const MAPPING = [
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Faculty Guide 01 David Tilo.pdf`,
-    dest: "RMD563_FacultyGuide_Case1_DavidTilo.pdf",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Faculty Guide 02 Jessica Donner.docx`,
-    dest: "RMD563_FacultyGuide_Case2_JessicaDonner.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Faculty Guide 03 Marie Hernandez.docx`,
-    dest: "RMD563_FacultyGuide_Case3_MarieHernandez.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Faculty Guide 04 John Jackson.docx`,
-    dest: "RMD563_FacultyGuide_Case4_JohnJackson.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Faculty Guide 05 Evelyn Dixon.docx`,
-    dest: "RMD563_FacultyGuide_Case5_EvelynDixon.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Faculty Guide 06 Andrew Edwards.docx`,
-    dest: "RMD563_FacultyGuide_Case6_AndrewEdwards.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Faculty Guide 07 Gloria Lopez-1.docx`,
-    dest: "RMD563_FacultyGuide_Case7_GloriaLopez.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Self Study Guide 01 David Tilo.docx`,
-    dest: "RMD563_SelfStudyGuide_Case1_DavidTilo.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Self Study Guide 02 Jessica Donner Vignettes.docx`,
-    dest: "RMD563_SelfStudyGuide_Case2_JessicaDonner.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Self Study Guide 03 Marie Hernandez.docx`,
-    dest: "RMD563_SelfStudyGuide_Case3_MarieHernandez.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Self Study Guide 04 John Jackson.docx`,
-    dest: "RMD563_SelfStudyGuide_Case4_JohnJackson.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Self Study Guide 05 Evelyn Dixon.docx`,
-    dest: "RMD563_SelfStudyGuide_Case5_EvelynDixon.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Self Study Guide 06 Andrew Edwards.docx`,
-    dest: "RMD563_SelfStudyGuide_Case6_AndrewEdwards.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Self Study Guide 07 Gloria Lopez-1.docx`,
-    dest: "RMD563_SelfStudyGuide_Case7_GloriaLopez.docx",
-  },
-];
-
-async function ensureCurriculumFiles() {
-  const destDir = path.join(process.cwd(), "data/curriculum");
-  await fs.mkdir(destDir, { recursive: true });
-  for (const { source, dest } of MAPPING) {
-    const srcPath = path.join(process.cwd(), source);
-    const destPath = path.join(destDir, dest);
-    try {
-      await fs.copyFile(srcPath, destPath);
-      console.log(`Copied ${dest}`);
-    } catch {
-      console.warn(`Skip copy (missing): ${source}`);
-    }
-  }
-}
+import { copyCurriculumFiles } from "./curriculum-sources";
 
 function markDocumentProcessed(state: BootstrapState, documentId: number) {
   if (!state.processedDocumentIds.includes(documentId)) {
@@ -116,26 +41,52 @@ export function deriveDocumentPipelineStatus(counts: {
 export async function getDocumentPipelineStatus(
   documentId: number,
 ): Promise<DocumentPipelineStatus> {
+  const map = await loadDocumentPipelineStatusMap([documentId]);
+  return map.get(documentId) ?? "empty";
+}
+
+export async function loadDocumentPipelineStatusMap(
+  documentIds: number[],
+): Promise<Map<number, DocumentPipelineStatus>> {
+  const statusMap = new Map<number, DocumentPipelineStatus>();
+  for (const id of documentIds) {
+    statusMap.set(id, "empty");
+  }
+  if (documentIds.length === 0) return statusMap;
+
   const db = getDb();
   const result = await db.execute(sql`
     SELECT
+      c.document_id,
       COUNT(c.id)::int AS chunk_count,
       COUNT(c.embedding)::int AS chunks_with_embedding,
       COUNT(DISTINCT a.id)::int AS alignment_count
     FROM chunks c
     LEFT JOIN alignments a ON a.chunk_id = c.id
-    WHERE c.document_id = ${documentId}
+    WHERE c.document_id IN (${sql.join(
+      documentIds.map((id) => sql`${id}`),
+      sql`, `,
+    )})
+    GROUP BY c.document_id
   `);
-  const row = result.rows[0] as {
+
+  for (const row of result.rows as {
+    document_id: number;
     chunk_count: number;
     chunks_with_embedding: number;
     alignment_count: number;
-  };
-  return deriveDocumentPipelineStatus({
-    chunkCount: row.chunk_count,
-    chunksWithEmbedding: row.chunks_with_embedding,
-    alignmentCount: row.alignment_count,
-  });
+  }[]) {
+    statusMap.set(
+      row.document_id,
+      deriveDocumentPipelineStatus({
+        chunkCount: row.chunk_count,
+        chunksWithEmbedding: row.chunks_with_embedding,
+        alignmentCount: row.alignment_count,
+      }),
+    );
+  }
+
+  return statusMap;
 }
 
 export async function isDocumentPipelineComplete(documentId: number): Promise<boolean> {
@@ -148,7 +99,7 @@ export async function processDocuments(options?: {
   force?: boolean;
   bootstrapPhase?: BootstrapPhase;
 }) {
-  await ensureCurriculumFiles();
+  await copyCurriculumFiles({ onlyCase: options?.onlyCase ?? null });
   const db = getDb();
   const docs = await db
     .select({
@@ -169,6 +120,13 @@ export async function processDocuments(options?: {
     await saveBootstrapState(state);
   }
 
+  const candidates = docs.filter(
+    (doc) => !options?.onlyCase || doc.caseNumber === options.onlyCase,
+  );
+  const statusMap = options?.skipComplete
+    ? await loadDocumentPipelineStatusMap(candidates.map((doc) => doc.id))
+    : null;
+
   for (const doc of docs) {
     if (options?.onlyCase && doc.caseNumber !== options.onlyCase) continue;
 
@@ -183,7 +141,7 @@ export async function processDocuments(options?: {
     if (
       options?.skipComplete &&
       !options?.force &&
-      (await isDocumentPipelineComplete(doc.id))
+      statusMap?.get(doc.id) === "complete"
     ) {
       console.log(`Skip complete: ${doc.filename}`);
       if (state) {

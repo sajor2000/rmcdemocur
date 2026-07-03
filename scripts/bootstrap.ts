@@ -1,33 +1,71 @@
 import "./load-env";
 import { and, eq, like, sql } from "drizzle-orm";
-import { spawn } from "child_process";
 import { documents } from "../drizzle/schema";
 import {
   loadBootstrapState,
   updateBootstrapState,
 } from "../lib/bootstrap-state";
-import { getDb } from "../lib/db";
-import { seedFrameworks } from "./seed-frameworks";
+import { getDb, type Db } from "../lib/db";
+import { countFrameworkEmbeddings } from "../lib/framework-counts";
+import { pushSchema } from "./db-init";
 import { isDocumentPipelineComplete, processDocuments } from "./process-documents";
+import { seedCourse } from "./seed";
+import { seedFrameworks } from "./seed-frameworks";
 
-function runScript(script: string, args: string[] = []): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn("npx", ["tsx", script, ...args], {
-      cwd: process.cwd(),
-      stdio: "inherit",
-      env: process.env,
-    });
-    child.on("exit", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`${script} exited with code ${code}`));
-    });
-  });
+async function verifyCase1GiUsmleLabels(
+  db: Db,
+  documentId: number,
+): Promise<string[]> {
+  const giAlignments = await db.execute(sql`
+    SELECT a.framework_id
+    FROM alignments a
+    JOIN chunks c ON c.id = a.chunk_id
+    WHERE c.document_id = ${documentId}
+      AND a.framework = 'usmle'
+      AND a.framework_id LIKE '%gastrointestinal%'
+  `);
+  const giRows = giAlignments.rows as { framework_id: string }[];
+  const errors: string[] = [];
+
+  const hasGiSystem = giRows.some((r) =>
+    r.framework_id.startsWith("usmle:gastrointestinal-system:"),
+  );
+  const hasMislabeledGi = giRows.some(
+    (r) =>
+      r.framework_id.includes("social-sciences") &&
+      r.framework_id.includes("gastrointestinal"),
+  );
+
+  if (giRows.length > 0 && !hasGiSystem) {
+    errors.push(
+      "Case 1 USMLE GI alignments missing usmle:gastrointestinal-system:* prefix",
+    );
+  }
+  if (hasMislabeledGi) {
+    errors.push(
+      "Case 1 has mislabeled usmle:social-sciences:* GI alignments — re-run db:seed-frameworks --force",
+    );
+  }
+  return errors;
 }
 
 async function verifySmoke(caseNumber: number): Promise<string[]> {
   const db = getDb();
+  const [state, usmleCount, docRows] = await Promise.all([
+    loadBootstrapState(),
+    countFrameworkEmbeddings("usmle_domains"),
+    db
+      .select({ id: documents.id })
+      .from(documents)
+      .where(
+        and(
+          eq(documents.caseNumber, caseNumber),
+          like(documents.filename, "%FacultyGuide%"),
+        ),
+      )
+      .limit(1),
+  ]);
   const errors: string[] = [];
-  const state = await loadBootstrapState();
 
   for (const key of ["usmle", "aamc"] as const) {
     const progress = state.frameworks[key];
@@ -38,25 +76,12 @@ async function verifySmoke(caseNumber: number): Promise<string[]> {
     }
   }
 
-  const usmleEmbedded = await db.execute(sql`
-    SELECT COUNT(*)::int AS cnt FROM usmle_domains WHERE embedding IS NOT NULL
-  `);
-  const usmleCount = Number((usmleEmbedded.rows[0] as { cnt: number })?.cnt ?? 0);
   const expected = state.frameworks.usmle.total;
   if (expected > 0 && usmleCount < expected * 0.9) {
     errors.push(`Expected USMLE embeddings (got ${usmleCount}/${expected})`);
   }
 
-  const [doc] = await db
-    .select({ id: documents.id })
-    .from(documents)
-    .where(
-      and(
-        eq(documents.caseNumber, caseNumber),
-        like(documents.filename, "%FacultyGuide%"),
-      ),
-    )
-    .limit(1);
+  const doc = docRows[0];
 
   if (!doc) {
     errors.push(`No faculty guide for case ${caseNumber}`);
@@ -68,32 +93,8 @@ async function verifySmoke(caseNumber: number): Promise<string[]> {
     return errors;
   }
 
-  const giAlignments = await db.execute(sql`
-    SELECT a.framework_id
-    FROM alignments a
-    JOIN chunks c ON c.id = a.chunk_id
-    WHERE c.document_id = ${doc.id}
-      AND a.framework = 'usmle'
-      AND a.framework_id LIKE '%gastrointestinal%'
-  `);
-  const giRows = giAlignments.rows as { framework_id: string }[];
-  const hasGiSystem = giRows.some((r) =>
-    r.framework_id.startsWith("usmle:gastrointestinal-system:"),
-  );
-  const hasMislabeledGi = giRows.some(
-    (r) =>
-      r.framework_id.includes("social-sciences") &&
-      r.framework_id.includes("gastrointestinal"),
-  );
-  if (giRows.length > 0 && !hasGiSystem) {
-    errors.push(
-      "Case 1 USMLE GI alignments missing usmle:gastrointestinal-system:* prefix",
-    );
-  }
-  if (hasMislabeledGi) {
-    errors.push(
-      "Case 1 has mislabeled usmle:social-sciences:* GI alignments — re-run db:seed-frameworks --force",
-    );
+  if (caseNumber === 1) {
+    errors.push(...(await verifyCase1GiUsmleLabels(db, doc.id)));
   }
 
   return errors;
@@ -109,13 +110,13 @@ async function smokeBootstrap() {
     state.smokeCaseNumber = caseNumber;
   });
 
-  await runScript("scripts/db-init.ts");
+  await pushSchema();
   await updateBootstrapState({ phase: "frameworks" });
 
   await seedFrameworks({ trackBootstrap: true });
 
   await updateBootstrapState({ phase: "course-seed" });
-  await runScript("scripts/seed.ts");
+  await seedCourse();
   await updateBootstrapState({ phase: "course-seed", courseSeeded: true });
 
   await processDocuments({

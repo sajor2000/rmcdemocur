@@ -3,42 +3,10 @@ import fs from "fs/promises";
 import path from "path";
 import { execSync } from "child_process";
 import { parseAllFrameworkSources } from "../lib/framework-parsers";
+import { copyCurriculumFiles } from "./curriculum-sources";
 
 const FRAMEWORKS_DIR = path.join(process.cwd(), "data/frameworks");
 const PARSED_DIR = path.join(FRAMEWORKS_DIR, "parsed");
-const CURRICULUM_DIR = path.join(process.cwd(), "data/curriculum");
-const F2F = "2026 Curriculum Inventory Project F2F materials";
-
-const CURRICULUM_MAPPING = [
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Faculty Guide 01 David Tilo.pdf`,
-    dest: "RMD563_FacultyGuide_Case1_DavidTilo.pdf",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Faculty Guide 02 Jessica Donner.docx`,
-    dest: "RMD563_FacultyGuide_Case2_JessicaDonner.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Faculty Guide 03 Marie Hernandez.docx`,
-    dest: "RMD563_FacultyGuide_Case3_MarieHernandez.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Faculty Guide 04 John Jackson.docx`,
-    dest: "RMD563_FacultyGuide_Case4_JohnJackson.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Faculty Guide 05 Evelyn Dixon.docx`,
-    dest: "RMD563_FacultyGuide_Case5_EvelynDixon.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Faculty Guide 06 Andrew Edwards.docx`,
-    dest: "RMD563_FacultyGuide_Case6_AndrewEdwards.docx",
-  },
-  {
-    source: `${F2F}/2026.07.02 RMD 563 Faculty Guide 07 Gloria Lopez-1.docx`,
-    dest: "RMD563_FacultyGuide_Case7_GloriaLopez.docx",
-  },
-];
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -63,21 +31,8 @@ function run(cmd: string) {
   execSync(cmd, { stdio: "inherit", cwd: process.cwd(), env: process.env });
 }
 
-async function copyCurriculumFiles() {
-  await fs.mkdir(CURRICULUM_DIR, { recursive: true });
-  let copied = 0;
-  for (const { source, dest } of CURRICULUM_MAPPING) {
-    const srcPath = path.join(process.cwd(), source);
-    const destPath = path.join(CURRICULUM_DIR, dest);
-    try {
-      await fs.copyFile(srcPath, destPath);
-      console.log(`Copied curriculum ${dest}`);
-      copied++;
-    } catch {
-      console.warn(`Skip curriculum copy (missing): ${source}`);
-    }
-  }
-  return copied;
+async function copyCurriculumFilesForSetup() {
+  return copyCurriculumFiles({ includeSelfStudy: false });
 }
 
 async function parseFrameworkArtifacts() {
@@ -131,7 +86,7 @@ async function main() {
     run("npm run copy:frameworks");
 
     console.log("\n=== Copy curriculum faculty guides ===");
-    const curriculumCount = await copyCurriculumFiles();
+    const curriculumCount = await copyCurriculumFilesForSetup();
 
     console.log("\n=== Parse frameworks to JSON ===");
     await parseFrameworkArtifacts();
