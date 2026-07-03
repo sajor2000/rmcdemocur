@@ -17,6 +17,9 @@
     "db:seed-frameworks": "tsx scripts/seed-frameworks.ts",
     "db:seed": "tsx scripts/seed.ts",
     "db:process": "tsx scripts/process-documents.ts",
+    "db:bootstrap:smoke": "tsx scripts/bootstrap.ts smoke",
+    "db:bootstrap:full": "tsx scripts/bootstrap.ts full",
+    "db:bootstrap:status": "tsx scripts/bootstrap.ts status",
     "db:extract-objectives": "tsx scripts/extract-objectives.ts",
     "db:realign": "tsx scripts/realign.ts"
   },
