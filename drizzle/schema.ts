@@ -7,6 +7,9 @@ import {
   timestamp,
   decimal,
   customType,
+  index,
+  primaryKey,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 const vector = customType<{ data: number[]; driverData: string }>({
@@ -146,9 +149,46 @@ export const courseObjectives = pgTable("course_objectives", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
+export const mediaAssets = pgTable("media_assets", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id")
+    .references(() => documents.id)
+    .notNull(),
+  type: varchar("type", { length: 20 }).notNull(),
+  label: text("label").notNull(),
+  section: text("section"),
+  referenceKind: varchar("reference_kind", { length: 30 }).notNull(),
+  hasCaptionInText: boolean("has_caption_in_text").default(false),
+  textForEmbed: text("text_for_embed"),
+  storagePath: text("storage_path"),
+  sourceIndex: integer("source_index"),
+  extractionScope: varchar("extraction_scope", { length: 20 }),
+  videoUrl: text("video_url"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const chunkMedia = pgTable(
+  "chunk_media",
+  {
+    chunkId: integer("chunk_id")
+      .references(() => chunks.id)
+      .notNull(),
+    mediaAssetId: integer("media_asset_id")
+      .references(() => mediaAssets.id)
+      .notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.chunkId, table.mediaAssetId] }),
+    chunkIdIdx: index("chunk_media_chunk_id_idx").on(table.chunkId),
+    mediaAssetIdIdx: index("chunk_media_media_asset_id_idx").on(table.mediaAssetId),
+  }),
+);
+
 export type Course = typeof courses.$inferSelect;
 export type Document = typeof documents.$inferSelect;
 export type Chunk = typeof chunks.$inferSelect;
 export type Alignment = typeof alignments.$inferSelect;
 export type ProcessingJob = typeof processingJobs.$inferSelect;
 export type CourseObjective = typeof courseObjectives.$inferSelect;
+export type MediaAsset = typeof mediaAssets.$inferSelect;
+export type ChunkMedia = typeof chunkMedia.$inferSelect;

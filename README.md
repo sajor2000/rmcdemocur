@@ -151,6 +151,8 @@ Framework binaries live under `data/frameworks/` (see `npm run copy:frameworks`)
 | `npm run db:seed-frameworks` | Parse and seed framework tables |
 | `npm run db:seed` | Seed course + 14 document rows |
 | `npm run db:process` | Copy, parse, embed, align all guides |
+| `npm run db:extract-media` | Extract faculty DOCX embedded images to `data/curriculum/media/` (MVP scope) |
+| `npx tsx scripts/audit-figures.ts --gate` | Figure registry audit before process |
 | `npm run db:realign` | Re-run alignment + gap recompute (no re-embed) |
 | `npm run db:extract-objectives` | Batch objective extraction report |
 

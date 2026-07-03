@@ -13,6 +13,13 @@ import { extractAndCleanObjectives } from "@/lib/objective-cleanup";
 import { alignToFramework, generateEmbedding } from "@/lib/azure-ai";
 import { buildChunksFromDocument } from "@/lib/chunker";
 import { deriveCoverageStatus, recomputeCourseFrameworkGaps } from "@/lib/gap-analyzer";
+import {
+  buildEmbedTextForChunk,
+  clearDocumentMedia,
+  linkDocumentMediaToChunks,
+  linkedMediaIdsForChunk,
+  upsertDocumentMediaAssets,
+} from "@/lib/media-pipeline";
 import { parseDocument } from "@/lib/document-parser";
 import { retrieveKeywordCandidates } from "@/lib/framework-rag";
 import { getDb } from "@/lib/db";
@@ -63,6 +70,7 @@ export async function clearDocumentArtifacts(documentId: number) {
   await db.delete(chunks).where(eq(chunks.documentId, documentId));
   await db.delete(gapSummary).where(eq(gapSummary.documentId, documentId));
   await db.delete(courseObjectives).where(eq(courseObjectives.documentId, documentId));
+  await clearDocumentMedia(documentId);
 }
 
 export async function runFullPipeline(options: {
@@ -105,7 +113,11 @@ export async function runFullPipeline(options: {
     await setStage("extracting_objectives", 22, objMsg);
 
     const [docMeta] = await db
-      .select({ caseTitle: documents.caseTitle })
+      .select({
+        caseTitle: documents.caseTitle,
+        filename: documents.filename,
+        caseNumber: documents.caseNumber,
+      })
       .from(documents)
       .where(eq(documents.id, documentId))
       .limit(1);
@@ -116,13 +128,21 @@ export async function runFullPipeline(options: {
       docMeta?.caseTitle ?? undefined,
     );
 
+    const mediaAssetsForDoc = await upsertDocumentMediaAssets({
+      documentId,
+      filename: docMeta?.filename ?? path.basename(filePath),
+      fileType: parsed.fileType,
+      caseNumber: docMeta?.caseNumber ?? 0,
+      text: parsed.text,
+    });
+
     await setStage("embedding", 40, "Generating embeddings (Azure AI Foundry)...");
     const insertedChunkIds: number[] = [];
     const chunkEmbeddings = new Map<number, number[]>();
+    const insertedChunks: { id: number; content: string; section: string | null }[] = [];
     for (let i = 0; i < built.length; i += BATCH_SIZE) {
       const batch = built.slice(i, i + BATCH_SIZE);
       for (const item of batch) {
-        const embedding = await generateEmbedding(item.embedText);
         const [row] = await db
           .insert(chunks)
           .values({
@@ -130,14 +150,48 @@ export async function runFullPipeline(options: {
             chunkIndex: item.chunkIndex,
             section: item.section,
             content: item.content,
-            embedding,
           })
           .returning({ id: chunks.id });
         insertedChunkIds.push(row.id);
-        chunkEmbeddings.set(row.id, embedding);
+        insertedChunks.push({
+          id: row.id,
+          content: item.content,
+          section: item.section,
+        });
       }
-      const pct = 40 + Math.floor(((i + batch.length) / built.length) * 25);
-      await setStage("embedding", pct, `Generating embeddings (${Math.min(i + batch.length, built.length)}/${built.length})...`);
+      const pct = 40 + Math.floor(((i + batch.length) / built.length) * 10);
+      await setStage("embedding", pct, `Prepared chunks (${Math.min(i + batch.length, built.length)}/${built.length})...`);
+    }
+
+    const { assets: linkedAssets, links } = await linkDocumentMediaToChunks({
+      documentId,
+      chunks: insertedChunks,
+    });
+
+    for (let i = 0; i < built.length; i += BATCH_SIZE) {
+      const batch = built.slice(i, i + BATCH_SIZE);
+      for (let j = 0; j < batch.length; j++) {
+        const item = batch[j];
+        const chunkId = insertedChunkIds[i + j];
+        const embedInput = buildEmbedTextForChunk(
+          item.content,
+          item.embedText,
+          linkedAssets.length ? linkedAssets : mediaAssetsForDoc,
+          linkedMediaIdsForChunk(chunkId, links),
+        );
+        const embedding = await generateEmbedding(embedInput);
+        await db
+          .update(chunks)
+          .set({ embedding })
+          .where(eq(chunks.id, chunkId));
+        chunkEmbeddings.set(chunkId, embedding);
+      }
+      const pct = 50 + Math.floor(((i + batch.length) / built.length) * 15);
+      await setStage(
+        "embedding",
+        pct,
+        `Generating embeddings (${Math.min(i + batch.length, built.length)}/${built.length})...`,
+      );
     }
 
     await setStage("aligning", 70, "Running alignment analysis against AAMC PCRS...");

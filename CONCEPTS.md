@@ -10,6 +10,12 @@ A faculty guide or self-study guide ingested for one case (1–7). Stored in the
 ### Chunk
 A text segment of a document after parsing and chunking. Embeddings and alignments attach at chunk granularity — document-level status is derived from chunk coverage.
 
+### Media asset
+A figure or video referenced by a curriculum document. Stored in `media_assets` with label, optional file path, and optional `text_for_embed` for search/alignment. Pixels are served for display; only text is embedded.
+
+### Figure registry
+The set of parsed figure/video labels extracted from document text (e.g. `Answer Image:`, `Figure 1A`) plus extraction status, used by audit and map linking.
+
 ### Alignment
 A link between a chunk and a framework node (USMLE domain, AAMC competency, or keyword). A document is not complete until every chunk is embedded and every chunk has at least one alignment.
 

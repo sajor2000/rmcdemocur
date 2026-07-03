@@ -2,11 +2,13 @@ import { sql, eq, desc, and } from "drizzle-orm";
 import {
   alignments,
   aamcCompetencies,
+  chunkMedia,
   chunks,
   courseObjectives,
   courses,
   documents,
   gapSummary,
+  mediaAssets,
   usmleDomains,
 } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
@@ -189,10 +191,47 @@ export async function getMapData(courseId: number) {
     .innerJoin(documents, eq(documents.id, chunks.documentId))
     .where(eq(documents.courseId, courseId));
 
+  const mediaLinkRows = await db
+    .select({
+      chunkId: chunkMedia.chunkId,
+      mediaAssetId: chunkMedia.mediaAssetId,
+      asset: mediaAssets,
+    })
+    .from(chunkMedia)
+    .innerJoin(mediaAssets, eq(mediaAssets.id, chunkMedia.mediaAssetId))
+    .innerJoin(chunks, eq(chunks.id, chunkMedia.chunkId))
+    .innerJoin(documents, eq(documents.id, chunks.documentId))
+    .where(eq(documents.courseId, courseId));
+
+  const mediaByChunkId: Record<
+    number,
+    {
+      id: number;
+      label: string;
+      textForEmbed: string | null;
+      storagePath: string | null;
+      hasCaptionInText: boolean | null;
+      referenceKind: string;
+    }[]
+  > = {};
+
+  for (const row of mediaLinkRows) {
+    const list = mediaByChunkId[row.chunkId] ?? [];
+    list.push({
+      id: row.asset.id,
+      label: row.asset.label,
+      textForEmbed: row.asset.textForEmbed,
+      storagePath: row.asset.storagePath,
+      hasCaptionInText: row.asset.hasCaptionInText,
+      referenceKind: row.asset.referenceKind,
+    });
+    mediaByChunkId[row.chunkId] = list;
+  }
+
   const aamc = await db.select().from(aamcCompetencies);
   const usmle = await db.select().from(usmleDomains);
 
-  return { documents: docs, chunks: chunkRows, alignments: alignmentRows, aamc, usmle };
+  return { documents: docs, chunks: chunkRows, alignments: alignmentRows, mediaByChunkId, aamc, usmle };
 }
 
 export async function searchChunks(courseId: number, queryEmbedding: number[], limit = 5) {

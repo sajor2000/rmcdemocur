@@ -22,11 +22,18 @@ vi.mock("@/lib/gap-analyzer", () => ({
   recomputeCourseFrameworkGaps: vi.fn(),
   recomputeGapSummary: vi.fn(),
 }));
+vi.mock("@/lib/media-pipeline", () => ({
+  clearDocumentMedia: vi.fn().mockResolvedValue(undefined),
+  upsertDocumentMediaAssets: vi.fn().mockResolvedValue([]),
+  linkDocumentMediaToChunks: vi.fn().mockResolvedValue({ assets: [], links: [] }),
+  buildEmbedTextForChunk: (_content: string, embedText: string) => embedText,
+  linkedMediaIdsForChunk: () => new Set<number>(),
+}));
 
 const dbMocks = vi.hoisted(() => {
   let selectQueue: unknown[][] = [
     [],
-    [{ caseTitle: "Marie Hernandez" }],
+    [{ caseTitle: "Marie Hernandez", filename: "RMD563_FacultyGuide_Case3_MarieHernandez.docx", caseNumber: 3 }],
     [{ id: 1, chunkIndex: 0, section: "Rationale:", content: "Short rationale content for embedding.", embedding: [0.1] }],
     [{ courseId: 1 }],
     [{ count: 0 }],
@@ -57,6 +64,8 @@ const dbMocks = vi.hoisted(() => {
   });
   const select = vi.fn(() => ({ from }));
 
+  const updateSet = vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) }));
+  const update = vi.fn(() => ({ set: updateSet }));
   const deleteWhere = vi.fn().mockResolvedValue(undefined);
   const deleteFn = vi.fn(() => ({ where: deleteWhere }));
 
@@ -64,12 +73,13 @@ const dbMocks = vi.hoisted(() => {
     select,
     insert,
     delete: deleteFn,
+    update,
     execute: vi.fn().mockResolvedValue({ rows: [] }),
     reset() {
       selectIndex = 0;
       selectQueue = [
         [],
-        [{ caseTitle: "Marie Hernandez" }],
+        [{ caseTitle: "Marie Hernandez", filename: "RMD563_FacultyGuide_Case3_MarieHernandez.docx", caseNumber: 3 }],
         [{ id: 1, chunkIndex: 0, section: "Rationale:", content: "Short rationale content for embedding.", embedding: [0.1] }],
         [{ courseId: 1 }],
         [{ count: 0 }],

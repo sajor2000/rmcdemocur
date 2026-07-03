@@ -18,9 +18,19 @@ type Alignment = {
   status: string | null;
 };
 
+type MediaAssetPreview = {
+  id: number;
+  label: string;
+  textForEmbed: string | null;
+  storagePath: string | null;
+  hasCaptionInText: boolean | null;
+  referenceKind: string;
+};
+
 type Props = {
   alignment: Alignment | null;
   excerpt: string;
+  linkedMedia?: MediaAssetPreview[];
   onClose: () => void;
   onApprove: (id: number, status: "approved" | "rejected") => void;
 };
@@ -28,6 +38,7 @@ type Props = {
 export function AlignmentDrawer({
   alignment,
   excerpt,
+  linkedMedia = [],
   onClose,
   onApprove,
 }: Props) {
@@ -51,6 +62,41 @@ export function AlignmentDrawer({
               </p>
               <p className="text-sm">{alignment.rationale}</p>
             </div>
+            {linkedMedia.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase text-rush-medium">
+                  Linked figures
+                </p>
+                <div className="space-y-3">
+                  {linkedMedia.map((media) => (
+                    <div key={media.id} className="rounded border p-2">
+                      <div className="mb-1 flex items-center gap-2">
+                        <p className="text-sm font-medium">{media.label}</p>
+                        {!media.hasCaptionInText && (
+                          <Badge variant="outline">image only</Badge>
+                        )}
+                      </div>
+                      {media.storagePath ? (
+                        <img
+                          src={`/api/media/${media.id}`}
+                          alt={media.label}
+                          className="max-h-48 rounded border object-contain"
+                        />
+                      ) : (
+                        <p className="text-xs text-rush-medium">
+                          Caption available in text; image file not extracted (PDF or pending extract).
+                        </p>
+                      )}
+                      {media.textForEmbed && (
+                        <p className="mt-2 text-xs text-rush-medium">
+                          {media.textForEmbed.slice(0, 240)}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <Badge
               className={confidenceBadgeClass(Number(alignment.confidence ?? 0))}
             >
