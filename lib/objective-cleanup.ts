@@ -1,22 +1,12 @@
+import { getAzureClient } from "@/lib/azure-ai";
 import type { ExtractedObjective } from "@/lib/objective-extractor";
-import OpenAI from "openai";
-
-function getAzureClient(deployment: string) {
-  const endpoint = process.env.AZURE_OPENAI_ENDPOINT?.replace(/\/$/, "");
-  const apiKey = process.env.AZURE_OPENAI_API_KEY;
-  const apiVersion = process.env.AZURE_OPENAI_API_VERSION ?? "2024-12-01-preview";
-
-  if (!endpoint || !apiKey) {
-    throw new Error("Azure OpenAI credentials are not configured");
-  }
-
-  return new OpenAI({
-    apiKey,
-    baseURL: `${endpoint}/openai/deployments/${deployment}`,
-    defaultQuery: { "api-version": apiVersion },
-    defaultHeaders: { "api-key": apiKey },
-  });
-}
+import {
+  dedupeObjectives,
+  extractObjectivesFromText,
+  findObjectiveSections,
+  getSourceExcerptForCleanup,
+  needsLlmCleanup,
+} from "@/lib/objective-extractor";
 
 function normalizeForMatch(text: string): string {
   return text.replace(/\s+/g, " ").trim().toLowerCase();
@@ -142,13 +132,6 @@ export async function extractAndCleanObjectives(text: string): Promise<{
   sectionsFound: number;
   llmUsed: boolean;
 }> {
-  const {
-    extractObjectivesFromText,
-    findObjectiveSections,
-    needsLlmCleanup,
-    getSourceExcerptForCleanup,
-  } = await import("@/lib/objective-extractor");
-
   const sections = findObjectiveSections(text);
   let objectives = extractObjectivesFromText(text);
   let llmUsed = false;
@@ -157,13 +140,16 @@ export async function extractAndCleanObjectives(text: string): Promise<{
     try {
       const sourceExcerpt = getSourceExcerptForCleanup(sections);
       const reason = objectives.length === 0 ? "missing" : "messy";
+      const regexSnapshot = objectives;
       const cleaned = await cleanupObjectivesWithLlm({
         sourceExcerpt,
-        regexCandidates: objectives,
+        regexCandidates: regexSnapshot,
         reason,
       });
-      if (cleaned.length > 0) {
-        objectives = cleaned;
+      const llmCleaned = cleaned.some((o) => o.extractionMethod === "llm_cleanup");
+      if (llmCleaned) {
+        const highConfidenceRegex = regexSnapshot.filter((o) => o.confidence === "high");
+        objectives = dedupeObjectives([...highConfidenceRegex, ...cleaned]);
         llmUsed = true;
       }
     } catch {

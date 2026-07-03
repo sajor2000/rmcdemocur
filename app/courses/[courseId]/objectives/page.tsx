@@ -1,6 +1,5 @@
 import { ObjectivesExplorer, type ObjectiveRow, type ObjectivesSummary } from "@/components/objectives/ObjectivesExplorer";
 import { getCourseObjectivesSummary } from "@/lib/queries";
-import { DEMO_OBJECTIVES } from "@/lib/demo-data";
 
 export default async function ObjectivesPage({
   params,
@@ -8,13 +7,19 @@ export default async function ObjectivesPage({
   params: { courseId: string };
 }) {
   const courseId = Number(params.courseId);
-  let objectives: ObjectiveRow[] = DEMO_OBJECTIVES.objectives;
-  let summary: ObjectivesSummary = {
-    total: DEMO_OBJECTIVES.total,
-    regexCount: DEMO_OBJECTIVES.regexCount,
-    llmCount: DEMO_OBJECTIVES.llmCount,
-    byCase: DEMO_OBJECTIVES.byCase,
-  };
+  if (!Number.isFinite(courseId) || courseId <= 0) {
+    return (
+      <div className="rounded-lg bg-white p-6 shadow-sm">
+        <h1 className="font-heading text-2xl font-bold text-rush-dark">
+          Learning Objectives
+        </h1>
+        <p className="mt-4 text-red-700">Invalid course id.</p>
+      </div>
+    );
+  }
+
+  let objectives: ObjectiveRow[];
+  let summary: ObjectivesSummary;
 
   try {
     const data = await getCourseObjectivesSummary(courseId);
@@ -36,8 +41,19 @@ export default async function ObjectivesPage({
       llmCount: data.llmCount,
       byCase: data.byCase,
     };
-  } catch {
-    // demo fallback
+  } catch (error) {
+    console.error(error);
+    return (
+      <div className="rounded-lg bg-white p-6 shadow-sm">
+        <h1 className="font-heading text-2xl font-bold text-rush-dark">
+          Learning Objectives
+        </h1>
+        <p className="mt-4 text-red-700">
+          Failed to load objectives. Check database connection and run seed + process
+          scripts.
+        </p>
+      </div>
+    );
   }
 
   return (

@@ -7,7 +7,7 @@ import {
 } from "@/lib/framework-catalog";
 import { resolveFrameworkCandidates } from "@/lib/framework-rag";
 
-function getAzureClient(deployment: string) {
+export function getAzureClient(deployment: string) {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT?.replace(/\/$/, "");
   const apiKey = process.env.AZURE_OPENAI_API_KEY;
   const apiVersion = process.env.AZURE_OPENAI_API_VERSION ?? "2024-12-01-preview";

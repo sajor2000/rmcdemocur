@@ -70,7 +70,7 @@ const NOISE_LINE_PATTERNS = [
 const BULLET_PREFIX = /^\s*(?:[-•▪o*]|\d+[.)])\s+/;
 const EO_CODE_PATTERN = /\((EO-\d{4})\)\s*$/;
 const VERB_START =
-  /^(?:Describe|Explain|Identify|Discuss|Define|Compare|Contrast|List|Name|Demonstrate|Apply|Analyze|Evaluate|Recognize|Interpret|Differentiate|Summarize|Outline|Predict|Calculate|Perform|Develop|Formulate|Integrate|Correlate|Review|Understand|Distinguish|Classify|Relate|Assess|Manage|Treat|Diagnose|Order|Interpret|Counsel|Educate|Communicate|Document|Prioritize|Select|Recommend|Utilize|Employ|Construct|Draw|Label|Locate|Recall|State|Use|Show|Given|Given\s+a|Given\s+the)/i;
+  /^(?:Describe|Explain|Identify|Discuss|Define|Compare|Contrast|List|Name|Demonstrate|Apply|Analyze|Evaluate|Recognize|Interpret|Differentiate|Summarize|Outline|Predict|Calculate|Perform|Develop|Formulate|Integrate|Correlate|Review|Understand|Distinguish|Classify|Relate|Assess|Manage|Treat|Diagnose|Order|Counsel|Educate|Communicate|Document|Prioritize|Select|Recommend|Utilize|Employ|Construct|Draw|Label|Locate|Recall|State|Use|Show|Given|Given\s+a|Given\s+the)/i;
 
 function normalizeForMatch(text: string): string {
   return text.replace(/\s+/g, " ").trim().toLowerCase();
