@@ -115,6 +115,8 @@ export async function processDocuments(options?: {
   const state = tracking ? await loadBootstrapState() : undefined;
   const checkpoint = tracking ? new CheckpointTimer() : undefined;
   let dirty = false;
+  let processedCount = 0;
+  const failures: ProcessingFailure[] = [];
 
   if (state && options?.bootstrapPhase) {
     state.phase = options.bootstrapPhase;
@@ -153,7 +155,16 @@ export async function processDocuments(options?: {
     }
 
     console.log(`Processing ${doc.filename}...`);
-    await runFullPipeline({ documentId: doc.id, filePath });
+    try {
+      await runFullPipeline({ documentId: doc.id, filePath });
+    } catch (error) {
+      // Per-document isolation: one bad or corrupt file must not abort the batch.
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`FAILED: ${doc.filename} — ${message}`);
+      failures.push({ filename: doc.filename, error: message });
+      continue;
+    }
+    processedCount++;
 
     if (state) {
       markDocumentProcessed(state, doc.id);
@@ -170,7 +181,29 @@ export async function processDocuments(options?: {
     await saveBootstrapState(state);
   }
 
-  console.log("Done.");
+  const summary = summarizeProcessing(processedCount, failures);
+  console.log(summary.message);
+  return summary;
+}
+
+export type ProcessingFailure = { filename: string; error: string };
+
+/** Format the batch outcome and decide the process exit code. Pure so it can be
+ * unit-tested without a database. */
+export function summarizeProcessing(
+  processedCount: number,
+  failures: ProcessingFailure[],
+): { message: string; exitCode: number } {
+  if (failures.length === 0) {
+    return { message: `Done. processed ${processedCount}, all succeeded.`, exitCode: 0 };
+  }
+  const detail = failures
+    .map((f) => `  - ${f.filename}: ${f.error}`)
+    .join("\n");
+  return {
+    message: `Done. processed ${processedCount}, failed ${failures.length}:\n${detail}`,
+    exitCode: 1,
+  };
 }
 
 function parseBootstrapPhase(): BootstrapPhase | undefined {
@@ -186,12 +219,13 @@ async function main() {
     ? Number.parseInt(process.env.PROCESS_CASE_NUMBER, 10)
     : null;
 
-  await processDocuments({
+  const summary = await processDocuments({
     onlyCase,
     skipComplete: process.argv.includes("--skip-complete"),
     force: process.argv.includes("--force"),
     bootstrapPhase: parseBootstrapPhase(),
   });
+  if (summary.exitCode !== 0) process.exitCode = summary.exitCode;
 }
 
 const isCli = path.basename(process.argv[1] ?? "") === "process-documents.ts";

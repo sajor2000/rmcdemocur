@@ -3,6 +3,7 @@ import {
   deriveDocumentPipelineStatus,
   isDocumentPipelineComplete,
   loadDocumentPipelineStatusMap,
+  summarizeProcessing,
 } from "../../scripts/process-documents";
 
 describe("deriveDocumentPipelineStatus", () => {
@@ -63,5 +64,25 @@ describe("isDocumentPipelineComplete", () => {
 describe("loadDocumentPipelineStatusMap", () => {
   it("is exported for batch audit queries", () => {
     expect(typeof loadDocumentPipelineStatusMap).toBe("function");
+  });
+});
+
+describe("summarizeProcessing (U4 per-document isolation)", () => {
+  it("reports success and exit 0 when nothing failed", () => {
+    const result = summarizeProcessing(3, []);
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("processed 3");
+    expect(result.message).not.toMatch(/failed/i);
+  });
+
+  it("reports failures and exit 1 when a document threw", () => {
+    const result = summarizeProcessing(2, [
+      { filename: "RMD563_FacultyGuide_Case2_JessicaDonner.docx", error: "Corrupted zip" },
+    ]);
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toContain("processed 2");
+    expect(result.message).toContain("failed 1");
+    expect(result.message).toContain("RMD563_FacultyGuide_Case2_JessicaDonner.docx");
+    expect(result.message).toContain("Corrupted zip");
   });
 });
