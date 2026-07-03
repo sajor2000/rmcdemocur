@@ -64,10 +64,10 @@ Defined in [`lib/pipeline.ts`](../lib/pipeline.ts):
 |-------|----------|--------------|
 | `parsing` | 10% | PDF/DOCX/PPTX → plain text via [`lib/document-parser.ts`](../lib/document-parser.ts) |
 | `extracting_objectives` | 18–22% | Regex-first objective extraction; optional LLM cleanup ([`lib/objective-extractor.ts`](../lib/objective-extractor.ts), [`lib/objective-cleanup.ts`](../lib/objective-cleanup.ts)) |
-| `chunking` | 25% | Section-aware split into ~500-token chunks ([`lib/chunker.ts`](../lib/chunker.ts)) |
-| `embedding` | 40–65% | Azure embeddings for each chunk |
-| `aligning` | 70–85% | RAG top-K framework candidates → constrained LLM JSON ([`lib/azure-ai.ts`](../lib/azure-ai.ts), [`lib/framework-rag.ts`](../lib/framework-rag.ts)) |
-| `tagging` | 90% | AAMC keyword tags via vector similarity |
+| `chunking` | 25% | Semantic section detection (self-study + faculty-guide heading vocabulary, ToC stripping) then recursive sentence/paragraph-aware packing to ~500 tokens; each chunk is embedded with a `{caseTitle} › {section}` breadcrumb ([`lib/chunker.ts`](../lib/chunker.ts)). Quality gated by [`scripts/audit-chunks.ts`](../scripts/audit-chunks.ts) |
+| `embedding` | 40–65% | Azure embeddings for each chunk's breadcrumbed text |
+| `aligning` | 70–85% | RAG top-K framework candidates (optional cosine-distance floor via `RETRIEVAL_MAX_DISTANCE`) → constrained LLM JSON ([`lib/azure-ai.ts`](../lib/azure-ai.ts), [`lib/framework-rag.ts`](../lib/framework-rag.ts)) |
+| `tagging` | 90% | AAMC keyword tags via vector similarity (same optional distance floor) |
 | `recomputing_gaps` | 95% | Roll up `gap_summary` per document + course ([`lib/gap-analyzer.ts`](../lib/gap-analyzer.ts)) |
 | `complete` | 100% | Job status finalized |
 
@@ -119,7 +119,7 @@ Framework parsers ([`lib/framework-parsers.ts`](../lib/framework-parsers.ts)) ar
 
 ### Security
 
-- Optional `API_SECRET`: when set in env, [`middleware.ts`](../middleware.ts) requires `Authorization: Bearer {API_SECRET}` on all `/api/*` routes.
+- Optional `API_SECRET`: when set in env, [`middleware.ts`](../middleware.ts) requires a valid credential on **all** `/api/*` routes — reads and writes alike (there is no GET exemption). Accepted credentials: a `Authorization: Bearer {API_SECRET}` header (server-to-server); the short-lived HMAC-signed httpOnly session cookie the middleware issues on page navigations (so browser `fetch` and EventSource authenticate automatically same-origin — see [`lib/api-auth.ts`](../lib/api-auth.ts)); or a `?token=` query param. Tokens are HMAC-SHA256 signed with `API_SECRET`, scoped, TTL-limited, verified with a timing-safe comparison, and never equal to `API_SECRET`. Because a session token can appear in a URL/`?token=`, it is short-lived and grants only API access, not the secret itself. Unset = fully open (dev default).
 - In-memory rate limits on search (30/min) and upload advance (10/min) via [`lib/rate-limit.ts`](../lib/rate-limit.ts).
 - Security headers configured in [`next.config.mjs`](../next.config.mjs).
 
@@ -148,7 +148,9 @@ Pages require a seeded database — empty DB shows bootstrap instructions instea
 | `lib/queries.ts` | Read paths for UI and API |
 | `lib/pipeline.ts` | Full document processing orchestration |
 | `lib/document-parser.ts` | pdf-parse, mammoth, officeparser |
-| `lib/chunker.ts` | Section split + token overlap chunking |
+| `lib/chunker.ts` | Semantic section detection + recursive sentence-aware chunking + heading breadcrumb |
+| `lib/retrieval-config.ts` | Optional relevance thresholds for retrieval/search (default off) |
+| `lib/api-auth.ts` | HMAC session-token mint/verify for API auth |
 | `lib/objective-extractor.ts` | Regex objective parsing |
 | `lib/objective-cleanup.ts` | Optional LLM cleanup + merge |
 | `lib/azure-ai.ts` | Embeddings, alignment, search synthesis |

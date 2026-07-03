@@ -2,7 +2,9 @@
 
 AI-powered curriculum mapping demo for Rush Medical College — **RMD 563: Food to Fuel**.
 
-Maps faculty guides and self-study materials to **AAMC PCRS/Core EPAs** and the **USMLE 2025 Content Outline**, surfaces alignment gaps, natural-language search, and a regex-first **Learning Objectives** explorer with optional LLM cleanup.
+Maps faculty guides and self-study materials to the official **AAMC PCRS (2013 — 8 domains, 58 competencies)** and **13 Core EPAs**, plus the **USMLE 2025 Content Outline**, surfaces alignment gaps, natural-language search, and a regex-first **Learning Objectives** explorer with optional LLM cleanup.
+
+> Framework provenance: PCRS is the 2013 AAMC Physician Competency Reference Set (the AAMC Curriculum Inventory mapping standard); its successor "Foundational Competencies for UME" was released Dec 2024. Competency/EPA text is committed as attributed authority JSON under `data/frameworks/` (see `aamc-pcrs-2013.json`, `aamc-core-epas.json`).
 
 **Repository:** [github.com/sajor2000/rmcdemocur](https://github.com/sajor2000/rmcdemocur)  
 **Default branch:** `main`
@@ -61,7 +63,7 @@ npm install
 | `AZURE_OPENAI_DEPLOYMENT_CHAT` | Chat model (default `gpt-4.1`) |
 | `AZURE_OPENAI_DEPLOYMENT_EMBED` | Embedding model (default `text-embedding-3-large`) |
 | `AZURE_OPENAI_EMBEDDING_DIMENSIONS` | Must be `1536` (matches `vector(1536)` schema) |
-| `API_SECRET` | Optional — when set, all `/api/*` routes require `Authorization: Bearer ...` |
+| `API_SECRET` | Optional — when set, **all** `/api/*` routes (reads and writes) require a credential: a `Authorization: Bearer <API_SECRET>` header for server-to-server calls, or the short-lived HMAC session cookie the app issues to the browser on page load (so `fetch` and EventSource authenticate automatically same-origin). A `?token=` query param is also accepted. Unset = fully open (dev default). |
 
 ### 2. Framework authority files
 
