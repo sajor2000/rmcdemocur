@@ -96,17 +96,50 @@ function markDocumentProcessed(state: BootstrapState, documentId: number) {
   }
 }
 
-export async function isDocumentPipelineComplete(documentId: number): Promise<boolean> {
+export type DocumentPipelineStatus =
+  | "empty"
+  | "partial-embed"
+  | "partial-align"
+  | "complete";
+
+export function deriveDocumentPipelineStatus(counts: {
+  chunkCount: number;
+  chunksWithEmbedding: number;
+  alignmentCount: number;
+}): DocumentPipelineStatus {
+  if (counts.chunkCount === 0) return "empty";
+  if (counts.chunksWithEmbedding < counts.chunkCount) return "partial-embed";
+  if (counts.alignmentCount === 0) return "partial-align";
+  return "complete";
+}
+
+export async function getDocumentPipelineStatus(
+  documentId: number,
+): Promise<DocumentPipelineStatus> {
   const db = getDb();
   const result = await db.execute(sql`
-    SELECT EXISTS (
-      SELECT 1
-      FROM alignments a
-      JOIN chunks c ON c.id = a.chunk_id
-      WHERE c.document_id = ${documentId}
-    ) AS complete
+    SELECT
+      COUNT(c.id)::int AS chunk_count,
+      COUNT(c.embedding)::int AS chunks_with_embedding,
+      COUNT(DISTINCT a.id)::int AS alignment_count
+    FROM chunks c
+    LEFT JOIN alignments a ON a.chunk_id = c.id
+    WHERE c.document_id = ${documentId}
   `);
-  return Boolean((result.rows[0] as { complete: boolean })?.complete);
+  const row = result.rows[0] as {
+    chunk_count: number;
+    chunks_with_embedding: number;
+    alignment_count: number;
+  };
+  return deriveDocumentPipelineStatus({
+    chunkCount: row.chunk_count,
+    chunksWithEmbedding: row.chunks_with_embedding,
+    alignmentCount: row.alignment_count,
+  });
+}
+
+export async function isDocumentPipelineComplete(documentId: number): Promise<boolean> {
+  return (await getDocumentPipelineStatus(documentId)) === "complete";
 }
 
 export async function processDocuments(options?: {
