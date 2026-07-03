@@ -87,11 +87,19 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
             onChange={(e) => setCaseFilter(e.target.value)}
           >
             <option value="all">All</option>
-            {[1, 2, 3, 4].map((n) => (
-              <option key={n} value={String(n)}>
-                Case {n}
-              </option>
-            ))}
+            {Array.from(
+              new Set(
+                data.documents
+                  .map((d) => d.caseNumber)
+                  .filter((n): n is number => n != null),
+              ),
+            )
+              .sort((a, b) => a - b)
+              .map((n) => (
+                <option key={n} value={String(n)}>
+                  Case {n}
+                </option>
+              ))}
           </select>
         </label>
         <label className="text-sm">

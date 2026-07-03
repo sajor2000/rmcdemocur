@@ -4,5 +4,8 @@ node_modules/
 .env.local
 .DS_Store
 data/uploads/
+data/curriculum/
+data/objectives-extraction-report.json
+tsconfig.tsbuildinfo
 data/frameworks/*.pdf
 data/frameworks/*.xlsx

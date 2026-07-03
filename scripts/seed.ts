@@ -127,6 +127,10 @@ async function main() {
   await db.delete(documents);
   await db.delete(courses);
 
+  // Keep demo URLs at /courses/1 after re-seed (Postgres serial does not reset on DELETE).
+  await db.execute(sql`ALTER SEQUENCE courses_id_seq RESTART WITH 1`);
+  await db.execute(sql`ALTER SEQUENCE documents_id_seq RESTART WITH 1`);
+
   const [course] = await db
     .insert(courses)
     .values({
