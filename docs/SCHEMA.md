@@ -112,7 +112,7 @@ These are seeded from USMLE 2025 PDF and AAMC keyword/competency files — not f
 | Table | Source | Purpose |
 |-------|--------|---------|
 | `usmle_domains` | USMLE Content Outline PDF | Hierarchical Step 1 systems/subdomains; `parent_stable_id` links children |
-| `aamc_competencies` | AAMC curriculum inventory | PCRS competency rows with `stable_id` |
+| `aamc_competencies` | `data/frameworks/aamc-pcrs-2013.json` + `aamc-core-epas.json` | Official 2013 PCRS (8 domains / 58 competencies) + 13 Core EPAs, with `stable_id` |
 | `aamc_keywords` | AAMC keywords xlsx | Keyword definitions for tagging |
 
 All three catalog tables include optional `embedding` vectors for RAG retrieval during alignment.

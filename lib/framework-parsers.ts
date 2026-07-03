@@ -1,4 +1,5 @@
 import fs from "fs/promises";
+import { readFileSync } from "fs";
 import path from "path";
 import pdf from "pdf-parse";
 import * as XLSX from "xlsx";
@@ -284,45 +285,75 @@ export async function parseAamcKeywordsXlsx(
   return parseAamcKeywordsSheet(rows, path.basename(xlsxPath));
 }
 
-/** PCRS domain subs — official short list; EPAs stubbed until full source added. */
-export const AAMC_PCRS_CATALOG: ParsedAamcCompetencyRow[] = [
-  { domain: "PC", domainName: "Patient Care", subId: "PC1", description: "History and physical exam", stableId: "aamc:pc1", fullText: "Patient Care — History and physical exam", parentStableId: "aamc:pc", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "PC", domainName: "Patient Care", subId: "PC2", description: "Diagnosis", stableId: "aamc:pc2", fullText: "Patient Care — Diagnosis", parentStableId: "aamc:pc", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "PC", domainName: "Patient Care", subId: "PC3", description: "Management", stableId: "aamc:pc3", fullText: "Patient Care — Management", parentStableId: "aamc:pc", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "PC", domainName: "Patient Care", subId: "PC4", description: "Procedures", stableId: "aamc:pc4", fullText: "Patient Care — Procedures", parentStableId: "aamc:pc", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "MK", domainName: "Medical Knowledge", subId: "MK1", description: "Basic science", stableId: "aamc:mk1", fullText: "Medical Knowledge — Basic science", parentStableId: "aamc:mk", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "MK", domainName: "Medical Knowledge", subId: "MK2", description: "Clinical science", stableId: "aamc:mk2", fullText: "Medical Knowledge — Clinical science", parentStableId: "aamc:mk", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "MK", domainName: "Medical Knowledge", subId: "MK3", description: "Social science", stableId: "aamc:mk3", fullText: "Medical Knowledge — Social science", parentStableId: "aamc:mk", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "ICS", domainName: "Interpersonal & Communication Skills", subId: "ICS1", description: "Patient communication", stableId: "aamc:ics1", fullText: "ICS — Patient communication", parentStableId: "aamc:ics", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "ICS", domainName: "Interpersonal & Communication Skills", subId: "ICS2", description: "Team communication", stableId: "aamc:ics2", fullText: "ICS — Team communication", parentStableId: "aamc:ics", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "ICS", domainName: "Interpersonal & Communication Skills", subId: "ICS3", description: "Documentation", stableId: "aamc:ics3", fullText: "ICS — Documentation", parentStableId: "aamc:ics", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "P", domainName: "Professionalism", subId: "P1", description: "Compassion", stableId: "aamc:p1", fullText: "Professionalism — Compassion", parentStableId: "aamc:p", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "P", domainName: "Professionalism", subId: "P2", description: "Accountability", stableId: "aamc:p2", fullText: "Professionalism — Accountability", parentStableId: "aamc:p", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "P", domainName: "Professionalism", subId: "P3", description: "Ethics", stableId: "aamc:p3", fullText: "Professionalism — Ethics", parentStableId: "aamc:p", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "P", domainName: "Professionalism", subId: "P4", description: "Diversity", stableId: "aamc:p4", fullText: "Professionalism — Diversity", parentStableId: "aamc:p", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "PBLI", domainName: "Practice-Based Learning", subId: "PBLI1", description: "Evidence", stableId: "aamc:pbli1", fullText: "PBLI — Evidence", parentStableId: "aamc:pbli", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "PBLI", domainName: "Practice-Based Learning", subId: "PBLI2", description: "Education", stableId: "aamc:pbli2", fullText: "PBLI — Education", parentStableId: "aamc:pbli", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "PBLI", domainName: "Practice-Based Learning", subId: "PBLI3", description: "Improvement", stableId: "aamc:pbli3", fullText: "PBLI — Improvement", parentStableId: "aamc:pbli", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "SBP", domainName: "Systems-Based Practice", subId: "SBP1", description: "Systems", stableId: "aamc:sbp1", fullText: "SBP — Systems", parentStableId: "aamc:sbp", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "SBP", domainName: "Systems-Based Practice", subId: "SBP2", description: "Teamwork", stableId: "aamc:sbp2", fullText: "SBP — Teamwork", parentStableId: "aamc:sbp", sourceDoc: "aamc-pcrs-catalog" },
-  { domain: "SBP", domainName: "Systems-Based Practice", subId: "SBP3", description: "Quality and safety", stableId: "aamc:sbp3", fullText: "SBP — Quality and safety", parentStableId: "aamc:sbp", sourceDoc: "aamc-pcrs-catalog" },
-  ...Array.from({ length: 13 }, (_, i) => ({
-    domain: "EPA",
-    domainName: "Core EPA",
-    subId: `EPA${i + 1}`,
-    description: `Core Entrustable Professional Activity ${i + 1}`,
-    stableId: `aamc:epa${i + 1}`,
-    fullText: `Core EPA ${i + 1} (stub — add official EPA source for full text)`,
-    parentStableId: "aamc:epa",
-    sourceDoc: "aamc-epa-stub",
-  })),
-];
+type PcrsSource = {
+  meta: { source: string; edition: string };
+  domains: {
+    code: string;
+    name: string;
+    description: string;
+    competencies: string[];
+  }[];
+};
+
+type CoreEpaSource = {
+  meta: { source: string; edition: string };
+  epas: string[];
+};
+
+/** Load the official 2013 AAMC PCRS (8 domains / 58 competencies) and the 13
+ * Core EPAs from committed authority JSON. Replaces the former hand-written
+ * stub catalog. Stable IDs use the aamc:<code><n> convention; EPAs keep
+ * aamc:epa<n> so the AAMC_EPA vs AAMC_PCRS classification heuristic still works. */
+export function loadAamcPcrsCatalog(frameworksDir: string): ParsedAamcCompetencyRow[] {
+  const pcrs = JSON.parse(
+    readFileSync(path.join(frameworksDir, "aamc-pcrs-2013.json"), "utf-8"),
+  ) as PcrsSource;
+  const epaSource = JSON.parse(
+    readFileSync(path.join(frameworksDir, "aamc-core-epas.json"), "utf-8"),
+  ) as CoreEpaSource;
+
+  const rows: ParsedAamcCompetencyRow[] = [];
+
+  for (const domain of pcrs.domains) {
+    const code = domain.code.toLowerCase();
+    domain.competencies.forEach((text, i) => {
+      const n = i + 1;
+      rows.push({
+        domain: domain.code,
+        domainName: domain.name,
+        subId: `${domain.code}${n}`,
+        description: text,
+        stableId: `aamc:${code}${n}`,
+        fullText: `${domain.name} — ${text}`,
+        parentStableId: `aamc:${code}`,
+        sourceDoc: `aamc-pcrs-${pcrs.meta.edition}`,
+      });
+    });
+  }
+
+  epaSource.epas.forEach((text, i) => {
+    const n = i + 1;
+    rows.push({
+      domain: "EPA",
+      domainName: "Core EPA",
+      subId: `EPA${n}`,
+      description: text,
+      stableId: `aamc:epa${n}`,
+      fullText: `Core EPA ${n} — ${text}`,
+      parentStableId: "aamc:epa",
+      sourceDoc: "aamc-core-epas",
+    });
+  });
+
+  return rows;
+}
 
 export async function parseAamcGuidebookPdf(
-  _pdfPath: string,
+  pdfPath: string,
 ): Promise<ParsedAamcCompetencyRow[]> {
-  // Guidebook is methodological; PCRS catalog rows are authoritative for alignment IDs.
-  return AAMC_PCRS_CATALOG;
+  // The guidebook PDF is methodological (its PCRS appendix is title-only). The
+  // authoritative competency text lives in the committed PCRS/EPA JSON alongside it.
+  return loadAamcPcrsCatalog(path.dirname(pdfPath));
 }
 
 export type ParsedFrameworkBundle = {
