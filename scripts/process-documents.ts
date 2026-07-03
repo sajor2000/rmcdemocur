@@ -16,6 +16,7 @@ import { runFullPipeline } from "../lib/pipeline";
 import { copyCurriculumFiles } from "./curriculum-sources";
 
 function markDocumentProcessed(state: BootstrapState, documentId: number) {
+  // Manifest hint for bootstrap tracking; skip-complete uses DB pipeline status.
   if (!state.processedDocumentIds.includes(documentId)) {
     state.processedDocumentIds.push(documentId);
   }
@@ -30,11 +31,11 @@ export type DocumentPipelineStatus =
 export function deriveDocumentPipelineStatus(counts: {
   chunkCount: number;
   chunksWithEmbedding: number;
-  alignmentCount: number;
+  alignedChunkCount: number;
 }): DocumentPipelineStatus {
   if (counts.chunkCount === 0) return "empty";
   if (counts.chunksWithEmbedding < counts.chunkCount) return "partial-embed";
-  if (counts.alignmentCount === 0) return "partial-align";
+  if (counts.alignedChunkCount < counts.chunkCount) return "partial-align";
   return "complete";
 }
 
@@ -58,9 +59,9 @@ export async function loadDocumentPipelineStatusMap(
   const result = await db.execute(sql`
     SELECT
       c.document_id,
-      COUNT(c.id)::int AS chunk_count,
-      COUNT(c.embedding)::int AS chunks_with_embedding,
-      COUNT(DISTINCT a.id)::int AS alignment_count
+      COUNT(DISTINCT c.id)::int AS chunk_count,
+      COUNT(DISTINCT c.id) FILTER (WHERE c.embedding IS NOT NULL)::int AS chunks_with_embedding,
+      COUNT(DISTINCT a.chunk_id)::int AS aligned_chunk_count
     FROM chunks c
     LEFT JOIN alignments a ON a.chunk_id = c.id
     WHERE c.document_id IN (${sql.join(
@@ -74,14 +75,14 @@ export async function loadDocumentPipelineStatusMap(
     document_id: number;
     chunk_count: number;
     chunks_with_embedding: number;
-    alignment_count: number;
+    aligned_chunk_count: number;
   }[]) {
     statusMap.set(
       row.document_id,
       deriveDocumentPipelineStatus({
         chunkCount: row.chunk_count,
         chunksWithEmbedding: row.chunks_with_embedding,
-        alignmentCount: row.alignment_count,
+        alignedChunkCount: row.aligned_chunk_count,
       }),
     );
   }
@@ -175,6 +176,7 @@ export async function processDocuments(options?: {
 function parseBootstrapPhase(): BootstrapPhase | undefined {
   if (process.argv.includes("--smoke")) return "process-smoke";
   if (process.argv.includes("--full")) return "process-full";
+  // Deprecated alias for --full; prefer npm run db:bootstrap:full.
   if (process.argv.includes("--track-bootstrap")) return "process-full";
   return undefined;
 }

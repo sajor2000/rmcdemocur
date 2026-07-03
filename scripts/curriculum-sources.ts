@@ -87,13 +87,17 @@ export const SELF_STUDY_GUIDES: CurriculumFileMapping[] = [
 
 export const ALL_CURRICULUM_FILES = [...FACULTY_GUIDES, ...SELF_STUDY_GUIDES];
 
-async function shouldCopyFile(srcPath: string, destPath: string): Promise<boolean> {
+export async function shouldCopyFile(
+  srcPath: string,
+  destPath: string,
+): Promise<boolean> {
   try {
     const [srcStat, destStat] = await Promise.all([
       fs.stat(srcPath),
       fs.stat(destPath),
     ]);
-    return srcStat.size !== destStat.size;
+    if (srcStat.size !== destStat.size) return true;
+    return srcStat.mtimeMs > destStat.mtimeMs;
   } catch {
     return true;
   }

@@ -49,6 +49,7 @@ async function main() {
   let complete = 0;
   let partial = 0;
   let empty = 0;
+  const partialDocs: string[] = [];
 
   console.log("\nDocuments:");
   for (const row of docRows) {
@@ -56,7 +57,10 @@ async function main() {
     console.log(`  [${status}] case ${row.case_number ?? "?"} — ${row.filename}`);
     if (status === "complete") complete += 1;
     else if (status === "empty") empty += 1;
-    else partial += 1;
+    else {
+      partial += 1;
+      partialDocs.push(`${row.filename} (${status})`);
+    }
   }
 
   console.log(
@@ -72,7 +76,7 @@ async function main() {
   }
   if (partial > 0) {
     issues.push(
-      `${partial} document(s) in partial state — re-run process or use --force`,
+      `${partial} document(s) in partial state — re-run process or use --force: ${partialDocs.join(", ")}`,
     );
   }
 

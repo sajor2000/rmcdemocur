@@ -82,7 +82,9 @@ export async function loadBootstrapState(): Promise<BootstrapState> {
 export async function saveBootstrapState(state: BootstrapState): Promise<void> {
   await ensureStateDir();
   state.updatedAt = new Date().toISOString();
-  await fs.writeFile(BOOTSTRAP_STATE_PATH, JSON.stringify(state));
+  const tmpPath = `${BOOTSTRAP_STATE_PATH}.tmp`;
+  await fs.writeFile(tmpPath, JSON.stringify(state));
+  await fs.rename(tmpPath, BOOTSTRAP_STATE_PATH);
 }
 
 export async function updateBootstrapState(

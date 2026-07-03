@@ -155,6 +155,18 @@ async function fullBootstrap() {
     process.exit(1);
   }
 
+  const db = getDb();
+  const docCount = await db
+    .select({ id: documents.id })
+    .from(documents)
+    .then((rows) => rows.length);
+  if (docCount === 0) {
+    console.error(
+      "No documents in DB. Run `npm run db:bootstrap:smoke` (or db:seed) before full bootstrap.",
+    );
+    process.exit(1);
+  }
+
   console.log("\n=== Bootstrap FULL (all documents, checkpoint every 5 min) ===\n");
 
   await updateBootstrapState({ phase: "process-full" });

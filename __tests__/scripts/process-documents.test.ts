@@ -11,7 +11,7 @@ describe("deriveDocumentPipelineStatus", () => {
       deriveDocumentPipelineStatus({
         chunkCount: 0,
         chunksWithEmbedding: 0,
-        alignmentCount: 0,
+        alignedChunkCount: 0,
       }),
     ).toBe("empty");
   });
@@ -21,27 +21,34 @@ describe("deriveDocumentPipelineStatus", () => {
       deriveDocumentPipelineStatus({
         chunkCount: 5,
         chunksWithEmbedding: 2,
-        alignmentCount: 0,
+        alignedChunkCount: 0,
       }),
     ).toBe("partial-embed");
   });
 
-  it("returns partial-align when embedded but no alignments", () => {
+  it("returns partial-align when embedded but not all chunks aligned", () => {
     expect(
       deriveDocumentPipelineStatus({
         chunkCount: 5,
         chunksWithEmbedding: 5,
-        alignmentCount: 0,
+        alignedChunkCount: 0,
+      }),
+    ).toBe("partial-align");
+    expect(
+      deriveDocumentPipelineStatus({
+        chunkCount: 5,
+        chunksWithEmbedding: 5,
+        alignedChunkCount: 3,
       }),
     ).toBe("partial-align");
   });
 
-  it("returns complete when chunks embedded and alignments exist", () => {
+  it("returns complete when all chunks embedded and aligned", () => {
     expect(
       deriveDocumentPipelineStatus({
         chunkCount: 5,
         chunksWithEmbedding: 5,
-        alignmentCount: 3,
+        alignedChunkCount: 5,
       }),
     ).toBe("complete");
   });
