@@ -1,5 +1,5 @@
 import path from "path";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
   alignments,
   chunks,
@@ -93,7 +93,7 @@ export async function runFullPipeline(options: {
         eoCode: obj.eoCode ?? null,
         extractionMethod: obj.extractionMethod,
         confidence: obj.confidence,
-        sourceExcerpt: obj.text.slice(0, 500),
+        sourceExcerpt: obj.sourceExcerpt.slice(0, 500),
       });
     }
     const objMsg =
@@ -274,12 +274,41 @@ export async function advanceJob(jobId: number) {
     throw new Error("Job not found");
   }
 
-  if (job.status === "complete") {
+  if (job.status === "complete" || job.status === "failed") {
+    return job;
+  }
+
+  if (job.status === "running") {
     return job;
   }
 
   // Advance is handled by runFullPipeline in MVP — single advance kicks off processing
-  if (job.stage === "queued") {
+  if (job.stage === "queued" && job.status === "queued") {
+    const [claimed] = await db
+      .update(processingJobs)
+      .set({
+        status: "running",
+        stage: "parsing",
+        progress: 5,
+        message: "Starting pipeline...",
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(processingJobs.id, jobId),
+          eq(processingJobs.status, "queued"),
+        ),
+      )
+      .returning();
+
+    if (!claimed) {
+      const [current] = await db
+        .select()
+        .from(processingJobs)
+        .where(eq(processingJobs.id, jobId));
+      return current ?? job;
+    }
+
     const docRows = await db.execute(sql`
       SELECT filename FROM documents WHERE id = ${job.documentId}
     `);

@@ -59,10 +59,14 @@ export async function getCourseSummary(courseId: number) {
     SELECT ac.domain_name, COUNT(DISTINCT a.id)::int as cnt
     FROM aamc_competencies ac
     LEFT JOIN alignments a ON (
-      a.framework_id = ac.stable_id OR a.framework_id = ac.sub_id
-    ) AND a.framework IN ('AAMC_PCRS','AAMC_EPA')
-    LEFT JOIN chunks c ON c.id = a.chunk_id
-    LEFT JOIN documents d ON d.id = c.document_id AND d.course_id = ${courseId}
+      (a.framework_id = ac.stable_id OR a.framework_id = ac.sub_id)
+      AND a.framework IN ('AAMC_PCRS','AAMC_EPA')
+      AND EXISTS (
+        SELECT 1 FROM chunks c
+        JOIN documents d ON d.id = c.document_id
+        WHERE c.id = a.chunk_id AND d.course_id = ${courseId}
+      )
+    )
     GROUP BY ac.domain_name
   `);
 

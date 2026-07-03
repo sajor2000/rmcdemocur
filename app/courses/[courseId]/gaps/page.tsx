@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { suggestedGapAction } from "@/lib/gap-analyzer";
 import { getCourseSummary, getGapExportRows } from "@/lib/queries";
-import { DEMO_SUMMARY } from "@/lib/demo-data";
 
 export default async function GapsPage({
   params,
@@ -11,46 +10,28 @@ export default async function GapsPage({
   params: { courseId: string };
 }) {
   const courseId = Number(params.courseId);
-  let gaps: {
-    frameworkLabel?: string | null;
-    coverageStatus?: string | null;
-    frameworkId?: string | null;
-  }[] = DEMO_SUMMARY.gaps;
-  let metrics = DEMO_SUMMARY.metrics;
+  const summary = await getCourseSummary(courseId).catch(() => null);
 
-  try {
-    const summary = await getCourseSummary(courseId);
-    if (summary) {
-      gaps = summary.gaps;
-      metrics = summary.metrics;
-    }
-  } catch {
-    // demo fallback
+  if (!summary?.course) {
+    return (
+      <div className="rounded-lg border border-dashed p-8 text-center">
+        <h1 className="font-heading text-2xl font-bold">Gap Analysis</h1>
+        <p className="mt-2 text-rush-medium">
+          No gap data yet. Seed and process documents to populate coverage gaps.
+        </p>
+      </div>
+    );
   }
 
-  let tableRows: {
-    frameworkLabel: string | null;
-    coverageStatus: string | null;
-    chunkCount: number | null;
-    avgConfidence: string | null;
-  }[] = [];
-
-  try {
-    tableRows = await getGapExportRows(courseId);
-  } catch {
-    tableRows = gaps.map((g) => ({
-      frameworkLabel: g.frameworkLabel ?? null,
-      coverageStatus: g.coverageStatus ?? null,
-      chunkCount: g.coverageStatus === "partial" ? 2 : 0,
-      avgConfidence: g.coverageStatus === "partial" ? "0.61" : "0.00",
-    }));
-  }
+  const { gaps, metrics } = summary;
+  const tableRows = await getGapExportRows(courseId).catch(() => []);
 
   return (
     <div className="space-y-6">
       <div className="rounded-lg bg-white p-6 shadow-sm">
         <p className="text-lg">
-          RMD 563 covers <strong>{metrics.aamcCoveragePercent}%</strong> of AAMC PCRS
+          {summary.course.code} covers{" "}
+          <strong>{metrics.aamcCoveragePercent}%</strong> of AAMC PCRS
           competencies and <strong>{metrics.usmleDomainsCovered}</strong> of{" "}
           {metrics.usmleDomainsTotal} USMLE domains.{" "}
           <strong>{metrics.usmleGaps}</strong> gaps require attention.
@@ -62,7 +43,7 @@ export default async function GapsPage({
           .filter((g) => g.coverageStatus === "gap" || g.coverageStatus === "partial")
           .map((gap) => (
             <Card
-              key={gap.frameworkId}
+              key={`${gap.framework}-${gap.frameworkId}`}
               className="border-2 border-gap-red"
             >
               <CardHeader>

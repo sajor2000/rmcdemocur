@@ -1,10 +1,10 @@
 import { getAzureClient } from "@/lib/azure-ai";
 import type { ExtractedObjective } from "@/lib/objective-extractor";
 import {
-  dedupeObjectives,
   extractObjectivesFromText,
   findObjectiveSections,
   getSourceExcerptForCleanup,
+  mergeCleanedWithRegex,
   needsLlmCleanup,
 } from "@/lib/objective-extractor";
 
@@ -22,21 +22,7 @@ export function validateCleanedObjectives(
   return candidates.filter((text) => {
     const normalized = normalizeForMatch(text);
     if (normalized.length < 12) return false;
-    if (normalizedSource.includes(normalized)) return true;
-
-    // Allow minor whitespace differences: check if 90%+ of words appear in order
-    const words = normalized.split(" ").filter((w) => w.length > 2);
-    if (words.length === 0) return false;
-    let pos = 0;
-    let matched = 0;
-    for (const word of words) {
-      const idx = normalizedSource.indexOf(word, pos);
-      if (idx >= 0) {
-        matched++;
-        pos = idx + word.length;
-      }
-    }
-    return matched / words.length >= 0.9;
+    return normalizedSource.includes(normalized);
   });
 }
 
@@ -120,6 +106,7 @@ ${candidateBlock}`,
       ordinal: i + 1,
       sectionHeading: prior?.sectionHeading ?? regexCandidates[0]?.sectionHeading ?? "Learning Objectives",
       sourceLineStart: prior?.sourceLineStart ?? 0,
+      sourceExcerpt: prior?.sourceExcerpt ?? sourceExcerpt.slice(0, 2000),
       extractionMethod: "llm_cleanup" as const,
       confidence: "high" as const,
       eoCode: eoMatch?.[1] ?? prior?.eoCode,
@@ -148,8 +135,7 @@ export async function extractAndCleanObjectives(text: string): Promise<{
       });
       const llmCleaned = cleaned.some((o) => o.extractionMethod === "llm_cleanup");
       if (llmCleaned) {
-        const highConfidenceRegex = regexSnapshot.filter((o) => o.confidence === "high");
-        objectives = dedupeObjectives([...highConfidenceRegex, ...cleaned]);
+        objectives = mergeCleanedWithRegex(regexSnapshot, cleaned, reason);
         llmUsed = true;
       }
     } catch {

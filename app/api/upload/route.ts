@@ -3,6 +3,7 @@ export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import { z } from "zod";
 import { documents, processingJobs } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 import {
@@ -10,11 +11,20 @@ import {
   MAX_FILE_BYTES,
 } from "@/lib/document-parser";
 
+const courseIdSchema = z.coerce.number().int().positive();
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
-    const courseId = Number(formData.get("courseId") ?? 1);
+    const courseIdResult = courseIdSchema.safeParse(
+      formData.get("courseId") ?? 1,
+    );
+
+    if (!courseIdResult.success) {
+      return NextResponse.json({ error: "Invalid courseId" }, { status: 400 });
+    }
+    const courseId = courseIdResult.data;
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
