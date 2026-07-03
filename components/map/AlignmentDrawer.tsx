@@ -73,7 +73,9 @@ export function AlignmentDrawer({
                       <div className="mb-1 flex items-center gap-2">
                         <p className="text-sm font-medium">{media.label}</p>
                         {!media.hasCaptionInText && (
-                          <Badge variant="outline">image only</Badge>
+                          <Badge className="border-rush-medium/40 bg-transparent text-rush-medium">
+                            image only
+                          </Badge>
                         )}
                       </div>
                       {media.storagePath ? (
