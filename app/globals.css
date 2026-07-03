@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --rush-green: #00843d;
+    --rush-dark: #353535;
+    --rush-medium: #494949;
+    --rush-light: #f5f5f5;
+    --rush-yellow: #ffd100;
+    --rush-white: #ffffff;
+    --gap-red: #dc2626;
+    --covered-green: #16a34a;
+    --partial-yellow: #d97706;
+    --background: 0 0% 96%;
+    --foreground: 0 0% 21%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 21%;
+    --primary: 145 100% 26%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 29%;
+    --border: 0 0% 90%;
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-gray-200;
+  }
+
+  body {
+    @apply bg-rush-light text-rush-dark font-body antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading tracking-tight;
+  }
+}

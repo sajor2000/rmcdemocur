@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ideation: Interactive Curriculum Map</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --rush-green: #00843D;
+      --rush-green-dark: #006B30;
+      --rush-dark: #353535;
+      --rush-medium: #494949;
+      --rush-light: #f5f5f5;
+      --rush-yellow: #FFD100;
+      --gap-red: #DC2626;
+      --covered-green: #16A34A;
+      --partial-yellow: #D97706;
+      --bg: #fafafa;
+      --card: #ffffff;
+      --border: #e5e5e5;
+      --accent-soft: #e8f5ee;
+      --accent-text: #006B30;
+      --warn-soft: #fef3c7;
+      --info-soft: #eff6ff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.65;
+      color: var(--rush-dark);
+      background: var(--bg);
+    }
+    .page { max-width: 880px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+    h1, h2, h3 { font-family: Sora, Inter, sans-serif; color: var(--rush-dark); }
+    h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+    h2 { font-size: 1.25rem; margin: 2.5rem 0 1rem; padding-bottom: 0.4rem; border-bottom: 2px solid var(--rush-green); }
+    h3 { font-size: 1.05rem; margin-bottom: 0.5rem; }
+    .meta { color: var(--rush-medium); font-size: 0.875rem; margin-bottom: 2rem; }
+    .meta dt { display: inline; font-weight: 600; }
+    .meta dd { display: inline; margin-right: 1.25rem; }
+    .meta dd::after { content: " · "; color: var(--border); }
+    .meta dd:last-child::after { content: ""; }
+    section { margin-bottom: 2rem; }
+    section > p, section > ul { max-width: 70ch; margin-bottom: 0.75rem; }
+    ul { padding-left: 1.25rem; }
+    li { margin-bottom: 0.35rem; }
+    .jump-list { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .jump-list a {
+      display: inline-block; padding: 0.35rem 0.75rem;
+      background: var(--accent-soft); color: var(--accent-text);
+      border-radius: 999px; font-size: 0.8rem; text-decoration: none; font-weight: 500;
+    }
+    .jump-list a:hover { background: var(--rush-green); color: #fff; }
+    article.idea {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.5rem; margin-bottom: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    article.idea .rank {
+      display: inline-block; font-family: Sora, sans-serif;
+      font-weight: 700; color: var(--rush-green); margin-right: 0.5rem;
+    }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.75rem 0; }
+    .chip {
+      font-size: 0.75rem; font-weight: 500; padding: 0.2rem 0.6rem;
+      border-radius: 999px; border: 1px solid var(--border);
+    }
+    .chip.axis { background: var(--info-soft); color: #1e40af; border-color: #bfdbfe; }
+    .chip.conf-high { background: var(--accent-soft); color: var(--accent-text); border-color: #a7d9bc; }
+    .chip.conf-med { background: var(--warn-soft); color: #92400e; border-color: #fcd34d; }
+    .chip.cx-high { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+    .chip.cx-med { background: var(--warn-soft); color: #92400e; border-color: #fcd34d; }
+    .chip.cx-low { background: var(--accent-soft); color: var(--accent-text); border-color: #a7d9bc; }
+    dl.fields { display: grid; grid-template-columns: 7rem 1fr; gap: 0.35rem 0.75rem; font-size: 0.875rem; margin-top: 0.75rem; }
+    dl.fields dt { font-weight: 600; color: var(--rush-medium); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.04em; padding-top: 0.15rem; }
+    dl.fields dd { margin: 0; }
+    dl.fields dd code { font-size: 0.8rem; background: var(--rush-light); padding: 0.1rem 0.35rem; border-radius: 3px; }
+    .diagram-wrap { margin: 1rem 0; overflow-x: auto; }
+    .diagram-wrap svg { display: block; max-width: 100%; height: auto; }
+    table.rejection { width: 100%; border-collapse: collapse; font-size: 0.875rem; margin-top: 0.75rem; }
+    table.rejection th, table.rejection td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+    table.rejection th { background: var(--rush-light); font-weight: 600; }
+    table.rejection tr:nth-child(even) { background: #fafafa; }
+    footer.composition-signal {
+      margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border);
+      font-size: 0.8rem; color: var(--rush-medium);
+    }
+    nav.toc { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 2rem; }
+    nav.toc ul { list-style: none; padding: 0; }
+    nav.toc li { margin-bottom: 0.3rem; }
+    nav.toc a { color: var(--rush-green); text-decoration: none; font-size: 0.875rem; }
+    nav.toc a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <h1>Ideation: Interactive Curriculum Map</h1>
+    <dl class="meta">
+      <dt>Date</dt><dd><time datetime="2026-07-03">2026-07-03</time></dd>
+      <dt>Topic</dt><dd>interactive-curriculum-map</dd>
+      <dt>Focus</dt><dd>Connections, overlap, redundancies, and gaps beyond USMLE/AAMC audit</dd>
+      <dt>Mode</dt><dd>repo-grounded (RushMap AI / RMCMAP)</dd>
+    </dl>
+  </header>
+
+  <nav class="toc" aria-label="Table of contents">
+    <strong>Contents</strong>
+    <ul>
+      <li><a href="#grounding-context">Grounding Context</a></li>
+      <li><a href="#topic-axes">Topic Axes</a></li>
+      <li><a href="#ranked-ideas">Ranked Ideas</a></li>
+      <li><a href="#rejection-summary">Rejection Summary</a></li>
+    </ul>
+  </nav>
+
+  <section id="grounding-context">
+    <h2>Grounding Context</h2>
+    <p><strong>Codebase Context.</strong> RushMap AI is a Next.js 14 app mapping RMD 563 faculty guides to USMLE 2025 and AAMC frameworks via Azure OpenAI + Neon pgvector. The ingestion pipeline parses documents, chunks (~500 tokens, 50 overlap), embeds chunks, aligns to framework candidates via RAG, tags AAMC keywords, and recomputes framework-level gap summaries.</p>
+    <p>The current <strong>signature map</strong> (<code>/courses/[id]/map</code>) renders three parallel panels — curriculum tree, AAMC tree, USMLE tree — with filter controls and an alignment review drawer. Planned SVG alignment lines were deferred; no file <code>AlignmentLines.tsx</code> exists. The gaps page and dashboard report framework coverage (covered / partial / gap) but do not surface intra-curriculum redundancy or cross-case relational views.</p>
+    <p><strong>Leverage points:</strong> chunk embeddings already in Postgres; <code>keyword_tags</code> populated at pipeline time but unused in UI; <code>alignments</code> table links every chunk to multiple framework leaves with confidence and rationale; <code>parentStableId</code> on framework tables enables rollup.</p>
+    <p><strong>Pain points:</strong> users cannot see <em>why</em> two cases both "light up green" on the same USMLE node; gap recommendations always suggest adding content, never consolidating; three-column layout hides relationships; no metric for over-teaching.</p>
+    <p><strong>External context:</strong> mapEDU markets gap <em>and</em> redundancy surfacing as core healthcare curriculum value. CloudPedagogy's mapping engine uses multipartite SVG graphs and outcome heatmaps for structural duplication. ForestED (2025) visualizes competency–course trees over a timeline. Pathology MKG research (BMC Med Ed 2025) advocates tiered graph exploration by user proficiency.</p>
+    <p><strong>Past learnings:</strong> No <code>docs/solutions/</code> entries in repo.</p>
+  </section>
+
+  <section id="topic-axes">
+    <h2>Topic Axes</h2>
+    <ul>
+      <li><strong>Visualization UX &amp; navigation</strong> — how users explore relational views beyond three parallel lists</li>
+      <li><strong>Cross-curriculum relation graph</strong> — data model and API for edges between chunks, cases, keywords, frameworks</li>
+      <li><strong>Overlap &amp; redundancy detection</strong> — logic to find repeated teaching across cases</li>
+      <li><strong>Gap vs overlap semantics</strong> — distinguishing external framework gaps from internal curricular duplication</li>
+      <li><strong>Faculty vs student views</strong> — governance/review lens vs study-path lens on the same graph</li>
+    </ul>
+  </section>
+
+  <section id="ranked-ideas">
+    <h2>Ranked Ideas</h2>
+    <ul class="jump-list">
+      <li><a href="#idea-1">1. Concept Bridge Graph</a></li>
+      <li><a href="#idea-2">2. Keyword Constellation Map</a></li>
+      <li><a href="#idea-3">3. Framework Hub Lens</a></li>
+      <li><a href="#idea-4">4. Overlap–Gap Dual Lens</a></li>
+      <li><a href="#idea-5">5. Redundancy Radar</a></li>
+      <li><a href="#idea-6">6. Competency Timeline Scrubber</a></li>
+      <li><a href="#idea-7">7. What-if Case Trim Simulator</a></li>
+    </ul>
+
+    <article class="idea" id="idea-1">
+      <h3><span class="rank">1.</span>Concept Bridge Graph</h3>
+      <p>Replace the static three-column map with an interactive force-directed graph where <strong>curriculum sections are nodes</strong> and <strong>semantic similarity edges</strong> (pgvector cosine &gt; threshold) connect content taught across different cases. Selecting a node highlights its framework alignments in a side panel; hovering an edge shows the shared concept snippet and both rationales. Implements the deferred AlignmentLines vision at course scale rather than selection-only beziers.</p>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 520 200" width="520" height="200" aria-label="Concept bridge graph: cases connected by semantic edges">
+          <rect width="520" height="200" fill="#fafafa" rx="8"/>
+          <circle cx="80" cy="60" r="22" fill="#e8f5ee" stroke="#00843D" stroke-width="2"/>
+          <text x="80" y="64" text-anchor="middle" font-size="10" fill="#353535">Case 2</text>
+          <circle cx="80" cy="140" r="22" fill="#e8f5ee" stroke="#00843D" stroke-width="2"/>
+          <text x="80" y="144" text-anchor="middle" font-size="10" fill="#353535">Case 5</text>
+          <circle cx="260" cy="100" r="28" fill="#fef3c7" stroke="#D97706" stroke-width="2"/>
+          <text x="260" y="96" text-anchor="middle" font-size="9" fill="#353535">Renal</text>
+          <text x="260" y="108" text-anchor="middle" font-size="9" fill="#353535">physiology</text>
+          <circle cx="440" cy="70" r="22" fill="#e8f5ee" stroke="#00843D" stroke-width="2"/>
+          <text x="440" y="74" text-anchor="middle" font-size="10" fill="#353535">Case 4</text>
+          <circle cx="440" cy="130" r="22" fill="#e8f5ee" stroke="#00843D" stroke-width="2"/>
+          <text x="440" y="134" text-anchor="middle" font-size="10" fill="#353535">Case 7</text>
+          <line x1="102" y1="60" x2="232" y2="92" stroke="#00843D" stroke-width="2" stroke-dasharray="4"/>
+          <line x1="102" y1="140" x2="232" y2="108" stroke="#00843D" stroke-width="2" stroke-dasharray="4"/>
+          <line x1="288" y1="92" x2="418" y2="72" stroke="#DC2626" stroke-width="2"/>
+          <line x1="288" y1="108" x2="418" y2="128" stroke="#DC2626" stroke-width="2"/>
+          <text x="170" y="68" font-size="8" fill="#494949">sim 0.89</text>
+          <text x="350" y="88" font-size="8" fill="#DC2626">overlap</text>
+        </svg>
+      </div>
+      <div class="chip-row">
+        <span class="chip axis">Visualization UX</span>
+        <span class="chip axis">Relation graph</span>
+        <span class="chip conf-high">Confidence 88%</span>
+        <span class="chip cx-med">Complexity Medium</span>
+      </div>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>direct:</code> <code>chunks.embedding</code> vector(1536) exists; map page has no edges (<code>app/courses/[courseId]/map/page.tsx</code>); MVP plan U8 lists AlignmentLines as deferred.</dd>
+        <dt>Rationale</dt><dd>Directly answers "show connections between curriculum elements" using data already computed at ingest — the highest-leverage gap in the current UI.</dd>
+        <dt>Downsides</dt><dd>Force layouts can overwhelm with 7×N chunks; needs clustering, threshold tuning, and performance guardrails. Similarity ≠ pedagogical redundancy without faculty confirmation.</dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="idea-2">
+      <h3><span class="rank">2.</span>Keyword Constellation Map</h3>
+      <p>Surface the pipeline's <strong>AAMC keyword tags</strong> as a cross-cutting layer: keyword nodes sit between cases and frameworks, sized by how many case-sections share them. Users see "Ethics" or "Renal physiology" as explicit hubs linking Cases 2, 4, and 6 — a relational view orthogonal to USMLE/AAMC taxonomies. Clicking a keyword hub expands all aligned chunks and framework leaves.</p>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 480 180" width="480" height="180" aria-label="Keyword constellation: shared keywords as hub nodes">
+          <rect width="480" height="180" fill="#fafafa" rx="8"/>
+          <ellipse cx="240" cy="90" rx="50" ry="30" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+          <text x="240" y="94" text-anchor="middle" font-size="11" font-weight="600" fill="#1e40af">Ethics</text>
+          <rect x="30" y="30" width="70" height="36" rx="6" fill="#e8f5ee" stroke="#00843D"/>
+          <text x="65" y="52" text-anchor="middle" font-size="9">Case 1</text>
+          <rect x="30" y="110" width="70" height="36" rx="6" fill="#e8f5ee" stroke="#00843D"/>
+          <text x="65" y="132" text-anchor="middle" font-size="9">Case 3</text>
+          <rect x="380" y="30" width="70" height="36" rx="6" fill="#e8f5ee" stroke="#00843D"/>
+          <text x="415" y="52" text-anchor="middle" font-size="9">Case 5</text>
+          <rect x="380" y="110" width="70" height="36" rx="6" fill="#e8f5ee" stroke="#00843D"/>
+          <text x="415" y="132" text-anchor="middle" font-size="9">Case 6</text>
+          <line x1="100" y1="48" x2="190" y2="80" stroke="#2563eb" stroke-width="1.5"/>
+          <line x1="100" y1="128" x2="190" y2="100" stroke="#2563eb" stroke-width="1.5"/>
+          <line x1="290" y1="80" x2="380" y2="48" stroke="#2563eb" stroke-width="1.5"/>
+          <line x1="290" y1="100" x2="380" y2="128" stroke="#2563eb" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <div class="chip-row">
+        <span class="chip axis">Relation graph</span>
+        <span class="chip axis">Overlap detection</span>
+        <span class="chip conf-high">Confidence 85%</span>
+        <span class="chip cx-med">Complexity Medium</span>
+      </div>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>direct:</code> Pipeline inserts <code>keyword_tags</code> via <code>retrieveKeywordCandidates</code> (<code>lib/pipeline.ts:154-169</code>); zero UI or query consumption today.</dd>
+        <dt>Rationale</dt><dd>Keywords are institution-neutral cross-cutting concepts — exactly the "beyond USMLE/AAMC audit" layer the user requested, with data already in Postgres.</dd>
+        <dt>Downsides</dt><dd>Keyword tagging depends on framework embeddings; sparse tags weaken the graph. May duplicate Concept Bridge edges when keywords align with embedding clusters.</dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="idea-3">
+      <h3><span class="rank">3.</span>Framework Hub Lens with Redundancy Halo</h3>
+      <p>Add a <strong>pivot mode</strong> to the existing map: select any USMLE subdomain or AAMC competency and the center panel becomes a hub showing all case-sections feeding it, with a <strong>redundancy halo</strong> when 3+ sections align above confidence threshold. Edge thickness encodes average confidence; color shifts from green (single coverage) to amber/red (over-taught). Extends FrameworkTree's binary green/gray without replacing the tri-directional layout faculty already know.</p>
+      <div class="chip-row">
+        <span class="chip axis">Visualization UX</span>
+        <span class="chip axis">Gap vs overlap semantics</span>
+        <span class="chip conf-high">Confidence 82%</span>
+        <span class="chip cx-low">Complexity Low</span>
+      </div>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>direct:</code> <code>FrameworkTree</code> only shows binary aligned state (<code>components/map/FrameworkTree.tsx:21-31</code>); <code>gap_summary.chunkCount</code> tracks per-framework counts but is not shown on map.</dd>
+        <dt>Rationale</dt><dd>Minimal UX delta on the signature feature; immediately surfaces overlap the gaps page cannot — "this competency is taught in five places."</dd>
+        <dt>Downsides</dt><dd>Still framework-centric; doesn't reveal cross-cutting themes outside taxonomy. Halo thresholds need calibration to avoid false alarms on intentional spiral curricula.</dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="idea-4">
+      <h3><span class="rank">4.</span>Overlap–Gap Dual Lens</h3>
+      <p>Split the map into linked panels: <strong>left = framework gaps</strong> (existing gap_summary logic), <strong>right = redundancy clusters</strong> (framework leaves or keywords with high chunkCount). Selecting a gap on the left highlights related overlap nodes on the right — surfacing whether a "missing" topic is actually covered under adjacent competencies elsewhere. Annotates suggested actions: "add content" vs "consolidate Cases 3 &amp; 5" vs "intentional spiral — no action."</p>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 520 160" width="520" height="160" aria-label="Dual lens: gaps linked to overlap clusters">
+          <rect width="520" height="160" fill="#fafafa" rx="8"/>
+          <rect x="20" y="20" width="220" height="120" rx="6" fill="#fee2e2" stroke="#DC2626" stroke-width="1.5"/>
+          <text x="130" y="42" text-anchor="middle" font-size="11" font-weight="600" fill="#991b1b">Framework Gaps</text>
+          <rect x="40" y="55" width="180" height="22" rx="4" fill="#fff" stroke="#DC2626"/>
+          <text x="130" y="70" text-anchor="middle" font-size="9">Immunology — gap</text>
+          <rect x="40" y="85" width="180" height="22" rx="4" fill="#fff" stroke="#D97706"/>
+          <text x="130" y="100" text-anchor="middle" font-size="9">Biostats — partial</text>
+          <rect x="280" y="20" width="220" height="120" rx="6" fill="#fef3c7" stroke="#D97706" stroke-width="1.5"/>
+          <text x="390" y="42" text-anchor="middle" font-size="11" font-weight="600" fill="#92400e">Redundancy Clusters</text>
+          <rect x="300" y="55" width="180" height="22" rx="4" fill="#fff" stroke="#D97706"/>
+          <text x="390" y="70" text-anchor="middle" font-size="9">Ethics × 4 cases</text>
+          <rect x="300" y="85" width="180" height="22" rx="4" fill="#fff" stroke="#D97706"/>
+          <text x="390" y="100" text-anchor="middle" font-size="9">Renal × 3 cases</text>
+          <path d="M 220 66 L 280 66" stroke="#494949" stroke-width="2" marker-end="url(#arrow)"/>
+          <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#494949"/></marker></defs>
+          <text x="250" y="58" text-anchor="middle" font-size="8" fill="#494949">linked</text>
+        </svg>
+      </div>
+      <div class="chip-row">
+        <span class="chip axis">Gap vs overlap semantics</span>
+        <span class="chip axis">Faculty vs student views</span>
+        <span class="chip conf-med">Confidence 78%</span>
+        <span class="chip cx-med">Complexity Medium</span>
+      </div>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>direct:</code> <code>suggestedGapAction</code> only recommends adding/strengthening content (<code>lib/gap-analyzer.ts:17-24</code>); mapEDU markets combined gap+redundancy reports as core value (<code>external:</code> mapedu.com).</dd>
+        <dt>Rationale</dt><dd>Reframes curriculum review as a two-sided audit — the user's explicit ask to go beyond framework alignment.</dd>
+        <dt>Downsides</dt><dd>Linking gaps to overlaps requires heuristic adjacency (shared parent framework or keyword); false links could mislead directors. Needs faculty override for "intentional repeat."</dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="idea-5">
+      <h3><span class="rank">5.</span>Chunk Similarity Redundancy Radar</h3>
+      <p>Background job (at <code>db:process</code> or new <code>db:analyze-overlap</code>) computes top-k similar chunk pairs per course via pgvector, storing results in a <code>chunk_similarity</code> table. A "Redundancy Radar" tab ranks pairs by similarity × shared framework count, presenting side-by-side excerpts with diff highlighting. Faculty mark pairs as "consolidate," "differentiate," or "intentional spiral."</p>
+      <div class="chip-row">
+        <span class="chip axis">Overlap detection</span>
+        <span class="chip axis">Relation graph</span>
+        <span class="chip conf-high">Confidence 80%</span>
+        <span class="chip cx-med">Complexity Medium</span>
+      </div>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>direct:</code> <code>searchChunks</code> already runs pgvector cosine queries (<code>lib/queries.ts:192-198</code>); no cross-chunk pairwise analysis exists.</dd>
+        <dt>Rationale</dt><dd>Most precise overlap signal available without new AI calls; actionable list format suits faculty governance workflows.</dd>
+        <dt>Downsides</dt><dd>O(n²) pairwise cost for large corpora — needs batched top-k only. High similarity in different pedagogical contexts (intro vs advanced) produces false positives.</dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="idea-6">
+      <h3><span class="rank">6.</span>Competency Timeline Scrubber</h3>
+      <p>ForestED-inspired horizontal timeline: x-axis = case sequence (1–7), y-axis = competency domains or cross-cutting keywords. Cells show first introduction vs reappearance of each concept, with saturation encoding depth (chunk count × confidence). Scrubbing reveals how the curriculum spirals — or accidentally repeats — across the semester. Complements the static dashboard heatmap with temporal relational context.</p>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 520 140" width="520" height="140" aria-label="Competency timeline scrubber across cases">
+          <rect width="520" height="140" fill="#fafafa" rx="8"/>
+          <text x="60" y="24" font-size="9" fill="#494949">Competency</text>
+          <text x="200" y="24" font-size="9" fill="#494949">Case 1</text>
+          <text x="260" y="24" font-size="9" fill="#494949">Case 2</text>
+          <text x="320" y="24" font-size="9" fill="#494949">Case 3</text>
+          <text x="380" y="24" font-size="9" fill="#494949">Case 4</text>
+          <text x="440" y="24" font-size="9" fill="#494949">Case 5</text>
+          <text x="30" y="55" font-size="9" fill="#353535">Ethics</text>
+          <rect x="195" y="42" width="40" height="18" fill="#16A34A" rx="2"/>
+          <rect x="315" y="42" width="40" height="18" fill="#D97706" rx="2"/>
+          <rect x="435" y="42" width="40" height="18" fill="#DC2626" rx="2"/>
+          <text x="30" y="85" font-size="9" fill="#353535">Renal</text>
+          <rect x="255" y="72" width="40" height="18" fill="#16A34A" rx="2"/>
+          <rect x="375" y="72" width="40" height="18" fill="#D97706" rx="2"/>
+          <text x="30" y="115" font-size="9" fill="#353535">Biostats</text>
+          <rect x="375" y="102" width="40" height="18" fill="#fef3c7" stroke="#D97706" rx="2"/>
+          <text x="200" y="130" font-size="8" fill="#494949">green = first intro · amber = revisit · red = 3rd+ exposure</text>
+        </svg>
+      </div>
+      <div class="chip-row">
+        <span class="chip axis">Visualization UX</span>
+        <span class="chip axis">Faculty vs student views</span>
+        <span class="chip conf-med">Confidence 75%</span>
+        <span class="chip cx-med">Complexity Medium</span>
+      </div>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>external:</code> ForestED (IADIS 2025) — tree/timeline visualization of competency development across curriculum sequence; <code>direct:</code> documents ordered by <code>caseNumber</code> in <code>getMapData</code>.</dd>
+        <dt>Rationale</dt><dd>Medical curricula are inherently sequential; temporal view makes "spiral vs redundant repeat" legible at a glance for course directors.</dd>
+        <dt>Downsides</dt><dd>Case order may not equal teaching order in F2F schedule. Dense y-axis with 100+ competencies needs rollup to domains.</dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="idea-7">
+      <h3><span class="rank">7.</span>What-if Case Trim Simulator</h3>
+      <p>Non-destructive "Structure Explorer" mode (CloudPedagogy pattern): toggle cases off and watch gaps and redundancy metrics recalculate live. Shows which cases are load-bearing for coverage vs which are redundant contributors. Export a trim proposal for curriculum committee review. Operates on in-memory graph derived from existing alignments — no schema migration required for v1.</p>
+      <div class="chip-row">
+        <span class="chip axis">Faculty vs student views</span>
+        <span class="chip axis">Gap vs overlap semantics</span>
+        <span class="chip conf-med">Confidence 72%</span>
+        <span class="chip cx-high">Complexity High</span>
+      </div>
+      <dl class="fields">
+        <dt>Basis</dt><dd><code>external:</code> CloudPedagogy Structure Explorer — non-destructive what-if for curriculum refactoring; <code>direct:</code> gap recompute already runs at course level (<code>recomputeCourseFrameworkGaps</code>).</dd>
+        <dt>Rationale</dt><dd>Turns relational insight into governance action — "if we cut Case 5, which gaps open?" — differentiated from passive audit dashboards.</dd>
+        <dt>Downsides</dt><dd>Client-side recompute must mirror server gap logic exactly or trust an API. High complexity for demo scope; better as phase-2 after graph foundation (ideas 1–3).</dd>
+      </dl>
+    </article>
+  </section>
+
+  <section id="rejection-summary">
+    <h2>Rejection Summary</h2>
+    <table class="rejection">
+      <thead>
+        <tr><th>#</th><th>Idea</th><th>Reason Rejected</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>Remove framework trees — curriculum-only force graph</td><td>Subject-replacement — abandons signature tri-directional map faculty demo depends on</td></tr>
+        <tr><td>2</td><td>GraphML / Cytoscape export only</td><td>Below meeting-test — power-user escape hatch, not interactive map for directors</td></tr>
+        <tr><td>3</td><td>Mobile radial layout</td><td>Polish without addressing core relational gap; demo is desktop-first</td></tr>
+        <tr><td>4</td><td>LLM emergent theme clusters (batch)</td><td>Duplicate of Keyword Constellation + Concept Bridge with higher cost and weaker verifiability</td></tr>
+        <tr><td>5</td><td>Natural-language graph query only</td><td>Extends search route without persistent visual map — insufficient for "interactive curriculum map"</td></tr>
+        <tr><td>6</td><td>Student prerequisite path (invert to learner lens)</td><td>Scope overrun for v1 — no users/roles schema; better as lens on ideas 1/6 after faculty graph exists</td></tr>
+        <tr><td>7</td><td>Sankey Case→Keyword→Competency</td><td>Duplicates Keyword Constellation with higher UX complexity; Sankey poor for bidirectional exploration</td></tr>
+        <tr><td>8</td><td>Alignment rationale diff tool</td><td>Interesting but narrow — sub-feature of Redundancy Radar, not standalone map</td></tr>
+        <tr><td>9</td><td>Ecosystem / air-traffic analogy views</td><td>Metaphor-heavy without unique mechanism beyond Concept Bridge Graph</td></tr>
+        <tr><td>10</td><td>Automated "consolidate this" AI suggestions</td><td>Requires faculty trust layer first; premature without annotation workflow</td></tr>
+        <tr><td>11</td><td>Case-pair Venn alignment diff</td><td>Subsumed by Framework Hub Lens and Redundancy Radar with less navigation overhead</td></tr>
+        <tr><td>12</td><td>Integrated /relations API only (no UI)</td><td>Infrastructure, not user-facing feature — belongs inside ideas 1/2 as implementation detail</td></tr>
+        <tr><td>13</td><td>Spine view: derived learning objectives graph</td><td>Weak basis — section headers inconsistently structured; high extraction cost</td></tr>
+        <tr><td>14</td><td>Spiral curriculum reframe (no detection)</td><td>Framing only — doesn't add detection; merge into Dual Lens annotations</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer class="composition-signal">
+    Composed <time datetime="2026-07-03T17:56:00Z">2026-07-03</time> by ce-ideate · RushMap AI interactive curriculum map ideation · scratch run <code>c96f95e3</code>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,730 @@
+[
+  {
+    "keywordId": "K001",
+    "keyword": "acute care",
+    "definition": "All promotive, preventive, curative, rehabilitative or palliative actions, whether oriented towards individuals or populations, whose primary purpose is to improve health and whose effectiveness largely depends on time-sensitive and, frequently, rapid intervention.",
+    "synonyms": "ACLS/ATLS; critical care; critical care medicine; disaster medicine; emergency medicine; emergency preparedness; emergency treatment; intensive care; mass casualties; on-call emergencies; pandemic response",
+    "stableId": "aamc-kw:k001"
+  },
+  {
+    "keywordId": "K002",
+    "keyword": "addiction medicine",
+    "definition": "A medical specialty focused on the diagnosis and treatment of addictive behavior disorders, including substance-related disorders and impulse control disorders; and the management of co-occurring medical and psychiatric conditions.",
+    "synonyms": "addiction; drug abuse; drug use; substance abuse; substance abuse disorders; substance use; substance use disorders; substance-related disorders",
+    "stableId": "aamc-kw:k002"
+  },
+  {
+    "keywordId": "K003",
+    "keyword": "adolescent medicine",
+    "definition": "A branch of medicine pertaining to the diagnosis and treatment of diseases occurring during the period of adolescence.",
+    "synonyms": "adolescent health; ephebiatrics; hebiatrics; teenager",
+    "stableId": "aamc-kw:k003"
+  },
+  {
+    "keywordId": "K004",
+    "keyword": "advocacy",
+    "definition": "The process of defending or pleading the cause of oneself and/or another individual or group.",
+    "synonyms": "anti-racism",
+    "stableId": "aamc-kw:k004"
+  },
+  {
+    "keywordId": "K005",
+    "keyword": "ambulatory care",
+    "definition": "Health care services provided to patients on an ambulatory basis, rather than by admission to a hospital or other health care facility. The services may be a part of a hospital, augmenting its inpatient services, or may be provided at a free-standing facility.",
+    "synonyms": "urgent care",
+    "stableId": "aamc-kw:k005"
+  },
+  {
+    "keywordId": "K006",
+    "keyword": "anatomy",
+    "definition": "A branch of biology dealing with the structure of organisms.",
+    "synonyms": "gross anatomy; histology; microanatomy",
+    "stableId": "aamc-kw:k006"
+  },
+  {
+    "keywordId": "K007",
+    "keyword": "anesthesiology",
+    "definition": "A medical specialty concerned with the study of anesthetics and anesthesia.",
+    "synonyms": "anesthetics",
+    "stableId": "aamc-kw:k007"
+  },
+  {
+    "keywordId": "K100",
+    "keyword": "artificial intelligence",
+    "definition": "The science and engineering of making machines, especially computer programs, able to learn and perform suitable techniques to solve problems and achieve goals, appropriate to the context",
+    "synonyms": "AI; augmented intelligence; big data; data mining; deep learning; generative AI; large language model; LLM; machine intelligence; machine learning; natural language processing; neural networks; sentiment analysis",
+    "stableId": "aamc-kw:k100"
+  },
+  {
+    "keywordId": "K008",
+    "keyword": "behavioral sciences",
+    "definition": "Disciplines concerned with the study of human and nonhuman animal behavior.",
+    "synonyms": "behavior change; behavioral change; behavioral health; behavioral medicine; behavioral response; integrated behavioral health",
+    "stableId": "aamc-kw:k008"
+  },
+  {
+    "keywordId": "K009",
+    "keyword": "bias and prejudice",
+    "definition": "A flaw or defect in the intellectual or mental process whereby one obtains knowledge; preconceived judgment made without factual basis; or an attitude or opinion which predisposes an individual to make a preconceived judgment prior to objective evaluation—frequently an irrational attitude of hostility directed against an individual, group, or race for supposed characteristics. Biases and prejudices can exist outside the conscious awareness of the person who manifests them; these biases and prejudices are called \"unconscious\" or \"implicit\" (versus \"conscious\" or \"explicit\"). Biases and prejudices can impact individuals as well as systems.",
+    "synonyms": "age discrimination; ageism; anti-gay bias; anti-Semitism; bias; cognitive bias; discrimination; fallacies; fat shaming; gender bias; homophobia; Islamophobia; marginalized communities; microaggression; obesity bias; prejudice; racial bias; racial discrimination; racial prejudice; racism; sex bias; sex discrimination; sexism; statistical bias; weight prejudice; weight-based discrimination; xenophobia",
+    "stableId": "aamc-kw:k009"
+  },
+  {
+    "keywordId": "K010",
+    "keyword": "biochemistry",
+    "definition": "The study of the composition, chemical structures, and chemical reactions of living things.",
+    "synonyms": "gene expression",
+    "stableId": "aamc-kw:k010"
+  },
+  {
+    "keywordId": "K011",
+    "keyword": "biomedical informatics",
+    "definition": "The field of information science concerned with the analysis and dissemination of medical data through the application of computers to various aspects of health care and medicine.",
+    "synonyms": "bioinformatics; clinical informatics; health informatics; health information exchange; informatics; medical computer science; medical informatics",
+    "stableId": "aamc-kw:k011"
+  },
+  {
+    "keywordId": "K012",
+    "keyword": "biostatistics",
+    "definition": "The application of statistics to biological systems and organisms involving the retrieval or collection, analysis, reduction, and interpretation of qualitative and quantitative data.",
+    "synonyms": "biological statistics; biometry",
+    "stableId": "aamc-kw:k012"
+  },
+  {
+    "keywordId": "K013",
+    "keyword": "blood and lymphoreticular system",
+    "definition": "The body fluid that circulates in the vascular system (blood vessels); and the tissues and organs that produce, store, and carry white blood cells that fight infections and other diseases, which system includes the bone marrow, spleen, thymus, lymph nodes, and lymphatic vessels (a network of thin tubes that carry lymph and white blood cells).",
+    "synonyms": "blood; hematology; lymph; lymphatic disease; lymphatic system; lymphoreticular system",
+    "stableId": "aamc-kw:k013"
+  },
+  {
+    "keywordId": "K014",
+    "keyword": "cardiovascular system",
+    "definition": "Bodily system consisting of the heart, blood vessels, and blood that circulates blood throughout the body, delivers nutrients and other essential materials to cells, and removes waste products.",
+    "synonyms": "cardiology; vascular system",
+    "stableId": "aamc-kw:k014"
+  },
+  {
+    "keywordId": "K015",
+    "keyword": "chronic care",
+    "definition": "Care over an extended period, usually for a chronic condition or disability, requiring periodic, intermittent, or continuous care. Care can be in an institutional setting or in the community, e.g., at home, and delivered by health care professionals, family, or friends.",
+    "synonyms": "long-term care",
+    "stableId": "aamc-kw:k015"
+  },
+  {
+    "keywordId": "K101",
+    "keyword": "climate change",
+    "definition": "A change in the state of the climate that persists for an extended period. Climate change has led to widespread interactions and adverse impacts on human health (e.g. reduced food security, affected water security, heatwaves, worsened air pollution events, limited functioning of key infrastructure, food-borne, water-borne, vector-borne, animal, and human diseases, mental health challenges, and vulnerability due to displacement and involuntary migration.)",
+    "synonyms": "carbon footprint; climate crisis; climate warming; global warming; greenhouse effect; greenhouse gases; health effects of climate change; planetary health",
+    "stableId": "aamc-kw:k101"
+  },
+  {
+    "keywordId": "K016",
+    "keyword": "clinical decision-making",
+    "definition": "Process of formulating a diagnosis based on medical history and physical or mental examinations, and/or choosing an appropriate intervention.",
+    "synonyms": "clinical data interpretation; clinical interpretation; clinical reasoning; data interpretation; decision-making; diagnosing disease; diagnosis; diagnostic reasoning; differential diagnosis; hypothesis-driven diagnostic testing; interpretation; interpretation of diagnostic results; medical decision-making",
+    "stableId": "aamc-kw:k016"
+  },
+  {
+    "keywordId": "K099",
+    "keyword": "clinical documentation",
+    "definition": "Use of an Electronic Health System (or analog equivalent) to document a clinical encounter (e.g. admission, progress, discharge summary) and/or to input orders and prescriptions.",
+    "synonyms": "electronic health record; electronic medical record; order entry and procedures",
+    "stableId": "aamc-kw:k099"
+  },
+  {
+    "keywordId": "K017",
+    "keyword": "clinical research",
+    "definition": "Research conducted with human subjects or on material of human origin in which an investigator directly interacts with human subjects; includes development of new technologies, study of mechanisms of human diseases, therapy, clinical trials, epidemiology, behavior, and health services research. This research evaluates interventions or exposures on biomedical or health-related outcomes.",
+    "synonyms": null,
+    "stableId": "aamc-kw:k017"
+  },
+  {
+    "keywordId": "K018",
+    "keyword": "communication skills",
+    "definition": "The personal set of abilities required to successfully interact and communicate with others, both verbally and non-verbally through gestures, body language, and personal appearance.",
+    "synonyms": "active listening; communication; communication barriers; electronic communications; interpersonal skills; interpretative services; shared decision making; social skills; team science; team work; translating; verbal communications; written communications",
+    "stableId": "aamc-kw:k018"
+  },
+  {
+    "keywordId": "K019",
+    "keyword": "community service",
+    "definition": "Services designed to improve the quality of life for community residents or to solve particular problems related to their needs. Community service opportunities provided by the medical school complement and reinforce the medical student’s educational program.",
+    "synonyms": "community engagement; community-based care; community-based learning; service learning",
+    "stableId": "aamc-kw:k019"
+  },
+  {
+    "keywordId": "K020",
+    "keyword": "complementary and alternative medicine",
+    "definition": "A group of diverse medical and health care systems, practices, and products that are not presently considered to be part of conventional medicine. Complementary medicine is used together with conventional medicine, whereas alternative medicine is used in place of conventional medicine.",
+    "synonyms": "alternative healthcare; alternative medicine; alternative therapy; complementary healthcare; complementary medicine; complementary therapy; integrative medicine",
+    "stableId": "aamc-kw:k020"
+  },
+  {
+    "keywordId": "K021",
+    "keyword": "continuity of care",
+    "definition": "Health care provided on a continuing basis from the initial contact, following the patient through all phases of medical care.",
+    "synonyms": "continuum of care; handoff procedures; handoffs; handovers; patient care continuity; patient handoffs; signovers; transitional care",
+    "stableId": "aamc-kw:k021"
+  },
+  {
+    "keywordId": "K022",
+    "keyword": "cultural competence",
+    "definition": "The ability to understand, interact, and work well with people of different cultures. In medicine, one goal of cultural competency is to help make sure that the quality of the healthcare is equal among different cultural groups.",
+    "synonyms": "cultural competency; cultural humility; culturally appropriate and socially responsive care; culturally appropriate care; diversity; equity; inclusion; socially responsive care",
+    "stableId": "aamc-kw:k022"
+  },
+  {
+    "keywordId": "K023",
+    "keyword": "dermatology",
+    "definition": "A medical specialty concerned with the skin, its structure, functions, diseases, and treatment.",
+    "synonyms": null,
+    "stableId": "aamc-kw:k023"
+  },
+  {
+    "keywordId": "K024",
+    "keyword": "disabilities",
+    "definition": "Lasting physical or mental impairments that significantly interfere with the ability to function in one or more central life activities, such as self-care, ambulation, communication, social interaction, sexual expression, or employment.",
+    "synonyms": "accessibility; developmental disabilities; hearing impairment; intellectual disabilities; learning disabilities; mobility impairment; physical disabilities; psychological disability; vision impairment",
+    "stableId": "aamc-kw:k024"
+  },
+  {
+    "keywordId": "K025",
+    "keyword": "domestic violence",
+    "definition": "Deliberate, often repetitive physical, verbal, and/or other types of abuse by one or more members against others of a household.",
+    "synonyms": "child abuse; domestic abuse; elder abuse; family violence; intimate partner violence; spousal abuse",
+    "stableId": "aamc-kw:k025"
+  },
+  {
+    "keywordId": "K026",
+    "keyword": "endocrine system",
+    "definition": "Ductless glands that secrete substances which are released directly into the circulation and which influence metabolism and other body functions.",
+    "synonyms": "endocrinology; metabolism",
+    "stableId": "aamc-kw:k026"
+  },
+  {
+    "keywordId": "K102",
+    "keyword": "environmental health",
+    "definition": "The role of environmental factors in the development of a disease, and the development of methods for detection, prevention, and control of environmentally related disease. (e.g., due to water quality, chemical spills, lead paint, water pollution, air pollution)",
+    "synonyms": "environmental determinants; environmental medicine; health physics; sanitary engineering; sanitation",
+    "stableId": "aamc-kw:k102"
+  },
+  {
+    "keywordId": "K103",
+    "keyword": "epidemiology",
+    "definition": "The study of the causes, incidence and distribution of disease in the population and its application for prevention or control.",
+    "synonyms": null,
+    "stableId": "aamc-kw:k103"
+  },
+  {
+    "keywordId": "K027",
+    "keyword": "evidence-based medicine",
+    "definition": "An approach of practicing medicine with the goal to improve and evaluate patient care. It requires the judicious integration of best research evidence with the patient's values to make decisions about medical care. This method helps physicians make proper diagnosis, devise best testing plan, choose best treatment and methods of disease prevention, as well as develop guidelines for large groups of patients with the same disease.",
+    "synonyms": "disinformation; misinformation",
+    "stableId": "aamc-kw:k027"
+  },
+  {
+    "keywordId": "K028",
+    "keyword": "female reproductive system and breast",
+    "definition": "The collection of organs and tissues, including the ovaries, genital tract, and breasts, that have several functions, including sexual maturation, pregnancy, and childbirth.",
+    "synonyms": "breast; female genitalia; female genitals; female reproductive system",
+    "stableId": "aamc-kw:k028"
+  },
+  {
+    "keywordId": "K029",
+    "keyword": "firearms",
+    "definition": "Portable weapons, including handguns, pistols, revolvers, rifles, shotguns, etc., that launch a projectile by an explosive force",
+    "synonyms": "firearm safety; gun safety; gun violence; guns",
+    "stableId": "aamc-kw:k029"
+  },
+  {
+    "keywordId": "K030",
+    "keyword": "gastrointestinal system",
+    "definition": "A group of organs stretching from the mouth to the anus, serving to breakdown foods, assimilate nutrients, and eliminate waste. In humans, the digestive system includes the gastrointestinal tract (mouth, esophagus, stomach, intestines, anus) and the accessory glands (liver, biliary tract, pancreas), and associated hormones and secretions.",
+    "synonyms": "alimentary system; digestive system; digestive tract; gastroenterology; gastrointestinal tract; GI tract",
+    "stableId": "aamc-kw:k030"
+  },
+  {
+    "keywordId": "K040",
+    "keyword": "gender identity",
+    "definition": "A person's concept of self (including how they perceive themselves and what they call themselves) as male, female, a blend of both, neither, or ambivalent. This can be based in part on physical characteristics, parental responses, and psychological and social pressures. One's gender identity can be the same or different from their sex assigned at birth.",
+    "synonyms": "gender role; human gender development",
+    "stableId": "aamc-kw:k040"
+  },
+  {
+    "keywordId": "K031",
+    "keyword": "genetics",
+    "definition": "The branch of science concerned with the means and consequences of transmission and generation of the components of biological inheritance; the study of genes and their heredity.",
+    "synonyms": "gene therapy; genetic testing and counseling; medical genetics",
+    "stableId": "aamc-kw:k031"
+  },
+  {
+    "keywordId": "K032",
+    "keyword": "geriatrics",
+    "definition": "The branch of medicine concerned with the physiological and pathological aspects of the aged, including the clinical problems of senescence and senility.",
+    "synonyms": "aging; elderhood; gerontology",
+    "stableId": "aamc-kw:k032"
+  },
+  {
+    "keywordId": "K033",
+    "keyword": "global health",
+    "definition": "A multi- and interdisciplinary field concerned with improving health and achieving equity in health for all people. It transcends national boundaries, promotes cooperation and collaboration within and beyond health science fields, and combines population-based disease prevention with individually-based patient care.",
+    "synonyms": "international health; world health",
+    "stableId": "aamc-kw:k033"
+  },
+  {
+    "keywordId": "K036",
+    "keyword": "health care systems",
+    "definition": "Administrative control and monitoring mechanisms that govern the range of services provided to individuals for their physical, psychological, and social well-being. These services are provided in a variety of settings including community, home-based, school and work settings, general hospitals, specialty hospitals, clinics, and residential and non-residential care facilities. Mechanisms include systems for implementing regulations and standards that determine eligibility for services, provision of devices, assistive technology, or other adapted equipment, and legislation such as health acts that govern features of a health system such as accessibility, universality, portability, public funding, and comprehensiveness.",
+    "synonyms": "delivery of health care; health systems science; systems thinking; systems-based practice",
+    "stableId": "aamc-kw:k036"
+  },
+  {
+    "keywordId": "K037",
+    "keyword": "health disparities",
+    "definition": "Differences in access to or availability of medical facilities and services, or variation in health outcomes, including rates of disease occurrence and disabilities, between population groups defined by socioeconomic characteristics such as age, ethnicity, economic resources, or gender and populations identified geographically or similar measures.",
+    "synonyms": "disparity reduction; health care disparities; health care inequalities; health inequities; health status disparities",
+    "stableId": "aamc-kw:k037"
+  },
+  {
+    "keywordId": "K038",
+    "keyword": "history taking",
+    "definition": "Acquiring information from a patient on past medical conditions and treatments.",
+    "synonyms": "medical history taking",
+    "stableId": "aamc-kw:k038"
+  },
+  {
+    "keywordId": "K039",
+    "keyword": "human development",
+    "definition": "Continuous sequential changes which occur in the physiological and psychological functions during the lifetime of an individual.",
+    "synonyms": "developmental stages; embryology; life cycle; life stage; life stages; stages of development",
+    "stableId": "aamc-kw:k039"
+  },
+  {
+    "keywordId": "K041",
+    "keyword": "human rights",
+    "definition": "All nationally and internationally recognized rights that are accorded to people by virtue of their humanity alone, such as human rights as recognized by the United Nations Universal Declaration of Human Rights (1948) and the United Nations Standard Rules for the Equalization of Opportunities for Persons with Disabilities (1993); the right to self-determination or autonomy; and the right to control over one's destiny.",
+    "synonyms": "asylum seekers; civil rights; cultural rights; detainment; displaced persons; emigration; enslavement; equality before the law; freedom of expression; freedom of movement; freedom of religion; freedom of thought; human trafficking; human values; immigration; imprisonment; migration; refugees; reproductive rights; resettlement; right to assemble; right to democracy; right to die; right to education; right to health; right to life; right to marry; right to nationality; right to privacy; right to rest; right to social security; right to trial; right to work; settlement; slavery; torture; women's rights",
+    "stableId": "aamc-kw:k041"
+  },
+  {
+    "keywordId": "K043",
+    "keyword": "immune system",
+    "definition": "The body's defense mechanism against foreign organisms or substances and deviant native cells. It includes the humoral immune response and the cell-mediated response and consists of a complex of interrelated cellular, molecular, and genetic components.",
+    "synonyms": "adaptive immune response; allergens; allergy; immune development; immune response; immunodeficiency; immunologic diagnostics; immunologic mediators; immunologic protection; immunology; vaccinology",
+    "stableId": "aamc-kw:k043"
+  },
+  {
+    "keywordId": "K044",
+    "keyword": "infectious disease",
+    "definition": "An illness caused by an infectious agent or its toxins that is transmitted directly or indirectly via an infected individual, an animal, or the inanimate environment to a susceptible host.",
+    "synonyms": "communicable disease; infectious disease medicine",
+    "stableId": "aamc-kw:k044"
+  },
+  {
+    "keywordId": "K045",
+    "keyword": "internal medicine",
+    "definition": "A medical specialty concerned with the diagnosis and treatment of diseases of the internal organ systems of adults.",
+    "synonyms": "hospital medicine; sleep medicine",
+    "stableId": "aamc-kw:k045"
+  },
+  {
+    "keywordId": "K046",
+    "keyword": "interprofessional skills",
+    "definition": "Abilities or competencies used to support two or more parties from different professions working jointly towards a common goal.",
+    "synonyms": "interprofessional collaboration; interprofessional education (IPE); interprofessional relations",
+    "stableId": "aamc-kw:k046"
+  },
+  {
+    "keywordId": "K047",
+    "keyword": "male reproductive system",
+    "definition": "Male reproductive organs of any species; in humans, divided into the external organs (penis, scrotum, and urethra) and the internal organs (testis, epididymis, vas deferens, seminal vesicles, ejaculatory ducts, prostate, and bulbourethral glands).",
+    "synonyms": "andrology; male genitalia; male genitals",
+    "stableId": "aamc-kw:k047"
+  },
+  {
+    "keywordId": "K051",
+    "keyword": "medical economics",
+    "definition": "Economic aspects of the field of medicine, the medical profession, and health care. It includes the economic and financial impact of disease in general on the patient, the physician, society, or government. This includes the actual costs of providing services related to the delivery of health care, including the costs of procedures, therapies, and medications; also included are the amounts spent by individuals, groups, nations, or private or public organizations for total health care and/or its various components.",
+    "synonyms": "alternative payment models; awareness of cost to patient populations, including those who are under-resourced; billing; coding; cost consciousness; cost of care; health care economics; health care financing; health systems financing; high-value care; interaction of payment systems (corporate, private, or government); medical socioeconomics; value-based care",
+    "stableId": "aamc-kw:k051"
+  },
+  {
+    "keywordId": "K048",
+    "keyword": "medical ethics",
+    "definition": "Principles of right and wrong in medicine and health care.",
+    "synonyms": "bioethics; biomedical ethics; confidentiality; ethical behavior in patient care; ethical breaches; ethical decision making; ethics; informed consent; patient rights; research communications to patients; research ethics",
+    "stableId": "aamc-kw:k048"
+  },
+  {
+    "keywordId": "K049",
+    "keyword": "medical humanities",
+    "definition": "An interdisciplinary field that explores what it means to be human and how we experience health, illness, and health care. It encompasses the humanities, social sciences, and the arts, including the depiction of medical issues or themes via visual, oral, or written forms of expression. It includes topics related to health and illness; the interactions between health practices and conceptions of personhood, gender, and community; beliefs, practices, healing, and ethics across cultures; the nature of suffering; and models of wellness.",
+    "synonyms": "arts in medicine; history of medicine; literature in medicine; music in medicine",
+    "stableId": "aamc-kw:k049"
+  },
+  {
+    "keywordId": "K050",
+    "keyword": "medical jurisprudence",
+    "definition": "The science or philosophy of law. Also, the application of the principles of law and justice to health and medicine.",
+    "synonyms": "law and medicine; regulatory measures and requirements",
+    "stableId": "aamc-kw:k050"
+  },
+  {
+    "keywordId": "K052",
+    "keyword": "microbiology",
+    "definition": "The science that deals with the study of microorganisms, including algae, archaea, bacteria, fungi, protozoa, and viruses.",
+    "synonyms": "microorganisms including bacteria, viruses, fungi, parasites, prions",
+    "stableId": "aamc-kw:k052"
+  },
+  {
+    "keywordId": "K053",
+    "keyword": "molecular biology",
+    "definition": "The study of biology at a molecular level. It chiefly concerns itself with understanding the interactions between the various systems of a cell, including the interrelationship of DNA, RNA and protein synthesis and learning how these interactions are regulated. The field overlaps with other areas of biology, particularly genetics and biochemistry.",
+    "synonyms": "cell biology; molecular medicine",
+    "stableId": "aamc-kw:k053"
+  },
+  {
+    "keywordId": "K054",
+    "keyword": "multisystem processes",
+    "definition": "Sequences or flows of activities, whether healthy or pathologic, involving more than one bodily system, such as the cardiovascular and endocrine systems.",
+    "synonyms": "multisystem disorder",
+    "stableId": "aamc-kw:k054"
+  },
+  {
+    "keywordId": "K055",
+    "keyword": "musculoskeletal system",
+    "definition": "The system of muscles, tendons, ligaments, bones, joints, and associated tissues that move the body and maintain its form.",
+    "synonyms": "bones; cartilage; joints; MSK; rheumatology; skeletal muscle; skeletal system; tendons",
+    "stableId": "aamc-kw:k055"
+  },
+  {
+    "keywordId": "K056",
+    "keyword": "neoplasms",
+    "definition": "New abnormal growth of tissue. Malignant neoplasms show a greater degree of anaplasia and have the properties of invasion and metastasis, compared to benign neoplasms.",
+    "synonyms": "cancer; malignancy; oncology; tumor",
+    "stableId": "aamc-kw:k056"
+  },
+  {
+    "keywordId": "K057",
+    "keyword": "nervous system and special senses",
+    "definition": "The entire nerve apparatus, composed of a central part, the brain and spinal cord, and a peripheral part, the cranial and spinal nerves, autonomic ganglia, and plexuses.",
+    "synonyms": "sensation; sensory functions",
+    "stableId": "aamc-kw:k057"
+  },
+  {
+    "keywordId": "K058",
+    "keyword": "neurology",
+    "definition": "A branch of medicine concerned with the development, anatomy, function, and dysfunction of the nervous system.",
+    "synonyms": "neuroanatomy; neuroscience",
+    "stableId": "aamc-kw:k058"
+  },
+  {
+    "keywordId": "K059",
+    "keyword": "nutrition",
+    "definition": "The study of nutrition processes as well as the components of food, their actions, interaction, and balance in relation to health and disease.",
+    "synonyms": "bariatric medicine; food apartheid; food deserts; food scarcity; nutrition science; obesity; science of nutrition",
+    "stableId": "aamc-kw:k059"
+  },
+  {
+    "keywordId": "K060",
+    "keyword": "obstetrics and gynecology",
+    "definition": "A medical specialty concerned with the female reproductive organs in their pregnant and non-pregnant states.",
+    "synonyms": "gynecology; maternal-fetal medicine; ob-gyn; OBGYN; obstetrics; obstetrics-gynecology; women's health",
+    "stableId": "aamc-kw:k060"
+  },
+  {
+    "keywordId": "K061",
+    "keyword": "occupational health",
+    "definition": "The promotion and maintenance of the physical and mental health of employees in occupational settings.",
+    "synonyms": "occupational medicine",
+    "stableId": "aamc-kw:k061"
+  },
+  {
+    "keywordId": "K098",
+    "keyword": "osteopathic manipulative treatment",
+    "definition": "The therapeutic application of manual techniques by an osteopathic physician to address the changes in body structure to improve physiologic function.",
+    "synonyms": null,
+    "stableId": "aamc-kw:k098"
+  },
+  {
+    "keywordId": "K062",
+    "keyword": "pain management",
+    "definition": "The systematic study of clinical and basic science and its application for the reduction of pain and suffering; the blending of pharmacological and non-pharmacological tools, techniques and principles taken from the discrete healing art disciplines and reformulated as a holistic application for the reduction of pain and suffering; or a discipline emphasizing an interdisciplinary approach with a goal of reduction of pain and suffering.",
+    "synonyms": "opioids; pain management indications; pain medicine; undermanaged pain",
+    "stableId": "aamc-kw:k062"
+  },
+  {
+    "keywordId": "K063",
+    "keyword": "palliative care",
+    "definition": "The patient- and family-centered active holistic care of patients with advanced, progressive disease. Essential components of palliative care are: pain and symptom control, communication regarding treatment and alternatives, prognosis, and available services, rehabilitation services, care that addresses treatment and palliative concerns, intellectual, emotional, social, and spiritual needs, terminal care, support in bereavement. The goal of palliative care is an achievement of the best quality of life for patients and their families.",
+    "synonyms": "end-of-life care; hospice; palliative medicine",
+    "stableId": "aamc-kw:k063"
+  },
+  {
+    "keywordId": "K064",
+    "keyword": "pathophysiology",
+    "definition": "The medical science, and specialty practice, concerned with all aspects of disease, but with special reference to the essential nature, causes, and development of abnormal conditions, as well as the structural and functional changes that result from the disease processes. May also refer to structural and functional changes which cause or are caused by disease.",
+    "synonyms": "forensic pathology; pathology",
+    "stableId": "aamc-kw:k064"
+  },
+  {
+    "keywordId": "K065",
+    "keyword": "patient safety",
+    "definition": "Efforts to reduce risk, to address and reduce incidents and accidents that may negatively impact healthcare consumers.",
+    "synonyms": "medical error; reporting medical error",
+    "stableId": "aamc-kw:k065"
+  },
+  {
+    "keywordId": "K066",
+    "keyword": "pediatrics",
+    "definition": "A medical specialty concerned with maintaining health and providing medical care to children from birth to adolescence.",
+    "synonyms": "neonatal medicine; neonatology; newborn; perinatal medicine; perinatology",
+    "stableId": "aamc-kw:k066"
+  },
+  {
+    "keywordId": "K067",
+    "keyword": "pharmacology and medication management",
+    "definition": "The study of pharmacologic agents. This includes the preparation, compounding, and dispensing of drugs, as well as the characteristics and properties of drugs, their effects on the body, and how they are metabolized and eliminated from the body. Patient use of pharmacologic agents is managed and/or monitored to maximize beneficial outcomes and minimize unfavorable effects.",
+    "synonyms": "antibiotic misuse; antibiotic overuse; antibiotic stewardship; drug therapy management; medication therapy management; pharmacodynamic and pharmakinetic processes; pharmacotherapeutics; toxicology",
+    "stableId": "aamc-kw:k067"
+  },
+  {
+    "keywordId": "K068",
+    "keyword": "physical examination",
+    "definition": "A systemic evaluation of the body and its functions using visual inspection, palpation, percussion, and auscultation. The purpose is to determine the presence or absence of physical signs of disease or abnormality for an individual's health assessment.",
+    "synonyms": "hypothesis-drive physical examination; structural assessment; structural examination",
+    "stableId": "aamc-kw:k068"
+  },
+  {
+    "keywordId": "K069",
+    "keyword": "physiology",
+    "definition": "The biological science concerned with the life-supporting properties, functions, and processes of living organisms or their parts.",
+    "synonyms": null,
+    "stableId": "aamc-kw:k069"
+  },
+  {
+    "keywordId": "K070",
+    "keyword": "precision medicine",
+    "definition": "Clinical, therapeutic and diagnostic approaches to optimal disease management based on individual variations in a patient's genetic profile.",
+    "synonyms": null,
+    "stableId": "aamc-kw:k070"
+  },
+  {
+    "keywordId": "K071",
+    "keyword": "pregnancy, childbirth, the puerperium",
+    "definition": "The fertilization and development of one or more offspring, known as an embryo or fetus, in a woman's uterus; the process of giving birth to one or more offspring; and the period after parturition, from the time of giving birth to the complete involution of the uterus to its pre-pregnant state. Puerperium generally lasts about six to eight weeks.",
+    "synonyms": "childbirth; labor; lactation; maternal health; parturition",
+    "stableId": "aamc-kw:k071"
+  },
+  {
+    "keywordId": "K072",
+    "keyword": "preventive care",
+    "definition": "Therapeutic, nutritional, environmental, social, and/or behavioral interventions at the societal, community, organizational, or individual levels to reduce, modify, or stop the course of a disease.",
+    "synonyms": "disease prevention; health literacy; health maintenance; health promotion; immunizations; lifestyle medicine; patient education; preventative care; preventative medicine; preventive health screening; preventive medicine; vaccinations",
+    "stableId": "aamc-kw:k072"
+  },
+  {
+    "keywordId": "K073",
+    "keyword": "primary care",
+    "definition": "Care that provides integrated, accessible health care services by clinicians who are accountable for addressing a large majority of personal health care needs, developing a sustained partnership with patients, and practicing in the context of family and community.",
+    "synonyms": "family medicine; family practice; general practice",
+    "stableId": "aamc-kw:k073"
+  },
+  {
+    "keywordId": "K074",
+    "keyword": "problem solving and critical judgment",
+    "definition": "Identifying, analyzing, and integrating incongruent or conflicting information into a solution.",
+    "synonyms": "critical judgment; critical thinking; problem solving",
+    "stableId": "aamc-kw:k074"
+  },
+  {
+    "keywordId": "K075",
+    "keyword": "procedural skills",
+    "definition": "Motor skills, habits, and types of cognitive skills acquired through repeated performance and practice.",
+    "synonyms": null,
+    "stableId": "aamc-kw:k075"
+  },
+  {
+    "keywordId": "K076",
+    "keyword": "professional identity formation",
+    "definition": "The development of one's concept of self and of their role within a professional domain.",
+    "synonyms": "imposter syndrome; medical licensure",
+    "stableId": "aamc-kw:k076"
+  },
+  {
+    "keywordId": "K077",
+    "keyword": "professionalism",
+    "definition": "The level of skill, good judgment, and polite behavior expected from people trained to do their jobs well. Professionalism involves knowledge, skills, behaviors, attitudes, and judgment to deal with specific situations and to negotiate conflict. In medicine, it reflects such principles as maintaining patient confidentiality, responsibly managing conflicts of interest, and displaying honesty, reliability, and respect for others.",
+    "synonyms": null,
+    "stableId": "aamc-kw:k077"
+  },
+  {
+    "keywordId": "K078",
+    "keyword": "psychiatry",
+    "definition": "The medical science that deals with the origin, diagnosis, prevention, and treatment of mental disorders.",
+    "synonyms": "emotional health; mental health; mental hygiene",
+    "stableId": "aamc-kw:k078"
+  },
+  {
+    "keywordId": "K079",
+    "keyword": "public health",
+    "definition": "The branch of medicine concerned with the prevention and control of disease and disability, and the promotion of physical and mental health of the population on the international, national, state, or municipal level.",
+    "synonyms": "community health; disease reporting; population health; population medicine; population-based medicine; social medicine",
+    "stableId": "aamc-kw:k079"
+  },
+  {
+    "keywordId": "K035",
+    "keyword": "quality improvement",
+    "definition": "To perform one or more operations on information used for conducting administrative activities to improve health care quality.",
+    "synonyms": "continuous quality improvement; CQI",
+    "stableId": "aamc-kw:k035"
+  },
+  {
+    "keywordId": "K080",
+    "keyword": "radiology",
+    "definition": "A medical specialty concerned with the use of x-ray and other forms of radiant energy in the diagnosis and treatment of disease.",
+    "synonyms": "nuclear medicine",
+    "stableId": "aamc-kw:k080"
+  },
+  {
+    "keywordId": "K081",
+    "keyword": "regenerative medicine",
+    "definition": "A field of medicine concerned with developing and using strategies aimed at repair or replacement of damaged, diseased, or metabolically deficient organs, tissues, and cells via tissue engineering; cell transplantation; and artificial organs and bioartificial organs and tissues.",
+    "synonyms": null,
+    "stableId": "aamc-kw:k081"
+  },
+  {
+    "keywordId": "K082",
+    "keyword": "rehabilitation medicine",
+    "definition": "A medical specialty concerned with the use of physical agents, mechanical apparatus, and manipulation in rehabilitating physically diseased or injured patients.",
+    "synonyms": "physiatrics; physical medicine; rehabilitation; rehabilitation therapy; rehabilitative care",
+    "stableId": "aamc-kw:k082"
+  },
+  {
+    "keywordId": "K083",
+    "keyword": "renal and urinary system",
+    "definition": "The organs of the body that produce and discharge urine. These include the kidneys, ureters, bladder, and urethra.",
+    "synonyms": "nephrology; renal system; urinary system; urinary tract",
+    "stableId": "aamc-kw:k083"
+  },
+  {
+    "keywordId": "K084",
+    "keyword": "research methods",
+    "definition": "The strategies, processes, or techniques utilized in the collection of data or evidence for systematic investigation into a subject in order to uncover new information or create better understanding of the subject.",
+    "synonyms": "qualitative research; quantitative research; research design",
+    "stableId": "aamc-kw:k084"
+  },
+  {
+    "keywordId": "K085",
+    "keyword": "residency preparation",
+    "definition": "Preparation for required hospital training in a medical specialty for a medical graduate and licensed physician.",
+    "synonyms": "career choice; career development; career exploration; internship; specialty selection; transition to internship; transition to residency",
+    "stableId": "aamc-kw:k085"
+  },
+  {
+    "keywordId": "K086",
+    "keyword": "respiratory system",
+    "definition": "Structure and passages involved with the intake, expulsion, and exchange of oxygen and carbon dioxide between blood and air; they include the nose, pharynx, larynx, trachea, bronchi, and the lungs.",
+    "synonyms": "pulmonary medicine; pulmonology; respiratory tract",
+    "stableId": "aamc-kw:k086"
+  },
+  {
+    "keywordId": "K087",
+    "keyword": "scientific method",
+    "definition": "A method of investigation involving observation and theory to test scientific hypotheses.",
+    "synonyms": null,
+    "stableId": "aamc-kw:k087"
+  },
+  {
+    "keywordId": "K104",
+    "keyword": "sexual and reproductive health",
+    "definition": "A state of physical, emotional, mental, and social well-being in relation to sexuality and reproduction, not merely the absence of disease, dysfunction, or infirmity",
+    "synonyms": "abortion; contraception; family planning; female contraception; male contraception; menopause; transgender health",
+    "stableId": "aamc-kw:k104"
+  },
+  {
+    "keywordId": "K042",
+    "keyword": "sexuality and sexual functioning",
+    "definition": "The sexual functions, activities, attitudes, and orientations of an individual. Attitudes, feelings, and behaviors related to intimacy and sexual activity.",
+    "synonyms": "differences of sexual development; LGBTQI+; sex behavior; sexual orientation; venereology",
+    "stableId": "aamc-kw:k042"
+  },
+  {
+    "keywordId": "K088",
+    "keyword": "skin and subcutaneous tissue",
+    "definition": "Nonparenchymatous organ that consists of the epidermis, dermis and sets of hair and nails and which surrounds the entire body. Subdivisions of the skin surround various body parts; as a whole, the skin constitutes the external layer of the body.",
+    "synonyms": "dermis; epidermis; superficial fascia",
+    "stableId": "aamc-kw:k088"
+  },
+  {
+    "keywordId": "K089",
+    "keyword": "social determinants of health",
+    "definition": "The circumstances in which people are born, grow up, live, work, and age, as well as the systems put in place to deal with illness. These circumstances are in turn shaped by a wider set of forces: economics, social policies, and politics.",
+    "synonyms": "SDOH",
+    "stableId": "aamc-kw:k089"
+  },
+  {
+    "keywordId": "K090",
+    "keyword": "social sciences",
+    "definition": "Disciplines concerned with the interrelationships of individuals in a social environment including social organizations and institutions. Examples include psychology, sociology, anthropology, political science, and economics.",
+    "synonyms": null,
+    "stableId": "aamc-kw:k090"
+  },
+  {
+    "keywordId": "K105",
+    "keyword": "structural competency",
+    "definition": "The capacity for health professionals to recognize and respond to the role that social, economic, and political structural factors play in patient and community health.",
+    "synonyms": "structural humility; structural intervention",
+    "stableId": "aamc-kw:k105"
+  },
+  {
+    "keywordId": "K091",
+    "keyword": "surgery",
+    "definition": "The branch of medical science that treats disease or injury by operative procedures.",
+    "synonyms": "otolaryngology; perioperative medicine; surgical specialties; surgical subspecialties",
+    "stableId": "aamc-kw:k091"
+  },
+  {
+    "keywordId": "K092",
+    "keyword": "teaching education",
+    "definition": "Preparation to instruct or educate others.",
+    "synonyms": "learning science; teacher education",
+    "stableId": "aamc-kw:k092"
+  },
+  {
+    "keywordId": "K093",
+    "keyword": "telehealth",
+    "definition": "Delivery of health services via remote telecommunications. This includes interactive consultative and diagnostic services.",
+    "synonyms": "eHealth; mHealth; mobile health; telemedicine",
+    "stableId": "aamc-kw:k093"
+  },
+  {
+    "keywordId": "K094",
+    "keyword": "translational research",
+    "definition": "The application of discoveries generated by laboratory research and preclinical studies to the development of clinical trials and studies in humans. A second area of translational research concerns enhancing the adoption of best practices.",
+    "synonyms": "translational medical research",
+    "stableId": "aamc-kw:k094"
+  },
+  {
+    "keywordId": "K095",
+    "keyword": "treatment adherence and compliance",
+    "definition": "Extent to which the patient follows prescribed treatment such as keeping appointments and schedules and medication adherence for desired therapeutic outcome. It implies active responsibility shared by patient and health care providers.",
+    "synonyms": "medical compliance; patient acceptance of health care; patient compliance; treatment refusal",
+    "stableId": "aamc-kw:k095"
+  },
+  {
+    "keywordId": "K096",
+    "keyword": "urology",
+    "definition": "A medical specialty concerned with the urinary tract in both males and females, and of the genital organs in males.",
+    "synonyms": null,
+    "stableId": "aamc-kw:k096"
+  },
+  {
+    "keywordId": "K097",
+    "keyword": "wellness",
+    "definition": "A state of happiness and contentment, with low levels of distress, overall good physical and mental health and outlook, or good quality of life for healthcare professionals. Wellness includes the absence of burnout.",
+    "synonyms": "absence of burnout; fatigue management; self-care; stress management; well-being; wellness of clinicians",
+    "stableId": "aamc-kw:k097"
+  }
+]

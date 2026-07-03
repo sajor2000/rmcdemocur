@@ -1,0 +1,332 @@
+[
+  {
+    "domain": "PC",
+    "domainName": "Patient Care",
+    "subId": "PC1",
+    "description": "History and physical exam",
+    "stableId": "aamc:pc1",
+    "fullText": "Patient Care — History and physical exam",
+    "parentStableId": "aamc:pc",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "PC",
+    "domainName": "Patient Care",
+    "subId": "PC2",
+    "description": "Diagnosis",
+    "stableId": "aamc:pc2",
+    "fullText": "Patient Care — Diagnosis",
+    "parentStableId": "aamc:pc",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "PC",
+    "domainName": "Patient Care",
+    "subId": "PC3",
+    "description": "Management",
+    "stableId": "aamc:pc3",
+    "fullText": "Patient Care — Management",
+    "parentStableId": "aamc:pc",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "PC",
+    "domainName": "Patient Care",
+    "subId": "PC4",
+    "description": "Procedures",
+    "stableId": "aamc:pc4",
+    "fullText": "Patient Care — Procedures",
+    "parentStableId": "aamc:pc",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "MK",
+    "domainName": "Medical Knowledge",
+    "subId": "MK1",
+    "description": "Basic science",
+    "stableId": "aamc:mk1",
+    "fullText": "Medical Knowledge — Basic science",
+    "parentStableId": "aamc:mk",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "MK",
+    "domainName": "Medical Knowledge",
+    "subId": "MK2",
+    "description": "Clinical science",
+    "stableId": "aamc:mk2",
+    "fullText": "Medical Knowledge — Clinical science",
+    "parentStableId": "aamc:mk",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "MK",
+    "domainName": "Medical Knowledge",
+    "subId": "MK3",
+    "description": "Social science",
+    "stableId": "aamc:mk3",
+    "fullText": "Medical Knowledge — Social science",
+    "parentStableId": "aamc:mk",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "ICS",
+    "domainName": "Interpersonal & Communication Skills",
+    "subId": "ICS1",
+    "description": "Patient communication",
+    "stableId": "aamc:ics1",
+    "fullText": "ICS — Patient communication",
+    "parentStableId": "aamc:ics",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "ICS",
+    "domainName": "Interpersonal & Communication Skills",
+    "subId": "ICS2",
+    "description": "Team communication",
+    "stableId": "aamc:ics2",
+    "fullText": "ICS — Team communication",
+    "parentStableId": "aamc:ics",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "ICS",
+    "domainName": "Interpersonal & Communication Skills",
+    "subId": "ICS3",
+    "description": "Documentation",
+    "stableId": "aamc:ics3",
+    "fullText": "ICS — Documentation",
+    "parentStableId": "aamc:ics",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "P",
+    "domainName": "Professionalism",
+    "subId": "P1",
+    "description": "Compassion",
+    "stableId": "aamc:p1",
+    "fullText": "Professionalism — Compassion",
+    "parentStableId": "aamc:p",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "P",
+    "domainName": "Professionalism",
+    "subId": "P2",
+    "description": "Accountability",
+    "stableId": "aamc:p2",
+    "fullText": "Professionalism — Accountability",
+    "parentStableId": "aamc:p",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "P",
+    "domainName": "Professionalism",
+    "subId": "P3",
+    "description": "Ethics",
+    "stableId": "aamc:p3",
+    "fullText": "Professionalism — Ethics",
+    "parentStableId": "aamc:p",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "P",
+    "domainName": "Professionalism",
+    "subId": "P4",
+    "description": "Diversity",
+    "stableId": "aamc:p4",
+    "fullText": "Professionalism — Diversity",
+    "parentStableId": "aamc:p",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "PBLI",
+    "domainName": "Practice-Based Learning",
+    "subId": "PBLI1",
+    "description": "Evidence",
+    "stableId": "aamc:pbli1",
+    "fullText": "PBLI — Evidence",
+    "parentStableId": "aamc:pbli",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "PBLI",
+    "domainName": "Practice-Based Learning",
+    "subId": "PBLI2",
+    "description": "Education",
+    "stableId": "aamc:pbli2",
+    "fullText": "PBLI — Education",
+    "parentStableId": "aamc:pbli",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "PBLI",
+    "domainName": "Practice-Based Learning",
+    "subId": "PBLI3",
+    "description": "Improvement",
+    "stableId": "aamc:pbli3",
+    "fullText": "PBLI — Improvement",
+    "parentStableId": "aamc:pbli",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "SBP",
+    "domainName": "Systems-Based Practice",
+    "subId": "SBP1",
+    "description": "Systems",
+    "stableId": "aamc:sbp1",
+    "fullText": "SBP — Systems",
+    "parentStableId": "aamc:sbp",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "SBP",
+    "domainName": "Systems-Based Practice",
+    "subId": "SBP2",
+    "description": "Teamwork",
+    "stableId": "aamc:sbp2",
+    "fullText": "SBP — Teamwork",
+    "parentStableId": "aamc:sbp",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "SBP",
+    "domainName": "Systems-Based Practice",
+    "subId": "SBP3",
+    "description": "Quality and safety",
+    "stableId": "aamc:sbp3",
+    "fullText": "SBP — Quality and safety",
+    "parentStableId": "aamc:sbp",
+    "sourceDoc": "aamc-pcrs-catalog"
+  },
+  {
+    "domain": "EPA",
+    "domainName": "Core EPA",
+    "subId": "EPA1",
+    "description": "Core Entrustable Professional Activity 1",
+    "stableId": "aamc:epa1",
+    "fullText": "Core EPA 1 (stub — add official EPA source for full text)",
+    "parentStableId": "aamc:epa",
+    "sourceDoc": "aamc-epa-stub"
+  },
+  {
+    "domain": "EPA",
+    "domainName": "Core EPA",
+    "subId": "EPA2",
+    "description": "Core Entrustable Professional Activity 2",
+    "stableId": "aamc:epa2",
+    "fullText": "Core EPA 2 (stub — add official EPA source for full text)",
+    "parentStableId": "aamc:epa",
+    "sourceDoc": "aamc-epa-stub"
+  },
+  {
+    "domain": "EPA",
+    "domainName": "Core EPA",
+    "subId": "EPA3",
+    "description": "Core Entrustable Professional Activity 3",
+    "stableId": "aamc:epa3",
+    "fullText": "Core EPA 3 (stub — add official EPA source for full text)",
+    "parentStableId": "aamc:epa",
+    "sourceDoc": "aamc-epa-stub"
+  },
+  {
+    "domain": "EPA",
+    "domainName": "Core EPA",
+    "subId": "EPA4",
+    "description": "Core Entrustable Professional Activity 4",
+    "stableId": "aamc:epa4",
+    "fullText": "Core EPA 4 (stub — add official EPA source for full text)",
+    "parentStableId": "aamc:epa",
+    "sourceDoc": "aamc-epa-stub"
+  },
+  {
+    "domain": "EPA",
+    "domainName": "Core EPA",
+    "subId": "EPA5",
+    "description": "Core Entrustable Professional Activity 5",
+    "stableId": "aamc:epa5",
+    "fullText": "Core EPA 5 (stub — add official EPA source for full text)",
+    "parentStableId": "aamc:epa",
+    "sourceDoc": "aamc-epa-stub"
+  },
+  {
+    "domain": "EPA",
+    "domainName": "Core EPA",
+    "subId": "EPA6",
+    "description": "Core Entrustable Professional Activity 6",
+    "stableId": "aamc:epa6",
+    "fullText": "Core EPA 6 (stub — add official EPA source for full text)",
+    "parentStableId": "aamc:epa",
+    "sourceDoc": "aamc-epa-stub"
+  },
+  {
+    "domain": "EPA",
+    "domainName": "Core EPA",
+    "subId": "EPA7",
+    "description": "Core Entrustable Professional Activity 7",
+    "stableId": "aamc:epa7",
+    "fullText": "Core EPA 7 (stub — add official EPA source for full text)",
+    "parentStableId": "aamc:epa",
+    "sourceDoc": "aamc-epa-stub"
+  },
+  {
+    "domain": "EPA",
+    "domainName": "Core EPA",
+    "subId": "EPA8",
+    "description": "Core Entrustable Professional Activity 8",
+    "stableId": "aamc:epa8",
+    "fullText": "Core EPA 8 (stub — add official EPA source for full text)",
+    "parentStableId": "aamc:epa",
+    "sourceDoc": "aamc-epa-stub"
+  },
+  {
+    "domain": "EPA",
+    "domainName": "Core EPA",
+    "subId": "EPA9",
+    "description": "Core Entrustable Professional Activity 9",
+    "stableId": "aamc:epa9",
+    "fullText": "Core EPA 9 (stub — add official EPA source for full text)",
+    "parentStableId": "aamc:epa",
+    "sourceDoc": "aamc-epa-stub"
+  },
+  {
+    "domain": "EPA",
+    "domainName": "Core EPA",
+    "subId": "EPA10",
+    "description": "Core Entrustable Professional Activity 10",
+    "stableId": "aamc:epa10",
+    "fullText": "Core EPA 10 (stub — add official EPA source for full text)",
+    "parentStableId": "aamc:epa",
+    "sourceDoc": "aamc-epa-stub"
+  },
+  {
+    "domain": "EPA",
+    "domainName": "Core EPA",
+    "subId": "EPA11",
+    "description": "Core Entrustable Professional Activity 11",
+    "stableId": "aamc:epa11",
+    "fullText": "Core EPA 11 (stub — add official EPA source for full text)",
+    "parentStableId": "aamc:epa",
+    "sourceDoc": "aamc-epa-stub"
+  },
+  {
+    "domain": "EPA",
+    "domainName": "Core EPA",
+    "subId": "EPA12",
+    "description": "Core Entrustable Professional Activity 12",
+    "stableId": "aamc:epa12",
+    "fullText": "Core EPA 12 (stub — add official EPA source for full text)",
+    "parentStableId": "aamc:epa",
+    "sourceDoc": "aamc-epa-stub"
+  },
+  {
+    "domain": "EPA",
+    "domainName": "Core EPA",
+    "subId": "EPA13",
+    "description": "Core Entrustable Professional Activity 13",
+    "stableId": "aamc:epa13",
+    "fullText": "Core EPA 13 (stub — add official EPA source for full text)",
+    "parentStableId": "aamc:epa",
+    "sourceDoc": "aamc-epa-stub"
+  }
+]
