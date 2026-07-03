@@ -11,3 +11,4 @@ data/frameworks/*.pdf
 data/frameworks/*.xlsx
 data/frameworks/.embedding-cache.jsonl
 data/bootstrap-state.json
+data/bootstrap-state.json.tmp

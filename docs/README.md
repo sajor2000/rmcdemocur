@@ -11,9 +11,12 @@ Central index for architecture, schema, plans, and bootstrap.
 
 | Doc | Description |
 |-----|-------------|
+| [../AGENTS.md](../AGENTS.md) | **Agents:** read order, layout, commands, conventions |
+| [../CONCEPTS.md](../CONCEPTS.md) | Domain vocabulary |
 | [../README.md](../README.md) | Setup, scripts, quick start |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | How the app works — pipeline, APIs, modules, data flow |
 | [SCHEMA.md](./SCHEMA.md) | Postgres tables, relationships, bootstrap order |
+| [solutions/README.md](./solutions/README.md) | Index of documented fixes and conventions |
 | [../.env.local.example](../.env.local.example) | Required environment variables |
 
 ---
@@ -62,6 +65,7 @@ Or: `npm run setup` for the non-resumable full chain.
 ## Plans & ideation
 
 - [docs/plans/](plans/) — feature and fix plans (July 3, 2026 session)
+- [docs/solutions/](solutions/) — searchable learnings (`/ce-compound`)
 - [docs/ideation/](ideation/) — UX ideation artifacts
 
 ---
@@ -103,6 +107,7 @@ After a `ce-code-review` or `ce-work` session: commit any new/updated plans and 
 
 ## Repository hygiene
 
-- **Default branch:** `main`
-- **Merged feature work:** objectives explorer, upload hardening, demo metric removal — all on `main`
-- Stale topic branches (`feat/course-objectives-extraction`, `cursor/harden-upload-paths-and-metrics`) should be deleted after merge
+- **Default branch:** `main` (only active branch)
+- **Merged feature work:** bootstrap hardening, objectives explorer, upload hardening — all on `main`
+- **Delete merged local branches** after push: `git branch -d cursor/<name>`
+- **Stashes:** drop obsolete WIP after verifying changes are on `main`

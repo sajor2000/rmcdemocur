@@ -165,8 +165,9 @@ drizzle/              Schema and migrations
 lib/                  Pipeline, parsers, Azure AI, objective extraction
 scripts/              Seed, process, and setup CLIs
 data/                 Local curriculum + frameworks (gitignored binaries)
-docs/plans/           Implementation plans (see docs/README.md)
-docs/solutions/       Documented fixes and conventions (YAML frontmatter: module, tags, problem_type) — search before debugging bootstrap or pipeline
+AGENTS.md             Agent entry point — read order and conventions
+CONCEPTS.md           Domain vocabulary
+docs/                 Architecture, schema, plans, solutions, ideation
 ```
 
 ---
@@ -183,6 +184,7 @@ docs/solutions/       Documented fixes and conventions (YAML frontmatter: module
 
 | Doc | Description |
 |-----|-------------|
+| [AGENTS.md](AGENTS.md) | Agent guide — read order, layout, commands |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Pipeline stages, API routes, module map, data flow |
 | [docs/SCHEMA.md](docs/SCHEMA.md) | Postgres tables, ER diagram, framework ID conventions |
 | [docs/README.md](docs/README.md) | Doc index, bootstrap checklist, plan status |

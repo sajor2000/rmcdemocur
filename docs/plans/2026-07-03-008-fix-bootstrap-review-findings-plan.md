@@ -9,7 +9,9 @@ origin: code review (bootstrap hardening, 9d1b152..HEAD)
 
 ## Goal Capsule
 
-Close the remaining P2/P3 findings from the bootstrap hardening code review: make `--skip-complete` and audit trustworthy, harden checkpoint durability, and land the four P1 fixes already written locally but uncommitted.
+Close the remaining P2/P3 findings from the bootstrap hardening code review.
+
+**Status (2026-07-03):** Complete — implemented in `a2970a5` and `959e861`. This plan is retained as audit trail.
 
 **Authority:** This plan supersedes ad-hoc fix order. Repo conventions and existing bootstrap tests take precedence over new patterns.
 
