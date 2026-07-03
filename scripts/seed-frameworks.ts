@@ -123,7 +123,11 @@ async function reportProgress(
 ) {
   if (!ctx.state || !ctx.timer) return;
   ctx.state.phase = "frameworks";
-  ctx.state.frameworks[key] = { embedded, total, complete: embedded >= total };
+  ctx.state.frameworks[key] = {
+    embedded,
+    total,
+    complete: total > 0 && embedded >= total,
+  };
   await maybeCheckpoint(ctx.timer, ctx.state, label);
 }
 
@@ -324,9 +328,18 @@ export async function seedFrameworks(options?: {
   const keywords = await seedKeywords(bundle.aamcKeywords, ctx);
 
   if (state) {
-    state.frameworks.usmle = { ...usmle, complete: true };
-    state.frameworks.aamc = { ...aamc, complete: true };
-    state.frameworks.keywords = { ...keywords, complete: true };
+    state.frameworks.usmle = {
+      ...usmle,
+      complete: usmle.embedded >= usmle.total && usmle.total > 0,
+    };
+    state.frameworks.aamc = {
+      ...aamc,
+      complete: aamc.embedded >= aamc.total && aamc.total > 0,
+    };
+    state.frameworks.keywords = {
+      ...keywords,
+      complete: keywords.embedded >= keywords.total && keywords.total > 0,
+    };
     await saveBootstrapState(state);
   }
 

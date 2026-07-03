@@ -1,5 +1,5 @@
 import "./load-env";
-import { and, eq, like, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { documents } from "../drizzle/schema";
 import {
   loadBootstrapState,
@@ -51,19 +51,9 @@ async function verifyCase1GiUsmleLabels(
 
 async function verifySmoke(caseNumber: number): Promise<string[]> {
   const db = getDb();
-  const [state, usmleCount, docRows] = await Promise.all([
+  const [state, usmleCount] = await Promise.all([
     loadBootstrapState(),
     countFrameworkEmbeddings("usmle_domains"),
-    db
-      .select({ id: documents.id })
-      .from(documents)
-      .where(
-        and(
-          eq(documents.caseNumber, caseNumber),
-          like(documents.filename, "%FacultyGuide%"),
-        ),
-      )
-      .limit(1),
   ]);
   const errors: string[] = [];
 
@@ -81,20 +71,27 @@ async function verifySmoke(caseNumber: number): Promise<string[]> {
     errors.push(`Expected USMLE embeddings (got ${usmleCount}/${expected})`);
   }
 
-  const doc = docRows[0];
+  const docRows = await db
+    .select({ id: documents.id, filename: documents.filename })
+    .from(documents)
+    .where(eq(documents.caseNumber, caseNumber));
 
-  if (!doc) {
-    errors.push(`No faculty guide for case ${caseNumber}`);
+  if (docRows.length === 0) {
+    errors.push(`No documents for case ${caseNumber}`);
     return errors;
   }
 
-  if (!(await isDocumentPipelineComplete(doc.id))) {
-    errors.push(`Case ${caseNumber} pipeline incomplete (chunks/embed/alignments)`);
-    return errors;
+  for (const doc of docRows) {
+    if (!(await isDocumentPipelineComplete(doc.id))) {
+      errors.push(
+        `Case ${caseNumber} pipeline incomplete for ${doc.filename} (chunks/embed/alignments)`,
+      );
+    }
   }
 
-  if (caseNumber === 1) {
-    errors.push(...(await verifyCase1GiUsmleLabels(db, doc.id)));
+  const facultyDoc = docRows.find((d) => d.filename.includes("FacultyGuide"));
+  if (caseNumber === 1 && facultyDoc) {
+    errors.push(...(await verifyCase1GiUsmleLabels(db, facultyDoc.id)));
   }
 
   return errors;
@@ -115,9 +112,16 @@ async function smokeBootstrap() {
 
   await seedFrameworks({ trackBootstrap: true });
 
-  await updateBootstrapState({ phase: "course-seed" });
-  await seedCourse();
-  await updateBootstrapState({ phase: "course-seed", courseSeeded: true });
+  const preSeedState = await loadBootstrapState();
+  if (!preSeedState.courseSeeded) {
+    await updateBootstrapState({ phase: "course-seed" });
+    await seedCourse();
+    await updateBootstrapState({
+      phase: "course-seed",
+      courseSeeded: true,
+      processedDocumentIds: [],
+    });
+  }
 
   await processDocuments({
     onlyCase: caseNumber,

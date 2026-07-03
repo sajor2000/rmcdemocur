@@ -71,7 +71,10 @@ export async function loadBootstrapState(): Promise<BootstrapState> {
     if (parsed.version === 1) return parsed;
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;
-    if (code && code !== "ENOENT") throw err;
+    if (code === "ENOENT") {
+      return defaultBootstrapState();
+    }
+    throw err;
   }
   return defaultBootstrapState();
 }
