@@ -10,6 +10,8 @@ origin: inline PRD (RushMap AI Cursor-Ready PRD v1.0, 2026-07-03)
 target_repo: https://github.com/sajor2000/rmcdemocur
 deepened: 2026-07-03
 audited: 2026-07-03
+implementation_status: done
+merged_to_main: 2026-07-03
 ---
 
 # feat: RushMap AI MVP — Curriculum Mapping Demo

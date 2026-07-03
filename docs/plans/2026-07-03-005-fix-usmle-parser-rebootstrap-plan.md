@@ -7,6 +7,9 @@ artifact_readiness: implementation-ready
 product_contract_source: ce-plan-bootstrap
 execution: code
 origin: docs/plans/2026-07-03-004-feat-full-demo-seed-bootstrap-plan.md
+implementation_status: partial
+merged_to_main: 2026-07-03
+notes: "USMLE parser fix merged; full db:process rebootstrap pending Azure/VPN connectivity"
 ---
 
 # fix: USMLE parser and full rebootstrap

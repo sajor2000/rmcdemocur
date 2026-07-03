@@ -7,6 +7,8 @@ artifact_readiness: implementation-ready
 product_contract_source: ce-plan-bootstrap
 execution: code
 origin: docs/ideation/2026-07-03-interactive-curriculum-map-ideation.html
+implementation_status: planned
+blocked_by: docs/plans/2026-07-03-005-fix-usmle-parser-rebootstrap-plan.md
 ---
 
 # feat: Concept Bridge curriculum map — graph + spreadsheet

@@ -8,6 +8,8 @@ product_contract_source: ce-plan-bootstrap
 execution: code
 origin: docs/plans/2026-07-03-002-feat-real-document-framework-ingestion-plan.md
 extends: docs/plans/2026-07-03-001-feat-rushmap-ai-mvp-plan.md
+implementation_status: done
+merged_to_main: 2026-07-03
 ---
 
 # feat: Quality-tier Azure model configuration

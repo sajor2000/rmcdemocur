@@ -9,7 +9,8 @@ execution: code
 origin: docs/plans/2026-07-03-001-feat-rushmap-ai-mvp-plan.md
 extends: docs/plans/2026-07-03-001-feat-rushmap-ai-mvp-plan.md
 audited: 2026-07-03
-implementation_status: mostly-complete
+implementation_status: done
+merged_to_main: 2026-07-03
 ---
 
 # feat: Real curriculum and framework document ingestion
