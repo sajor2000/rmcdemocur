@@ -10,6 +10,7 @@ import {
   usmleDomains,
 } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
+import { passesSimilarity, resolveMinSimilarity } from "@/lib/retrieval-config";
 
 export async function getCourseWithDocuments(courseId: number) {
   const db = getDb();
@@ -206,7 +207,15 @@ export async function searchChunks(courseId: number, queryEmbedding: number[], l
     ORDER BY similarity DESC
     LIMIT ${limit}
   `);
-  return result.rows as Record<string, unknown>[];
+  const rows = result.rows as Record<string, unknown>[];
+
+  // Relevance floor (default off). When set, keep only results that clear it;
+  // if none clear it, fall back to the single best hit so the caller can surface
+  // a low-confidence answer rather than an empty result.
+  const minSimilarity = resolveMinSimilarity();
+  if (minSimilarity === null) return rows;
+  const passing = rows.filter((r) => passesSimilarity(Number(r.similarity), minSimilarity));
+  return passing.length ? passing : rows.slice(0, 1);
 }
 
 export async function getGapExportRows(courseId: number) {
