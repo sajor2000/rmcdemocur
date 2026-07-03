@@ -1,0 +1,7 @@
+# Compound Engineering — shared defaults (safe to commit).
+# Copy to config.local.yaml and uncomment what you want; local file is gitignored.
+
+# plan_output: md              # md | html
+# plan_skip_scoping_confirm: false
+# brainstorm_output: md
+# ideate_output: html
