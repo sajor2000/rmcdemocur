@@ -1,3 +1,4 @@
+import path from "path";
 import { eq, sql } from "drizzle-orm";
 import {
   alignments,
@@ -284,7 +285,11 @@ export async function advanceJob(jobId: number) {
     `);
     const filename = (docRows.rows[0] as { filename: string })?.filename;
     if (!filename) throw new Error("Document missing");
-    const filePath = `${process.cwd()}/data/curriculum/${filename}`;
+    const curriculumDir = path.join(process.cwd(), "data/curriculum");
+    const filePath = path.join(curriculumDir, path.basename(filename));
+    if (!filePath.startsWith(curriculumDir)) {
+      throw new Error("Document missing");
+    }
     await runFullPipeline({ documentId: job.documentId, filePath, jobId });
   }
 

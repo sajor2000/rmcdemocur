@@ -130,9 +130,9 @@ export async function getCourseSummary(courseId: number) {
     course,
     documents: docs,
     metrics: {
-      aamcCoveragePercent: aamcPct || 87,
+      aamcCoveragePercent: aamcPct,
       usmleGaps: gaps.filter((g) => g.gap_summary.coverageStatus === "gap").length,
-      avgConfidence: Number(stats?.avg_confidence ?? 0.82),
+      avgConfidence: Number(stats?.avg_confidence ?? 0),
       guidesProcessed: docs.length,
       usmleDomainsCovered: usmleAlignedCount,
       usmleDomainsTotal: totalUsmleLeafCount || 1,

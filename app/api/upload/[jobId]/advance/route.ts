@@ -13,7 +13,7 @@ export async function POST(
   } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Advance failed" },
+      { error: "Advance failed" },
       { status: 500 },
     );
   }
