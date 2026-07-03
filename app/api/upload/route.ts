@@ -31,7 +31,11 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const destDir = path.join(process.cwd(), "data/curriculum");
     await fs.mkdir(destDir, { recursive: true });
-    const destPath = path.join(destDir, file.name);
+    const safeName = path.basename(file.name);
+    const destPath = path.join(destDir, safeName);
+    if (!destPath.startsWith(destDir)) {
+      return NextResponse.json({ error: "Invalid file name" }, { status: 400 });
+    }
     await fs.writeFile(destPath, buffer);
 
     const db = getDb();
@@ -39,7 +43,7 @@ export async function POST(request: Request) {
       .insert(documents)
       .values({
         courseId,
-        filename: file.name,
+        filename: safeName,
         fileType: ext.slice(1),
         caseTitle: file.name,
       })
