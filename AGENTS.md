@@ -1,13 +1,15 @@
 # Agent guide — RushMap AI
 
-Entry point for AI agents and new contributors. Read in this order before changing code.
+Entry point for AI agents and new contributors. **Canonical** for agent read order, repo layout, commands, git workflow, and CE artifact policy. [CLAUDE.md](CLAUDE.md) points here for Claude-specific tooling.
+
+Read in this order before changing code.
 
 ## Read first
 
 | Order | File | Why |
 |-------|------|-----|
 | 1 | [CONCEPTS.md](CONCEPTS.md) | Domain vocabulary (bootstrap, pipeline, document status) |
-| 2 | [docs/README.md](docs/README.md) | Doc index, plan status, bootstrap checklist, CE git vs local |
+| 2 | [docs/README.md](docs/README.md) | Doc index, plan status, bootstrap checklist |
 | 3 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Pipeline stages, API routes, module map |
 | 4 | [docs/SCHEMA.md](docs/SCHEMA.md) | Postgres tables and framework ID conventions |
 
@@ -38,7 +40,7 @@ data/             Local only (gitignored) — curriculum copies, frameworks, boo
 ## Commands (common)
 
 ```bash
-npm test                          # 57+ unit tests — run after lib/ or scripts/ changes
+npm test                          # Vitest unit tests (120+) — run after lib/ or scripts/ changes
 npm run lint
 npm run db:push                   # Push Drizzle schema to Neon
 npm run db:bootstrap:smoke        # Case 1 gate (schema + Azure + verify)
@@ -54,7 +56,41 @@ Do **not** run long bootstrap or full `db:process` unless the user explicitly as
 - **Bootstrap resume:** Document `complete` means all chunks embedded and all chunks aligned. See `docs/solutions/logic-errors/bootstrap-resume-false-complete-and-destructive-rerun.md`.
 - **Secrets:** `.env.local` only — never commit. See `.env.local.example`.
 - **Plans vs progress:** Plans do not store checkboxes; derive progress from git and `docs/README.md` status table.
-- **CE artifacts:** Commit `docs/plans/` and `docs/solutions/`; keep `data/bootstrap-state.json`, caches, and `/tmp/compound-engineering/` local. See `docs/solutions/conventions/ce-artifacts-git-vs-local.md`.
+- **CE session checklist:** After `ce-code-review` or `ce-work`, see [docs/solutions/conventions/ce-artifacts-git-vs-local.md](docs/solutions/conventions/ce-artifacts-git-vs-local.md) for post-session steps (searchable via `/ce-compound`).
+
+## CE artifacts — commit vs local
+
+CE skills produce **decision artifacts** (share in git) and **runtime artifacts** (keep local). When adding paths, update this section and `.gitignore` — do not duplicate tables elsewhere.
+
+### Commit to git
+
+| Path | Purpose |
+|------|---------|
+| `AGENTS.md`, `CONCEPTS.md` | Agent entry point and domain vocabulary |
+| `docs/plans/*.md` | Implementation plans. Progress comes from git, not checkboxes in the file. |
+| `docs/solutions/**/*.md` | Durable learnings after fixing something (`ce-compound`) |
+| `docs/ideation/*.html` | Early UX/product exploration (`ce-ideate`) |
+| `docs/ARCHITECTURE.md`, `docs/SCHEMA.md`, `docs/README.md` | Engineering truth the app and agents should read |
+| `.compound-engineering/config.example.yaml` | Shared defaults without secrets |
+
+### Keep local (never commit)
+
+| Path | Purpose |
+|------|---------|
+| `.compound-engineering/config.local.yaml` | Personal CE prefs. **Gitignored.** |
+| `/tmp/compound-engineering/` | Code-review run artifacts, reviewer JSON. Ephemeral. |
+| `data/bootstrap-state.json` | Resumable bootstrap checkpoint. **Gitignored.** |
+| `data/bootstrap-state.json.tmp` | Atomic-write temp for bootstrap state. **Gitignored.** |
+| `data/frameworks/.embedding-cache.jsonl` | Embedding cache during seed. **Gitignored.** |
+| `data/curriculum/`, `data/uploads/` | Copied/processed content. **Gitignored.** |
+| `.env.local` | Secrets. **Gitignored.** |
+
+### Rule of thumb
+
+- If it answers **why we built it this way** or **what to do next** → git under `docs/` (or root agent docs above).
+- If it is **resume state, cache, secrets, or /tmp review output** → local only.
+
+After a `ce-code-review` or `ce-work` session: commit new/updated plans and optional `docs/solutions/` entries; leave `/tmp/.../ce-code-review/` until you finish reading the report, then delete.
 
 ## Scope boundaries
 
@@ -64,6 +100,7 @@ Do **not** run long bootstrap or full `db:process` unless the user explicitly as
 
 ## Git workflow
 
-- Branch from `main`, merge via PR.
-- Delete feature branches after merge.
-- Commit messages: `feat:`, `fix:`, `docs:`, `refactor:` (see recent history).
+- **Default branch:** `main` only. Branch from `main`, merge via PR.
+- **Feature branches:** delete merged branches after push (`git branch -d cursor/<name>` or your branch name).
+- **Stashes:** drop obsolete WIP after verifying changes are on `main`.
+- **Commit messages:** `feat:`, `fix:`, `docs:`, `refactor:` (see recent history).

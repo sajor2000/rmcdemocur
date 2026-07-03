@@ -169,7 +169,7 @@ drizzle/              Schema and migrations
 lib/                  Pipeline, parsers, Azure AI, objective extraction
 scripts/              Seed, process, and setup CLIs
 data/                 Local curriculum + frameworks (gitignored binaries)
-AGENTS.md             Agent entry point — read order and conventions
+AGENTS.md             Canonical agent entry — read order, git/CE policy ([CLAUDE.md](CLAUDE.md) points here)
 CONCEPTS.md           Domain vocabulary
 docs/                 Architecture, schema, plans, solutions, ideation
 ```
@@ -188,7 +188,7 @@ docs/                 Architecture, schema, plans, solutions, ideation
 
 | Doc | Description |
 |-----|-------------|
-| [AGENTS.md](AGENTS.md) | Agent guide — read order, layout, commands |
+| [AGENTS.md](AGENTS.md) | **Canonical agent guide** — read order, git/CE policy, commands |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Pipeline stages, API routes, module map, data flow |
 | [docs/SCHEMA.md](docs/SCHEMA.md) | Postgres tables, ER diagram, framework ID conventions |
 | [docs/README.md](docs/README.md) | Doc index, bootstrap checklist, plan status |
