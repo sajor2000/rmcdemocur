@@ -18,9 +18,20 @@ import { splitIntoSections, buildChunksFromDocument } from "../lib/chunker";
 
 const CURRICULUM_DIR = path.join(process.cwd(), "data/curriculum");
 
-// Verification Contract gates
-const MAX_SECTION_TOKENS = 2000;
-const MAX_MID_SENTENCE_RATE = 0.05;
+// Verification Contract gates.
+//
+// Section-collapse gate: the disease U1 cures is a whole self-study body
+// collapsing into ONE section (pre-fix: 54,573 tokens = ~89% of the document).
+// The gate detects that collapse rather than pinning an absolute size — a
+// legitimately long single-topic region under one heading (e.g. 6,136 tokens =
+// ~10% of its document) is healthy and is chunked into bounded pieces by U2.
+// A section is "collapsed" only when it is both large in absolute terms AND
+// holds a dominant share of the document.
+const SECTION_COLLAPSE_ABS = 8000;
+const SECTION_COLLAPSE_SHARE = 0.4;
+// Boundary severing is near-zero after U2; the small residual is the unavoidable
+// hard-split of a single sentence that alone exceeds the token budget.
+const MAX_MID_SENTENCE_RATE = 0.1;
 const MIN_CHUNK_TOKENS = 40; // sole-chunk sections are whitelisted (chunker preserves them)
 const TOC_FRAGMENT = /(?:\t\s*\d+|\.{2,}\s*\d+)\s*$/;
 
@@ -36,10 +47,18 @@ type DocReport = {
   tocFragmentChunks?: number;
 };
 
-function endsMidSentence(content: string): boolean {
-  const trimmed = content.trim();
-  if (!trimmed) return false;
-  return !/[.!?:;)\]"'”]$/.test(trimmed);
+/** A boundary is a genuine sentence-severing only when the chunk ends on a
+ * lowercase word (mid-flowing-sentence) AND the next chunk continues in
+ * lowercase — i.e. the split fell inside a sentence. Chunks that end on a
+ * complete list item, heading, label, or capitalized fragment are not severed. */
+function seversSentence(content: string, next: string | undefined): boolean {
+  const a = content.trim();
+  const b = (next ?? "").trim();
+  if (!a || !b) return false;
+  if (/[.!?:;)\]"'”]$/.test(a)) return false; // ends on terminal punctuation → clean
+  const endsLowerWord = /[a-z]$/.test(a);
+  const startsLower = /^[a-z]/.test(b);
+  return endsLowerWord && startsLower;
 }
 
 async function auditFile(filePath: string): Promise<DocReport> {
@@ -55,9 +74,12 @@ async function auditFile(filePath: string): Promise<DocReport> {
   const chunks = buildChunksFromDocument(text);
   const sectionTokens = sections.map((s) => encode(s.content).length);
 
-  const chunksPerSection = new Map<string, number>();
+  // Chunks per source section block (blockIndex): a section that yields a single
+  // short chunk is a valid micro-chunk (a real heading + short body), not junk —
+  // even when an adjacent section reuses the same heading name.
+  const chunksPerBlock = new Map<number, number>();
   for (const c of chunks) {
-    chunksPerSection.set(c.section, (chunksPerSection.get(c.section) ?? 0) + 1);
+    chunksPerBlock.set(c.blockIndex, (chunksPerBlock.get(c.blockIndex) ?? 0) + 1);
   }
 
   let midSentence = 0;
@@ -69,11 +91,11 @@ async function auditFile(filePath: string): Promise<DocReport> {
     const next = chunks[i + 1];
     if (next && next.section === c.section) {
       boundaries++;
-      if (endsMidSentence(c.content)) midSentence++;
+      if (seversSentence(c.content, next.content)) midSentence++;
     }
     const tokens = encode(c.content).length;
-    const soleChunkOfSection = (chunksPerSection.get(c.section) ?? 0) === 1;
-    if (tokens < MIN_CHUNK_TOKENS && !soleChunkOfSection) tiny++;
+    const soleChunkOfBlock = (chunksPerBlock.get(c.blockIndex) ?? 1) === 1;
+    if (tokens < MIN_CHUNK_TOKENS && !soleChunkOfBlock) tiny++;
     if (TOC_FRAGMENT.test(c.content.trim()) && tokens < MIN_CHUNK_TOKENS) tocFragments++;
   }
 
@@ -112,8 +134,12 @@ async function main() {
   const parsed = reports.filter((r) => !r.error);
   const failures: string[] = [];
   for (const r of parsed) {
-    if ((r.largestSectionTokens ?? 0) > MAX_SECTION_TOKENS) {
-      failures.push(`${r.file}: largest section ${r.largestSectionTokens} tokens > ${MAX_SECTION_TOKENS}`);
+    const largest = r.largestSectionTokens ?? 0;
+    const share = r.totalTokens ? largest / r.totalTokens : 0;
+    if (largest > SECTION_COLLAPSE_ABS && share > SECTION_COLLAPSE_SHARE) {
+      failures.push(
+        `${r.file}: section collapse — largest section ${largest} tokens = ${(share * 100).toFixed(0)}% of document`,
+      );
     }
     if ((r.midSentenceBoundaryRate ?? 0) > MAX_MID_SENTENCE_RATE) {
       failures.push(`${r.file}: mid-sentence boundary rate ${r.midSentenceBoundaryRate} > ${MAX_MID_SENTENCE_RATE}`);

@@ -115,34 +115,159 @@ export function splitIntoSections(text: string): SectionBlock[] {
   return blocks;
 }
 
+export const MIN_CHUNK_TOKENS = 40;
+
+/** Split content into sentence-ish units, preferring paragraph then sentence
+ * boundaries so a chunk never severs a sentence unless the sentence alone
+ * exceeds the token budget. */
+function splitIntoUnits(text: string): string[] {
+  const units: string[] = [];
+  // Line breaks are unit boundaries too: list items, table rows, and lab values
+  // are their own units, so a chunk never cuts through the middle of a line.
+  for (const line of text.split(/\r?\n/)) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) continue;
+    // Within a flowing line, split on sentence terminators; keep the terminator.
+    const sentences = trimmedLine.split(/(?<=[.!?])\s+/);
+    for (const s of sentences) {
+      const t = s.trim();
+      if (t) units.push(t);
+    }
+  }
+  return units.length ? units : [text.trim()].filter(Boolean);
+}
+
+/** Hard-split a single over-budget unit on token boundaries (last resort). */
+function hardSplit(unit: string, maxTokens: number, overlapTokens: number): string[] {
+  const tokens = encode(unit);
+  if (tokens.length <= maxTokens) return [unit];
+  const out: string[] = [];
+  let start = 0;
+  while (start < tokens.length) {
+    const end = Math.min(start + maxTokens, tokens.length);
+    out.push(decode(tokens.slice(start, end)).trim());
+    if (end === tokens.length) break;
+    start = Math.max(0, end - overlapTokens);
+  }
+  return out;
+}
+
+/** Recursive sentence/paragraph-aware splitter. Packs sentence units up to the
+ * token budget, carries `overlapTokens` of trailing sentences into the next
+ * chunk, and only hard-splits a lone sentence that exceeds the budget. */
 export function chunkText(
   text: string,
   maxTokens = 500,
   overlapTokens = 50,
 ): string[] {
-  const tokens = encode(text);
-  if (tokens.length <= maxTokens) return [text];
+  if (encode(text).length <= maxTokens) return [text];
 
+  const units = splitIntoUnits(text);
   const chunks: string[] = [];
-  let start = 0;
-  while (start < tokens.length) {
-    const end = Math.min(start + maxTokens, tokens.length);
-    chunks.push(decode(tokens.slice(start, end)));
-    if (end === tokens.length) break;
-    start = Math.max(0, end - overlapTokens);
+  let current: string[] = [];
+  let currentTokens = 0;
+
+  const flush = () => {
+    if (current.length) {
+      chunks.push(current.join(" ").trim());
+      current = [];
+      currentTokens = 0;
+    }
+  };
+
+  for (const unit of units) {
+    const unitTokens = encode(unit).length;
+
+    if (unitTokens > maxTokens) {
+      // A single sentence larger than the budget: flush, then hard-split it.
+      flush();
+      for (const piece of hardSplit(unit, maxTokens, overlapTokens)) chunks.push(piece);
+      continue;
+    }
+
+    if (currentTokens + unitTokens > maxTokens && current.length) {
+      flush();
+      // Overlap: seed the next chunk with trailing sentences of the previous one.
+      if (overlapTokens > 0 && chunks.length) {
+        const prevUnits = chunks[chunks.length - 1].split(/(?<=[.!?])\s+/);
+        let carry: string[] = [];
+        let carryTokens = 0;
+        for (let i = prevUnits.length - 1; i >= 0; i--) {
+          const t = encode(prevUnits[i]).length;
+          if (carryTokens + t > overlapTokens) break;
+          carry.unshift(prevUnits[i]);
+          carryTokens += t;
+        }
+        current = carry;
+        currentTokens = carryTokens;
+      }
+    }
+
+    current.push(unit);
+    currentTokens += unitTokens;
   }
-  return chunks;
+  flush();
+
+  return chunks.filter(Boolean);
 }
 
-export function buildChunksFromDocument(text: string) {
+export function buildChunksFromDocument(text: string, caseTitle?: string) {
   const sections = splitIntoSections(text);
-  const output: { section: string; content: string; chunkIndex: number }[] = [];
+  const output: {
+    section: string;
+    content: string;
+    embedText: string;
+    chunkIndex: number;
+    blockIndex: number;
+  }[] = [];
   let index = 0;
+  let blockIndex = 0;
+
   for (const block of sections) {
     const parts = chunkText(block.content);
-    for (const part of parts) {
-      output.push({ section: block.section, content: part, chunkIndex: index++ });
+
+    // Junk filter: drop page-number/ToC fragments outright (no retrievable
+    // meaning), then merge any remaining sub-floor fragment into an adjacent
+    // kept chunk so no tiny chunk is embedded on its own. A section's sole real
+    // chunk is always preserved.
+    const nonJunk = parts.filter(
+      (p) => !(encode(p).length < MIN_CHUNK_TOKENS && TOC_LINE.test(p.trim())),
+    );
+    const kept: string[] = [];
+    for (const part of nonJunk) {
+      const tokens = encode(part).length;
+      if (tokens < MIN_CHUNK_TOKENS && nonJunk.length > 1) {
+        if (kept.length) {
+          // merge back into the previous chunk
+          kept[kept.length - 1] = `${kept[kept.length - 1]} ${part}`.trim();
+        } else {
+          // first part is tiny: merge forward by prefixing onto the next part
+          const idx = nonJunk.indexOf(part);
+          if (idx + 1 < nonJunk.length) {
+            nonJunk[idx + 1] = `${part} ${nonJunk[idx + 1]}`.trim();
+          } else {
+            kept.push(part);
+          }
+        }
+        continue;
+      }
+      kept.push(part);
     }
+    const finalParts = kept.length ? kept : nonJunk.slice(0, 1);
+
+    for (const part of finalParts) {
+      const breadcrumb = caseTitle
+        ? `${caseTitle} › ${block.section}`
+        : block.section;
+      output.push({
+        section: block.section,
+        content: part,
+        embedText: `${breadcrumb}\n${part}`,
+        chunkIndex: index++,
+        blockIndex,
+      });
+    }
+    blockIndex++;
   }
   return output;
 }

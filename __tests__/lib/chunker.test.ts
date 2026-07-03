@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { splitIntoSections, buildChunksFromDocument } from "@/lib/chunker";
+import { encode } from "gpt-tokenizer";
+import { splitIntoSections, buildChunksFromDocument, chunkText } from "@/lib/chunker";
 import { deriveCoverageStatus } from "@/lib/gap-analyzer";
 
 describe("chunker", () => {
@@ -95,6 +96,75 @@ describe("chunker", () => {
   it("returns Document fallback for short unstructured text", () => {
     const sections = splitIntoSections("just a short note");
     expect(sections).toEqual([{ section: "Document", content: "just a short note" }]);
+  });
+});
+
+describe("chunkText (U2 recursive splitter)", () => {
+  const sentence = (n: number) =>
+    `This is sentence number ${n} and it contains enough words to matter here.`;
+
+  it("returns a single chunk when under the token budget", () => {
+    const text = [sentence(1), sentence(2)].join(" ");
+    expect(chunkText(text)).toEqual([text]);
+  });
+
+  it("splits long content on sentence boundaries, not mid-word", () => {
+    const text = Array.from({ length: 120 }, (_, i) => sentence(i)).join(" ");
+    const chunks = chunkText(text, 200, 20);
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const c of chunks) {
+      // no chunk ends mid-word: last char is sentence-terminal
+      expect(/[.!?]$/.test(c.trim())).toBe(true);
+    }
+  });
+
+  it("keeps each chunk within the token budget (allowing overlap)", () => {
+    const text = Array.from({ length: 200 }, (_, i) => sentence(i)).join(" ");
+    const max = 200;
+    const chunks = chunkText(text, max, 20);
+    for (const c of chunks) {
+      expect(encode(c).length).toBeLessThanOrEqual(max + 40);
+    }
+  });
+
+  it("hard-splits a single sentence longer than the budget without throwing", () => {
+    const giant = "word ".repeat(800).trim(); // one 'sentence', no terminal punctuation
+    const chunks = chunkText(giant, 200, 20);
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.join("")).toContain("word");
+  });
+
+  it("overlaps trailing sentences into the next chunk", () => {
+    const sentences = Array.from({ length: 60 }, (_, i) => sentence(i));
+    const chunks = chunkText(sentences.join(" "), 150, 30);
+    expect(chunks.length).toBeGreaterThan(1);
+    // some sentence text from the end of chunk[0] reappears at the start of chunk[1]
+    const tail = chunks[0].trim().split(/(?<=[.!?])\s+/).slice(-1)[0];
+    expect(chunks[1]).toContain(tail);
+  });
+});
+
+describe("buildChunksFromDocument (U2 junk filter)", () => {
+  it("drops a tiny table-of-contents fragment section instead of embedding it", () => {
+    const text = [
+      "Self-Study Topics:",
+      "Real topic content that is long enough to be a legitimate chunk. ".repeat(20),
+      "Overview:",
+      "x\t3", // tiny junk fragment as the whole section body
+    ].join("\n");
+    const chunks = buildChunksFromDocument(text);
+    expect(chunks.every((c) => encode(c.content).length >= 40 || c.section === "Overview:")).toBe(true);
+    // the tiny "x\t3" fragment must not survive as its own chunk
+    expect(chunks.some((c) => c.content.trim() === "x\t3")).toBe(false);
+  });
+
+  it("preserves a short sole-chunk section (does not silently lose content)", () => {
+    const text = [
+      "Rationale:",
+      "Short but real rationale sentence.",
+    ].join("\n");
+    const chunks = buildChunksFromDocument(text);
+    expect(chunks.some((c) => c.content.includes("Short but real rationale"))).toBe(true);
   });
 });
 
