@@ -31,9 +31,12 @@ vi.mock("@/lib/media-pipeline", () => ({
 }));
 
 const dbMocks = vi.hoisted(() => {
+  // Order matches runFullPipeline's select() sequence on a fresh run:
+  // docMeta → resume-probe (existing chunks, empty) → per-chunk align select
+  // → courseId → alignment count.
   let selectQueue: unknown[][] = [
-    [],
     [{ caseTitle: "Marie Hernandez", filename: "RMD563_FacultyGuide_Case3_MarieHernandez.docx", caseNumber: 3 }],
+    [],
     [{ id: 1, chunkIndex: 0, section: "Rationale:", content: "Short rationale content for embedding.", embedding: [0.1] }],
     [{ courseId: 1 }],
     [{ count: 0 }],
@@ -78,8 +81,8 @@ const dbMocks = vi.hoisted(() => {
     reset() {
       selectIndex = 0;
       selectQueue = [
-        [],
         [{ caseTitle: "Marie Hernandez", filename: "RMD563_FacultyGuide_Case3_MarieHernandez.docx", caseNumber: 3 }],
+        [],
         [{ id: 1, chunkIndex: 0, section: "Rationale:", content: "Short rationale content for embedding.", embedding: [0.1] }],
         [{ courseId: 1 }],
         [{ count: 0 }],

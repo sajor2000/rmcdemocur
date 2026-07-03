@@ -67,18 +67,85 @@ export async function clearDocumentArtifacts(documentId: number) {
     await db.delete(alignments).where(eq(alignments.chunkId, c.id));
     await db.delete(keywordTags).where(eq(keywordTags.chunkId, c.id));
   }
+  // chunk_media references chunks.id (no cascade) — media must clear before chunks.
+  await clearDocumentMedia(documentId);
   await db.delete(chunks).where(eq(chunks.documentId, documentId));
   await db.delete(gapSummary).where(eq(gapSummary.documentId, documentId));
   await db.delete(courseObjectives).where(eq(courseObjectives.documentId, documentId));
-  await clearDocumentMedia(documentId);
+}
+
+export type ExistingChunkRow = {
+  id: number;
+  chunkIndex: number | null;
+  content: string;
+  section: string | null;
+  embedding: number[] | null;
+};
+
+/**
+ * Resume gate: the chunker is deterministic, so a re-run over the same text
+ * produces the same chunks in the same order. When the stored chunks match the
+ * freshly built set by index + content, we can reuse them and skip the work
+ * already done (embedding, alignment, tagging) instead of wiping and redoing
+ * the whole document. Any divergence (chunker or source changed) falls back to
+ * a clean rebuild, so correctness never depends on a stale partial.
+ */
+export function chunksMatchExisting(
+  built: { chunkIndex: number; content: string }[],
+  existing: { chunkIndex: number | null; content: string }[],
+): boolean {
+  if (existing.length !== built.length || built.length === 0) return false;
+  const byIndex = new Map<number, string>();
+  for (const row of existing) {
+    if (row.chunkIndex == null) return false;
+    byIndex.set(row.chunkIndex, row.content);
+  }
+  for (const item of built) {
+    const content = byIndex.get(item.chunkIndex);
+    if (content === undefined || content !== item.content) return false;
+  }
+  return true;
+}
+
+async function countCourseObjectives(documentId: number): Promise<number> {
+  const db = getDb();
+  const res = await db.execute(
+    sql`SELECT COUNT(*)::int AS n FROM course_objectives WHERE document_id = ${documentId}`,
+  );
+  return Number((res.rows[0] as { n?: number })?.n ?? 0);
+}
+
+/** chunk ids under a document that already have ≥1 alignment (fully aligned,
+ * since per-chunk alignment rows are inserted in a single atomic statement). */
+async function loadChunkIdsWithAlignments(documentId: number): Promise<Set<number>> {
+  const db = getDb();
+  const res = await db.execute(sql`
+    SELECT DISTINCT a.chunk_id AS chunk_id
+    FROM alignments a JOIN chunks c ON c.id = a.chunk_id
+    WHERE c.document_id = ${documentId}
+  `);
+  return new Set((res.rows as { chunk_id: number }[]).map((r) => Number(r.chunk_id)));
+}
+
+/** chunk ids under a document that already carry keyword tags. */
+async function loadChunkIdsWithKeywordTags(documentId: number): Promise<Set<number>> {
+  const db = getDb();
+  const res = await db.execute(sql`
+    SELECT DISTINCT t.chunk_id AS chunk_id
+    FROM keyword_tags t JOIN chunks c ON c.id = t.chunk_id
+    WHERE c.document_id = ${documentId}
+  `);
+  return new Set((res.rows as { chunk_id: number }[]).map((r) => Number(r.chunk_id)));
 }
 
 export async function runFullPipeline(options: {
   documentId: number;
   filePath: string;
   jobId?: number;
+  /** Force a clean rebuild, ignoring any resumable partial state. */
+  force?: boolean;
 }) {
-  const { documentId, filePath, jobId } = options;
+  const { documentId, filePath, jobId, force } = options;
   const db = getDb();
 
   const setStage = async (stage: PipelineStage, progress: number, message: string) => {
@@ -88,29 +155,6 @@ export async function runFullPipeline(options: {
   try {
     await setStage("parsing", 10, "Parsing document...");
     const parsed = await parseDocument(filePath);
-    await clearDocumentArtifacts(documentId);
-
-    await setStage("extracting_objectives", 18, "Extracting learning objectives (regex-first)...");
-    const { objectives, sectionsFound, llmUsed } = await extractAndCleanObjectives(parsed.text);
-    for (const obj of objectives) {
-      await db.insert(courseObjectives).values({
-        documentId,
-        ordinal: obj.ordinal,
-        text: obj.text,
-        sectionHeading: obj.sectionHeading,
-        eoCode: obj.eoCode ?? null,
-        extractionMethod: obj.extractionMethod,
-        confidence: obj.confidence,
-        sourceExcerpt: obj.sourceExcerpt.slice(0, 500),
-      });
-    }
-    const objMsg =
-      objectives.length > 0
-        ? `${objectives.length} objectives from ${sectionsFound} section(s)${llmUsed ? " (LLM cleanup applied)" : ""}`
-        : sectionsFound > 0
-          ? "Objective sections found but none extracted"
-          : "No objective sections detected";
-    await setStage("extracting_objectives", 22, objMsg);
 
     const [docMeta] = await db
       .select({
@@ -128,6 +172,61 @@ export async function runFullPipeline(options: {
       docMeta?.caseTitle ?? undefined,
     );
 
+    // Resume decision. If the document already holds chunks that match the
+    // freshly built set, reuse them and pick up where a prior run stopped;
+    // otherwise wipe any stale partial and rebuild cleanly.
+    const existingChunkRows = (await db
+      .select({
+        id: chunks.id,
+        chunkIndex: chunks.chunkIndex,
+        content: chunks.content,
+        section: chunks.section,
+        embedding: chunks.embedding,
+      })
+      .from(chunks)
+      .where(eq(chunks.documentId, documentId))) as ExistingChunkRow[];
+
+    const resuming =
+      !force &&
+      existingChunkRows.length > 0 &&
+      chunksMatchExisting(built, existingChunkRows);
+
+    if (existingChunkRows.length > 0 && !resuming) {
+      await clearDocumentArtifacts(documentId);
+    }
+
+    // Objectives: (re)extract on a fresh/rebuilt run, or when resuming a run
+    // that crashed before objectives were written.
+    const existingObjectiveCount = resuming ? await countCourseObjectives(documentId) : 0;
+    if (!resuming || existingObjectiveCount === 0) {
+      await setStage("extracting_objectives", 18, "Extracting learning objectives (regex-first)...");
+      const { objectives, sectionsFound, llmUsed } = await extractAndCleanObjectives(parsed.text);
+      if (resuming && objectives.length > 0) {
+        await db.delete(courseObjectives).where(eq(courseObjectives.documentId, documentId));
+      }
+      for (const obj of objectives) {
+        await db.insert(courseObjectives).values({
+          documentId,
+          ordinal: obj.ordinal,
+          text: obj.text,
+          sectionHeading: obj.sectionHeading,
+          eoCode: obj.eoCode ?? null,
+          extractionMethod: obj.extractionMethod,
+          confidence: obj.confidence,
+          sourceExcerpt: obj.sourceExcerpt.slice(0, 500),
+        });
+      }
+      const objMsg =
+        objectives.length > 0
+          ? `${objectives.length} objectives from ${sectionsFound} section(s)${llmUsed ? " (LLM cleanup applied)" : ""}`
+          : sectionsFound > 0
+            ? "Objective sections found but none extracted"
+            : "No objective sections detected";
+      await setStage("extracting_objectives", 22, objMsg);
+    } else {
+      await setStage("extracting_objectives", 22, `Resuming — ${existingObjectiveCount} objectives already extracted`);
+    }
+
     const mediaAssetsForDoc = await upsertDocumentMediaAssets({
       documentId,
       filename: docMeta?.filename ?? path.basename(filePath),
@@ -136,31 +235,52 @@ export async function runFullPipeline(options: {
       text: parsed.text,
     });
 
-    await setStage("embedding", 40, "Generating embeddings (Azure AI Foundry)...");
+    await setStage(
+      "embedding",
+      40,
+      resuming ? "Resuming from existing chunks..." : "Generating embeddings (Azure AI Foundry)...",
+    );
     const insertedChunkIds: number[] = [];
     const chunkEmbeddings = new Map<number, number[]>();
     const insertedChunks: { id: number; content: string; section: string | null }[] = [];
-    for (let i = 0; i < built.length; i += BATCH_SIZE) {
-      const batch = built.slice(i, i + BATCH_SIZE);
-      for (const item of batch) {
-        const [row] = await db
-          .insert(chunks)
-          .values({
-            documentId,
-            chunkIndex: item.chunkIndex,
-            section: item.section,
-            content: item.content,
-          })
-          .returning({ id: chunks.id });
-        insertedChunkIds.push(row.id);
-        insertedChunks.push({
-          id: row.id,
-          content: item.content,
-          section: item.section,
-        });
+
+    if (resuming) {
+      // Reuse stored chunk rows (matched by chunkIndex) and carry over any
+      // embeddings already computed so we don't re-pay Azure for them.
+      const byIndex = new Map<number, ExistingChunkRow>();
+      for (const row of existingChunkRows) {
+        if (row.chunkIndex != null) byIndex.set(row.chunkIndex, row);
       }
-      const pct = 40 + Math.floor(((i + batch.length) / built.length) * 10);
-      await setStage("embedding", pct, `Prepared chunks (${Math.min(i + batch.length, built.length)}/${built.length})...`);
+      for (const item of built) {
+        const row = byIndex.get(item.chunkIndex);
+        if (!row) throw new Error(`resume: missing chunk index ${item.chunkIndex}`);
+        insertedChunkIds.push(row.id);
+        insertedChunks.push({ id: row.id, content: row.content, section: row.section });
+        if (row.embedding) chunkEmbeddings.set(row.id, row.embedding);
+      }
+    } else {
+      for (let i = 0; i < built.length; i += BATCH_SIZE) {
+        const batch = built.slice(i, i + BATCH_SIZE);
+        for (const item of batch) {
+          const [row] = await db
+            .insert(chunks)
+            .values({
+              documentId,
+              chunkIndex: item.chunkIndex,
+              section: item.section,
+              content: item.content,
+            })
+            .returning({ id: chunks.id });
+          insertedChunkIds.push(row.id);
+          insertedChunks.push({
+            id: row.id,
+            content: item.content,
+            section: item.section,
+          });
+        }
+        const pct = 40 + Math.floor(((i + batch.length) / built.length) * 10);
+        await setStage("embedding", pct, `Prepared chunks (${Math.min(i + batch.length, built.length)}/${built.length})...`);
+      }
     }
 
     const { assets: linkedAssets, links } = await linkDocumentMediaToChunks({
@@ -173,6 +293,7 @@ export async function runFullPipeline(options: {
       for (let j = 0; j < batch.length; j++) {
         const item = batch[j];
         const chunkId = insertedChunkIds[i + j];
+        if (chunkEmbeddings.has(chunkId)) continue; // already embedded (resume)
         const embedInput = buildEmbedTextForChunk(
           item.content,
           item.embedText,
@@ -194,10 +315,19 @@ export async function runFullPipeline(options: {
       );
     }
 
+    // Chunks already aligned/tagged are skipped on resume. A chunk with zero
+    // alignments is re-processed (we can't distinguish "not yet aligned" from
+    // "aligned to nothing" without a marker), so the skip covers the expensive
+    // majority that did align, not the rare genuinely-empty chunks.
+    const alignedChunkIds = resuming
+      ? await loadChunkIdsWithAlignments(documentId)
+      : new Set<number>();
+
     await setStage("aligning", 70, "Running alignment analysis against AAMC PCRS...");
     for (let i = 0; i < insertedChunkIds.length; i += BATCH_SIZE) {
       const batch = insertedChunkIds.slice(i, i + BATCH_SIZE);
       for (const chunkId of batch) {
+        if (alignedChunkIds.has(chunkId)) continue;
         const [chunk] = await db
           .select()
           .from(chunks)
@@ -211,49 +341,56 @@ export async function runFullPipeline(options: {
           alignToFramework(chunk.content, "USMLE", { chunkEmbedding: chunkEmbedding ?? undefined }),
         ]);
 
-        for (const a of aamc) {
-          const fid = a.framework_id ?? "";
-          const isEpa = fid.toLowerCase().includes("epa");
-          await db.insert(alignments).values({
-            chunkId,
-            framework: isEpa ? "AAMC_EPA" : "AAMC_PCRS",
-            frameworkId: fid,
-            frameworkLabel: a.framework_label ?? fid,
-            confidence: String(a.confidence),
-            rationale: a.rationale,
-          });
-        }
-
-        for (const u of usmle) {
-          const fid = u.framework_id ?? u.domain ?? "";
-          await db.insert(alignments).values({
-            chunkId,
-            framework: "USMLE",
-            frameworkId: fid,
-            frameworkLabel: u.framework_label ?? fid,
-            confidence: String(u.confidence),
-            rationale: u.rationale,
-          });
-        }
+        // Insert both frameworks' rows in one statement so a crash can never
+        // leave a chunk half-aligned (which resume would then wrongly skip).
+        const alignmentRows = [
+          ...aamc.map((a) => {
+            const fid = a.framework_id ?? "";
+            return {
+              chunkId,
+              framework: fid.toLowerCase().includes("epa") ? "AAMC_EPA" : "AAMC_PCRS",
+              frameworkId: fid,
+              frameworkLabel: a.framework_label ?? fid,
+              confidence: String(a.confidence),
+              rationale: a.rationale,
+            };
+          }),
+          ...usmle.map((u) => {
+            const fid = u.framework_id ?? u.domain ?? "";
+            return {
+              chunkId,
+              framework: "USMLE",
+              frameworkId: fid,
+              frameworkLabel: u.framework_label ?? fid,
+              confidence: String(u.confidence),
+              rationale: u.rationale,
+            };
+          }),
+        ];
+        if (alignmentRows.length) await db.insert(alignments).values(alignmentRows);
       }
       if (i === 0) {
         await setStage("aligning", 80, "Running alignment analysis against USMLE 2025...");
       }
     }
 
+    const taggedChunkIds = resuming
+      ? await loadChunkIdsWithKeywordTags(documentId)
+      : new Set<number>();
+
     await setStage("tagging", 90, "Tagging AAMC keywords...");
     for (const chunkId of insertedChunkIds) {
+      if (taggedChunkIds.has(chunkId)) continue;
       const embedding = chunkEmbeddings.get(chunkId);
       if (!embedding) continue;
       try {
         const keywords = await retrieveKeywordCandidates(embedding, 5);
-        for (const kw of keywords) {
-          await db.insert(keywordTags).values({
-            chunkId,
-            keyword: kw.keyword,
-            category: kw.stableId,
-          });
-        }
+        const tagRows = keywords.map((kw) => ({
+          chunkId,
+          keyword: kw.keyword,
+          category: kw.stableId,
+        }));
+        if (tagRows.length) await db.insert(keywordTags).values(tagRows);
       } catch {
         // keyword tagging optional when frameworks not embedded
       }
