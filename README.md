@@ -166,6 +166,7 @@ lib/                  Pipeline, parsers, Azure AI, objective extraction
 scripts/              Seed, process, and setup CLIs
 data/                 Local curriculum + frameworks (gitignored binaries)
 docs/plans/           Implementation plans (see docs/README.md)
+docs/solutions/       Documented fixes and conventions (YAML frontmatter: module, tags, problem_type) — search before debugging bootstrap or pipeline
 ```
 
 ---
@@ -185,6 +186,8 @@ docs/plans/           Implementation plans (see docs/README.md)
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Pipeline stages, API routes, module map, data flow |
 | [docs/SCHEMA.md](docs/SCHEMA.md) | Postgres tables, ER diagram, framework ID conventions |
 | [docs/README.md](docs/README.md) | Doc index, bootstrap checklist, plan status |
+| [docs/solutions/](docs/solutions/) | Searchable learnings from past fixes (bugs, conventions, workflow) |
+| [CONCEPTS.md](CONCEPTS.md) | Shared domain vocabulary for bootstrap, pipeline, and curriculum terms |
 | [docs/plans/](docs/plans/) | Implementation plans |
 | [docs/ideation/](docs/ideation/) | Curriculum map UX ideation |
 
