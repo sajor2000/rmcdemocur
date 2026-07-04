@@ -23,7 +23,9 @@
     "db:bootstrap:status": "tsx scripts/bootstrap.ts status",
     "db:audit-bootstrap": "tsx scripts/audit-bootstrap.ts",
     "db:extract-objectives": "tsx scripts/extract-objectives.ts",
-    "db:realign": "tsx scripts/realign.ts"
+    "db:realign": "tsx scripts/realign.ts",
+    "db:collapse-duplicate-media": "tsx scripts/collapse-duplicate-media.ts",
+    "db:backfill-media-paths": "tsx scripts/backfill-media-paths.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.5",

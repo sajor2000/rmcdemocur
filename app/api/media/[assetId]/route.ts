@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { mediaAssets } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
-import { resolveSafeMediaPath } from "@/lib/media-storage";
+import { resolveMediaKeyPath } from "@/lib/media-storage";
 
 const MIME_BY_EXT: Record<string, string> = {
   png: "image/png",
@@ -36,7 +36,7 @@ export async function GET(
     return NextResponse.json({ error: "Media not found" }, { status: 404 });
   }
 
-  const safePath = resolveSafeMediaPath(asset.storagePath);
+  const safePath = resolveMediaKeyPath(asset.storagePath);
   if (!safePath) {
     return NextResponse.json({ error: "Media path not allowed" }, { status: 403 });
   }

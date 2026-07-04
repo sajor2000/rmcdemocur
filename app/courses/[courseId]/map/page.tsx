@@ -28,7 +28,7 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
         id: number;
         label: string;
         textForEmbed: string | null;
-        storagePath: string | null;
+        hasFile: boolean;
         hasCaptionInText: boolean | null;
         referenceKind: string;
       }[]
