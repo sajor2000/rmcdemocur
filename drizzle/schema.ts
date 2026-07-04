@@ -164,7 +164,18 @@ export const mediaAssets = pgTable("media_assets", {
   sourceIndex: integer("source_index"),
   extractionScope: varchar("extraction_scope", { length: 20 }),
   videoUrl: text("video_url"),
+  captionSource: varchar("caption_source", { length: 10 }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const figureCaptions = pgTable("figure_captions", {
+  id: serial("id").primaryKey(),
+  filename: text("filename").notNull(),
+  label: text("label").notNull(),
+  textForEmbed: text("text_for_embed").notNull(),
+  sourceIndex: integer("source_index"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 export const chunkMedia = pgTable(
@@ -192,3 +203,4 @@ export type ProcessingJob = typeof processingJobs.$inferSelect;
 export type CourseObjective = typeof courseObjectives.$inferSelect;
 export type MediaAsset = typeof mediaAssets.$inferSelect;
 export type ChunkMedia = typeof chunkMedia.$inferSelect;
+export type FigureCaption = typeof figureCaptions.$inferSelect;

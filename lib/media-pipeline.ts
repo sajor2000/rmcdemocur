@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { chunkMedia, mediaAssets } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 import {
@@ -35,6 +35,10 @@ export function assignFacultyAnswerImageStoragePaths(
   return map;
 }
 
+/** Shrunk to link cleanup only — media_assets rows are now managed by the
+ * keyed upsert in upsertDocumentMediaAssets, which updates existing rows in
+ * place and deletes only rows whose registry key vanished. See KTD5 in
+ * docs/plans/2026-07-03-010-feat-deployment-readiness-hardening-plan.md. */
 export async function clearDocumentMedia(documentId: number) {
   const db = getDb();
   const assets = await db
@@ -45,7 +49,14 @@ export async function clearDocumentMedia(documentId: number) {
   for (const asset of assets) {
     await db.delete(chunkMedia).where(eq(chunkMedia.mediaAssetId, asset.id));
   }
-  await db.delete(mediaAssets).where(eq(mediaAssets.documentId, documentId));
+}
+
+function mediaAssetKey(
+  label: string,
+  referenceKind: string,
+  sourceIndex: number | null,
+): string {
+  return `${label}::${referenceKind}::${sourceIndex ?? -1}`;
 }
 
 export async function upsertDocumentMediaAssets(options: {
@@ -69,7 +80,27 @@ export async function upsertDocumentMediaAssets(options: {
       ? assignFacultyAnswerImageStoragePaths(registry, extracted)
       : new Map<number, string>();
 
-  const inserted: { id: number; label: string; textForEmbed: string | null; referenceKind: string }[] =
+  const existingRows = await db
+    .select({
+      id: mediaAssets.id,
+      label: mediaAssets.label,
+      referenceKind: mediaAssets.referenceKind,
+      sourceIndex: mediaAssets.sourceIndex,
+    })
+    .from(mediaAssets)
+    .where(eq(mediaAssets.documentId, options.documentId));
+
+  // A parser regression can yield a near-empty registry; refuse to treat that
+  // as "every existing figure vanished" and mass-delete a document's media.
+  if (registry.length === 0 && existingRows.length > 0) {
+    throw new Error(
+      `upsertDocumentMediaAssets: figure registry is empty for document ${options.documentId} ` +
+        `but ${existingRows.length} media_assets row(s) already exist — refusing to delete them. ` +
+        `This usually indicates a parser regression; investigate before reprocessing.`,
+    );
+  }
+
+  const upserted: { id: number; label: string; textForEmbed: string | null; referenceKind: string }[] =
     [];
 
   for (const entry of registry) {
@@ -81,31 +112,54 @@ export async function upsertDocumentMediaAssets(options: {
     ) {
       storagePath = storageByIndex.get(entry.sourceIndex) ?? null;
     }
-    const [row] = await db
-      .insert(mediaAssets)
-      .values({
-        documentId: options.documentId,
-        type: entry.type,
-        label: entry.label,
-        section: entry.section,
-        referenceKind: entry.referenceKind,
-        hasCaptionInText: entry.hasCaptionInText,
-        textForEmbed: entry.textForEmbed,
-        storagePath,
-        sourceIndex: entry.sourceIndex,
-        extractionScope: entry.extractionScope,
-        videoUrl: entry.videoUrl ?? null,
-      })
-      .returning({
-        id: mediaAssets.id,
-        label: mediaAssets.label,
-        textForEmbed: mediaAssets.textForEmbed,
-        referenceKind: mediaAssets.referenceKind,
-      });
-    inserted.push(row);
+    // Drizzle 0.30's onConflictDoUpdate target only accepts plain columns, not
+    // the expression index (COALESCE(source_index, -1)) media_assets_key_idx
+    // is built on — raw SQL is the only way to express this ON CONFLICT target.
+    const result = await db.execute(sql`
+      INSERT INTO media_assets (
+        document_id, type, label, section, reference_kind, has_caption_in_text,
+        text_for_embed, storage_path, source_index, extraction_scope, video_url, caption_source
+      ) VALUES (
+        ${options.documentId}, ${entry.type}, ${entry.label}, ${entry.section}, ${entry.referenceKind},
+        ${entry.hasCaptionInText}, ${entry.textForEmbed}, ${storagePath}, ${entry.sourceIndex},
+        ${entry.extractionScope}, ${entry.videoUrl ?? null}, 'text'
+      )
+      ON CONFLICT (document_id, label, reference_kind, (COALESCE(source_index, -1)))
+      DO UPDATE SET
+        type = EXCLUDED.type,
+        section = EXCLUDED.section,
+        has_caption_in_text = EXCLUDED.has_caption_in_text,
+        text_for_embed = EXCLUDED.text_for_embed,
+        storage_path = EXCLUDED.storage_path,
+        extraction_scope = EXCLUDED.extraction_scope,
+        video_url = EXCLUDED.video_url
+      RETURNING id, label, text_for_embed AS "textForEmbed", reference_kind AS "referenceKind"
+    `);
+    const [row] = result.rows as {
+      id: number;
+      label: string;
+      textForEmbed: string | null;
+      referenceKind: string;
+    }[];
+    upserted.push(row);
   }
 
-  return inserted;
+  const registryKeys = new Set(
+    registry.map((entry) => mediaAssetKey(entry.label, entry.referenceKind, entry.sourceIndex)),
+  );
+  const vanishedIds = existingRows
+    .filter(
+      (row) => !registryKeys.has(mediaAssetKey(row.label, row.referenceKind, row.sourceIndex)),
+    )
+    .map((row) => row.id);
+
+  if (vanishedIds.length > 0) {
+    // Links repointed away before rows deleted — chunk_media has no cascade.
+    await db.delete(chunkMedia).where(inArray(chunkMedia.mediaAssetId, vanishedIds));
+    await db.delete(mediaAssets).where(inArray(mediaAssets.id, vanishedIds));
+  }
+
+  return upserted;
 }
 
 export async function linkDocumentMediaToChunks(options: {

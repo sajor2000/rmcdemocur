@@ -143,13 +143,59 @@ const DDL = [
   )`,
   `CREATE INDEX IF NOT EXISTS chunk_media_chunk_id_idx ON chunk_media (chunk_id)`,
   `CREATE INDEX IF NOT EXISTS chunk_media_media_asset_id_idx ON chunk_media (media_asset_id)`,
+  // Append-only: safe on both a fresh CREATE TABLE (column already present)
+  // and a pre-existing media_assets table from before this column existed.
+  `ALTER TABLE media_assets ADD COLUMN IF NOT EXISTS caption_source varchar(10)`,
+  `CREATE TABLE IF NOT EXISTS figure_captions (
+    id serial PRIMARY KEY,
+    filename text NOT NULL,
+    label text NOT NULL,
+    text_for_embed text NOT NULL,
+    source_index integer,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+  )`,
+  // figure_captions is always empty pre-existing rows on a fresh table, so
+  // (unlike media_assets below) this index needs no duplicate guard.
+  `CREATE UNIQUE INDEX IF NOT EXISTS figure_captions_key_idx
+     ON figure_captions (filename, label, (COALESCE(source_index, -1)))`,
 ];
+
+// media_assets predates the keyed-upsert design (see docs/plans/2026-07-03-010-*),
+// so an already-bootstrapped DB may hold duplicate rows written by the old bare
+// insert. Guard the index instead of letting a dirty DB wedge every future
+// bootstrap: skip creation and warn rather than throwing mid-DDL-array.
+const MEDIA_ASSETS_UNIQUE_INDEX_SQL = `
+  CREATE UNIQUE INDEX IF NOT EXISTS media_assets_key_idx
+    ON media_assets (document_id, label, reference_kind, (COALESCE(source_index, -1)))
+`;
+
+async function hasDuplicateMediaAssetRows(sql: ReturnType<typeof neon>): Promise<boolean> {
+  const rows = (await sql(`
+    SELECT 1 FROM media_assets
+    GROUP BY document_id, label, reference_kind, COALESCE(source_index, -1)
+    HAVING COUNT(*) > 1
+    LIMIT 1
+  `)) as unknown[];
+  return rows.length > 0;
+}
 
 export async function pushSchema(): Promise<void> {
   const sql = neon(directUrl());
   for (const statement of DDL) {
     await sql(statement);
   }
+
+  if (await hasDuplicateMediaAssetRows(sql)) {
+    console.warn(
+      "media_assets has duplicate rows on (document_id, label, reference_kind, source_index) — " +
+        "skipping unique index creation. Run `npx tsx scripts/collapse-duplicate-media.ts` to " +
+        "collapse duplicates, then re-run this script.",
+    );
+  } else {
+    await sql(MEDIA_ASSETS_UNIQUE_INDEX_SQL);
+  }
+
   console.log("Schema ready (pgvector + RushMap tables).");
 }
 
