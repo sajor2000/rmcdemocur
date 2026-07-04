@@ -2,9 +2,10 @@ import fs from "fs/promises";
 import path from "path";
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
+import { get as blobGet } from "@vercel/blob";
 import { mediaAssets } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
-import { resolveSafeMediaPath } from "@/lib/media-storage";
+import { blobConfigured, resolveMediaKeyPath } from "@/lib/media-storage";
 
 const MIME_BY_EXT: Record<string, string> = {
   png: "image/png",
@@ -17,7 +18,7 @@ const MIME_BY_EXT: Record<string, string> = {
 };
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: { assetId: string } },
 ) {
   const assetId = Number(params.assetId);
@@ -32,11 +33,64 @@ export async function GET(
     .where(eq(mediaAssets.id, assetId))
     .limit(1);
 
-  if (!asset?.storagePath) {
-    return NextResponse.json({ error: "Media not found" }, { status: 404 });
+  if (!asset) {
+    return NextResponse.json({ error: "Media asset not found" }, { status: 404 });
+  }
+  if (!asset.storagePath) {
+    return NextResponse.json({ error: "Asset has no associated file" }, { status: 404 });
   }
 
-  const safePath = resolveSafeMediaPath(asset.storagePath);
+  if (blobConfigured()) {
+    return serveFromBlob(asset.storagePath, request);
+  }
+  return serveFromDisk(asset.storagePath);
+}
+
+async function serveFromBlob(key: string, request: Request): Promise<NextResponse> {
+  let result: Awaited<ReturnType<typeof blobGet>>;
+  try {
+    result = await blobGet(key, { access: "private" });
+  } catch (err) {
+    // blobGet resolves null (not throws) for a genuinely missing object, so
+    // anything that throws here is a real failure (auth, network, rate
+    // limit) — conflating it with "not uploaded" would hide a Blob outage or
+    // misconfigured token behind a misleading 404.
+    console.error(`Blob fetch failed for ${key}:`, err);
+    return NextResponse.json({ error: "Media storage temporarily unavailable" }, { status: 502 });
+  }
+
+  if (!result) {
+    // Distinguishable from "asset unknown" (R6) — the DB row and its key
+    // exist, but no object was ever uploaded under it. A forgotten
+    // `db:extract-media` upload step surfaces here, diagnosably, not as a
+    // generic 404 indistinguishable from a bad asset id.
+    return NextResponse.json(
+      { error: "Media bytes not found in Blob storage — extraction may not have been uploaded" },
+      { status: 404 },
+    );
+  }
+
+  const ifNoneMatch = request.headers.get("if-none-match");
+  const notModified =
+    (ifNoneMatch && ifNoneMatch === result.blob.etag) ||
+    result.statusCode === 304 ||
+    !result.stream;
+  if (notModified) {
+    return new NextResponse(null, { status: 304, headers: { ETag: result.blob.etag } });
+  }
+
+  const bytes = await new Response(result.stream).arrayBuffer();
+  return new NextResponse(bytes, {
+    headers: {
+      "Content-Type": result.blob.contentType || "application/octet-stream",
+      "Cache-Control": "private, no-cache",
+      ETag: result.blob.etag,
+    },
+  });
+}
+
+async function serveFromDisk(key: string): Promise<NextResponse> {
+  const safePath = resolveMediaKeyPath(key);
   if (!safePath) {
     return NextResponse.json({ error: "Media path not allowed" }, { status: 403 });
   }

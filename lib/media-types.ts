@@ -13,6 +13,9 @@ export type ReferenceKind = (typeof REFERENCE_KINDS)[number];
 export const EXTRACTION_SCOPES = ["faculty", "self_study", "pdf_pending"] as const;
 export type ExtractionScope = (typeof EXTRACTION_SCOPES)[number];
 
+export const CAPTION_SOURCES = ["text", "csv"] as const;
+export type CaptionSource = (typeof CAPTION_SOURCES)[number];
+
 export type DocumentFigureMeta = {
   filename: string;
   caseNumber: number;

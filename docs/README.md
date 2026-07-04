@@ -44,18 +44,23 @@ Central index for architecture, schema, plans, and bootstrap.
 
 1. `cp .env.local.example .env.local` — Neon + Azure credentials
 2. `npm install` + place F2F materials locally
-3. `npm run copy:frameworks && npm run db:push`
-4. `npm run db:bootstrap:smoke` — schema, incremental framework embed, seed, Case 1 process, verify
-5. `npm run db:audit-bootstrap` — read-only reconcile manifest / DB / cache
-6. `npm run db:bootstrap:full` — remaining 13 documents (skip-complete)
-7. `npm run dev` → http://localhost:3000/courses/1
+3. **Existing database only** (skip on a fresh DB — `db:push` below creates everything cleanly): run these one-time media-portability scripts, in order, before `db:push` —
+   `npm run db:collapse-duplicate-media` (must run first; `db:push` throws if duplicate `media_assets` rows remain), then `npm run db:backfill-media-paths`, then `npm run db:migrate-captions`. See `docs/plans/2026-07-03-010-feat-deployment-readiness-hardening-plan.md` for what each one does.
+4. `npm run copy:frameworks && npm run db:push`
+5. `npm run db:bootstrap:smoke` — schema, incremental framework embed, seed, Case 1 process, verify
+6. `npm run db:audit-bootstrap` — read-only reconcile manifest / DB / cache
+7. `npm run db:bootstrap:full` — remaining 13 documents (skip-complete)
+8. `npm run dev` → http://localhost:3000/courses/1
+
+**Media storage (Vercel deploys):** Vercel's runtime filesystem is read-only, so figures must be served from Vercel Blob in production. Set `BLOB_READ_WRITE_TOKEN` (or `BLOB_STORE_ID` if using a dashboard-connected store) before running `npm run db:extract-media`, which uploads extracted figures to Blob alongside the local write. Without either var, media serving falls back to the local filesystem (dev-only).
 
 **Manual chain (legacy):**
 
 1. `npm run db:seed-frameworks` — supports `--force`, `--track-bootstrap`; resumes per `stable_id`
 2. `npm run db:seed`
-3. `PROCESS_CASE_NUMBER=1 npm run db:process -- --skip-complete`
-4. `npm run db:process -- --skip-complete`
+3. `npm run db:extract-media` — extract faculty DOCX figures (see docs/SCHEMA.md bootstrap order)
+4. `PROCESS_CASE_NUMBER=1 npm run db:process -- --skip-complete`
+5. `npm run db:process -- --skip-complete`
 
 Or: `npm run setup` for the non-resumable full chain.
 

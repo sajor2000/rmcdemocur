@@ -1,17 +1,22 @@
 /**
- * Import official figure captions from CSV.
+ * Import official figure captions from CSV into the figure_captions input
+ * table. Captions live here — not in media_assets — so a rebuild (which
+ * regenerates media_assets from document text) never destroys them; see
+ * KTD3 in docs/plans/2026-07-03-010-feat-deployment-readiness-hardening-plan.md.
+ * Upsert-on-key semantics (filename, label, source_index) make re-running
+ * this importer with a corrected CSV safe at any time — the document
+ * doesn't need to exist yet for its captions to be imported.
  *
  * CSV columns: filename, label, text_for_embed, storage_index (optional)
  *
  * Usage:
  *   npx tsx scripts/import-figure-captions.ts data/curriculum/figure-captions.csv
  */
+import "./load-env";
 import fs from "fs/promises";
-import { eq } from "drizzle-orm";
-import { documents, mediaAssets } from "@/drizzle/schema";
+import { sql } from "drizzle-orm";
 import { parseCsvRows } from "@/lib/csv-parse";
 import { getDb } from "@/lib/db";
-import { listExtractedMediaFiles } from "@/lib/media-storage";
 
 export type CaptionRow = {
   filename: string;
@@ -51,7 +56,7 @@ export async function importFigureCaptions(csvPath: string) {
   const db = getDb();
   const content = await fs.readFile(csvPath, "utf8");
   const rows = parseFigureCaptionRows(content);
-  const summary = { updated: 0, skipped: 0, missingDocument: 0, missingAsset: 0 };
+  const summary = { upserted: 0, skipped: 0 };
 
   for (const row of rows) {
     if (!row.filename || !row.label || !row.textForEmbed) {
@@ -59,47 +64,13 @@ export async function importFigureCaptions(csvPath: string) {
       continue;
     }
 
-    const [doc] = await db
-      .select({ id: documents.id, caseNumber: documents.caseNumber })
-      .from(documents)
-      .where(eq(documents.filename, row.filename))
-      .limit(1);
-    if (!doc) {
-      summary.missingDocument += 1;
-      continue;
-    }
-
-    const assets = await db
-      .select()
-      .from(mediaAssets)
-      .where(eq(mediaAssets.documentId, doc.id));
-
-    const match = assets.find(
-      (asset) => asset.label.toLowerCase() === row.label.toLowerCase(),
-    );
-    if (!match) {
-      summary.missingAsset += 1;
-      continue;
-    }
-
-    let storagePath = match.storagePath;
-    if (row.storageIndex != null && doc.caseNumber != null) {
-      const extracted = await listExtractedMediaFiles(doc.caseNumber, row.filename);
-      storagePath =
-        extracted.find((file) => file.sourceIndex === row.storageIndex)?.storagePath ??
-        storagePath;
-    }
-
-    await db
-      .update(mediaAssets)
-      .set({
-        textForEmbed: row.textForEmbed,
-        hasCaptionInText: true,
-        storagePath,
-        sourceIndex: row.storageIndex ?? match.sourceIndex,
-      })
-      .where(eq(mediaAssets.id, match.id));
-    summary.updated += 1;
+    await db.execute(sql`
+      INSERT INTO figure_captions (filename, label, text_for_embed, source_index, updated_at)
+      VALUES (${row.filename}, ${row.label}, ${row.textForEmbed}, ${row.storageIndex}, now())
+      ON CONFLICT (filename, label, (COALESCE(source_index, -1)))
+      DO UPDATE SET text_for_embed = EXCLUDED.text_for_embed, updated_at = now()
+    `);
+    summary.upserted += 1;
   }
 
   return summary;

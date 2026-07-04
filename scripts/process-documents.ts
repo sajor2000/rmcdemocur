@@ -156,7 +156,7 @@ export async function processDocuments(options?: {
 
     console.log(`Processing ${doc.filename}...`);
     try {
-      await runFullPipeline({ documentId: doc.id, filePath });
+      await runFullPipeline({ documentId: doc.id, filePath, force: options?.force });
     } catch (error) {
       // Per-document isolation: one bad or corrupt file must not abort the batch.
       const message = error instanceof Error ? error.message : String(error);

@@ -27,7 +27,16 @@ export async function middleware(request: NextRequest) {
     // its subsequent /api/* calls — including EventSource, which cannot send
     // headers — authenticate automatically on the same origin.
     const response = NextResponse.next();
-    if (tokenSecondsRemaining(existingCookie, nowSeconds) < RENEW_WHEN_UNDER_SECONDS) {
+    // Reissue when the cookie is missing, near expiry, or fails signature
+    // verification (e.g. after an API_SECRET rotation — expiry alone would let a
+    // stale-secret cookie suppress re-minting while every /api call 401s).
+    const nearExpiry =
+      tokenSecondsRemaining(existingCookie, nowSeconds) < RENEW_WHEN_UNDER_SECONDS;
+    const valid =
+      !nearExpiry &&
+      existingCookie !== undefined &&
+      (await verifyToken(existingCookie, apiSecret, nowSeconds));
+    if (!valid) {
       const token = await signToken(apiSecret, nowSeconds);
       response.cookies.set(AUTH_COOKIE, token, {
         httpOnly: true,

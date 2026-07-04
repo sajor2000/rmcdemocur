@@ -149,7 +149,7 @@ After a `ce-code-review` or `ce-work` session: commit new/updated plans and opti
 ## Scope boundaries
 
 - Curriculum PDFs/DOCX, framework PDFs, and extracted media live under `data/` locally — not in git.
-- Framework **text** is committed as parsed JSON under `data/frameworks/parsed/` (authority for alignment).
+- Framework **authority text** is committed as attributed JSON under `data/frameworks/` (`aamc-pcrs-2013.json`, `aamc-core-epas.json`) — the source `loadAamcPcrsCatalog` reads. `data/frameworks/parsed/` is a regenerated debug dump, not the authority.
 - Upload SSE and API auth have special cases — read `docs/ARCHITECTURE.md` before changing middleware or upload routes.
 - Do not commit regenerated framework JSON or ideation HTML unless the user asks — check `git status` before staging.
 

@@ -209,7 +209,7 @@ export async function getMapData(courseId: number) {
       id: number;
       label: string;
       textForEmbed: string | null;
-      storagePath: string | null;
+      hasFile: boolean;
       hasCaptionInText: boolean | null;
       referenceKind: string;
     }[]
@@ -221,7 +221,10 @@ export async function getMapData(courseId: number) {
       id: row.asset.id,
       label: row.asset.label,
       textForEmbed: row.asset.textForEmbed,
-      storagePath: row.asset.storagePath,
+      // Never expose the raw storage_path — it's a filesystem/Blob locator
+      // key, not client-facing data; the client only ever needs to know
+      // whether /api/media/{id} will actually return bytes.
+      hasFile: Boolean(row.asset.storagePath),
       hasCaptionInText: row.asset.hasCaptionInText,
       referenceKind: row.asset.referenceKind,
     });
@@ -242,7 +245,7 @@ export async function searchChunks(courseId: number, queryEmbedding: number[], l
            1 - (c.embedding <=> ${vectorStr}::vector) AS similarity
     FROM chunks c
     JOIN documents d ON d.id = c.document_id
-    WHERE d.course_id = ${courseId}
+    WHERE d.course_id = ${courseId} AND c.embedding IS NOT NULL
     ORDER BY similarity DESC
     LIMIT ${limit}
   `);

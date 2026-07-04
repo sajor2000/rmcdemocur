@@ -22,7 +22,7 @@ type MediaAssetPreview = {
   id: number;
   label: string;
   textForEmbed: string | null;
-  storagePath: string | null;
+  hasFile: boolean;
   hasCaptionInText: boolean | null;
   referenceKind: string;
 };
@@ -78,7 +78,7 @@ export function AlignmentDrawer({
                           </Badge>
                         )}
                       </div>
-                      {media.storagePath ? (
+                      {media.hasFile ? (
                         <img
                           src={`/api/media/${media.id}`}
                           alt={media.label}
