@@ -32,26 +32,11 @@ export default async function CourseDashboardPage({
     );
   }
 
-  const { metrics, aamcDomainCoverage, heatmap, recentAlignments } = summary;
+  const { metrics, aamcDomainCoverage, heatmap, usmleSystems, recentAlignments } = summary;
   const aamcData = aamcDomainCoverage.map((d) => ({
     domain: d.domain.replace("Interpersonal & Communication Skills", "ICS").slice(0, 18),
     percent: d.percent,
   }));
-
-  const domains = [
-    "Gastrointestinal",
-    "Hepatobiliary",
-    "Renal/Urinary",
-    "Cardiovascular",
-    "Pulmonary",
-    "Neurology/Psychiatry",
-    "Endocrine",
-    "Dermatology",
-    "Multisystem/General Principles",
-    "Pharmacology",
-    "Microbiology/Immunology",
-    "Pathology",
-  ];
 
   const caseNumbers = Array.from(
     new Set(
@@ -91,13 +76,9 @@ export default async function CourseDashboardPage({
       <div className="grid gap-6 lg:grid-cols-2">
         <AamcBarChart data={aamcData} />
         <CoverageHeatmap
-          data={heatmap.map((h) => ({
-            caseNumber: h.caseNumber,
-            domainId: h.domainId,
-            status: h.status,
-          }))}
+          data={heatmap}
           cases={caseNumbers.length ? caseNumbers : [1]}
-          domains={domains}
+          systems={usmleSystems}
         />
       </div>
 
