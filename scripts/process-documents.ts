@@ -61,9 +61,8 @@ export async function loadDocumentPipelineStatusMap(
       c.document_id,
       COUNT(DISTINCT c.id)::int AS chunk_count,
       COUNT(DISTINCT c.id) FILTER (WHERE c.embedding IS NOT NULL)::int AS chunks_with_embedding,
-      COUNT(DISTINCT a.chunk_id)::int AS aligned_chunk_count
+      COUNT(DISTINCT c.id) FILTER (WHERE c.aligned_at IS NOT NULL)::int AS aligned_chunk_count
     FROM chunks c
-    LEFT JOIN alignments a ON a.chunk_id = c.id
     WHERE c.document_id IN (${sql.join(
       documentIds.map((id) => sql`${id}`),
       sql`, `,

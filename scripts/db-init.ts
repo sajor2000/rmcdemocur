@@ -146,6 +146,9 @@ const DDL = [
   // Append-only: safe on both a fresh CREATE TABLE (column already present)
   // and a pre-existing media_assets table from before this column existed.
   `ALTER TABLE media_assets ADD COLUMN IF NOT EXISTS caption_source varchar(10)`,
+  // Per-chunk marker: the alignment stage processed this chunk (whether or not
+  // it produced alignment rows). Drives resume skip + completeness.
+  `ALTER TABLE chunks ADD COLUMN IF NOT EXISTS aligned_at timestamptz`,
   `CREATE TABLE IF NOT EXISTS figure_captions (
     id serial PRIMARY KEY,
     filename text NOT NULL,

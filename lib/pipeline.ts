@@ -80,6 +80,7 @@ export type ExistingChunkRow = {
   content: string;
   section: string | null;
   embedding: number[] | null;
+  alignedAt: Date | null;
 };
 
 /**
@@ -113,18 +114,6 @@ async function countCourseObjectives(documentId: number): Promise<number> {
     sql`SELECT COUNT(*)::int AS n FROM course_objectives WHERE document_id = ${documentId}`,
   );
   return Number((res.rows[0] as { n?: number })?.n ?? 0);
-}
-
-/** chunk ids under a document that already have ≥1 alignment (fully aligned,
- * since per-chunk alignment rows are inserted in a single atomic statement). */
-async function loadChunkIdsWithAlignments(documentId: number): Promise<Set<number>> {
-  const db = getDb();
-  const res = await db.execute(sql`
-    SELECT DISTINCT a.chunk_id AS chunk_id
-    FROM alignments a JOIN chunks c ON c.id = a.chunk_id
-    WHERE c.document_id = ${documentId}
-  `);
-  return new Set((res.rows as { chunk_id: number }[]).map((r) => Number(r.chunk_id)));
 }
 
 /** chunk ids under a document that already carry keyword tags. */
@@ -182,6 +171,7 @@ export async function runFullPipeline(options: {
         content: chunks.content,
         section: chunks.section,
         embedding: chunks.embedding,
+        alignedAt: chunks.alignedAt,
       })
       .from(chunks)
       .where(eq(chunks.documentId, documentId))) as ExistingChunkRow[];
@@ -329,12 +319,16 @@ export async function runFullPipeline(options: {
       );
     }
 
-    // Chunks already aligned/tagged are skipped on resume. A chunk with zero
-    // alignments is re-processed (we can't distinguish "not yet aligned" from
-    // "aligned to nothing" without a marker), so the skip covers the expensive
-    // majority that did align, not the rare genuinely-empty chunks.
+    // Chunks already aligned/tagged are skipped on resume. The aligned_at marker
+    // is set once the alignment stage processes a chunk (whether or not it
+    // produced rows), so the skip correctly covers genuinely-empty chunks too —
+    // no re-paying Azure for admin text that aligns to nothing.
     const alignedChunkIds = resuming
-      ? await loadChunkIdsWithAlignments(documentId)
+      ? new Set(
+          existingChunkRows
+            .filter((r) => r.alignedAt != null)
+            .map((r) => r.id),
+        )
       : new Set<number>();
 
     await setStage("aligning", 70, "Running alignment analysis against AAMC PCRS...");
@@ -382,6 +376,13 @@ export async function runFullPipeline(options: {
           }),
         ];
         if (alignmentRows.length) await db.insert(alignments).values(alignmentRows);
+
+        // Mark the chunk alignment-processed regardless of whether rows were
+        // produced, so resume skips it and completeness counts it.
+        await db
+          .update(chunks)
+          .set({ alignedAt: new Date() })
+          .where(eq(chunks.id, chunkId));
       }
       if (i === 0) {
         await setStage("aligning", 80, "Running alignment analysis against USMLE 2025...");
