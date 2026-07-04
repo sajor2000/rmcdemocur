@@ -14,7 +14,7 @@
  *   npx tsx scripts/migrate-captions.ts
  */
 import "./load-env";
-import { and, eq, isNotNull } from "drizzle-orm";
+import { eq, and, isNotNull } from "drizzle-orm";
 import { documents, figureCaptions, mediaAssets } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 
@@ -23,6 +23,10 @@ export type CaptionMigrationSummary = {
   alreadyCovered: number;
   reported: { mediaAssetId: number; filename: string; label: string }[];
 };
+
+function coveredKey(filename: string, label: string): string {
+  return `${filename}::${label}`;
+}
 
 export async function migrateCaptionsToInputTable(): Promise<CaptionMigrationSummary> {
   const db = getDb();
@@ -38,17 +42,15 @@ export async function migrateCaptionsToInputTable(): Promise<CaptionMigrationSum
     .innerJoin(documents, eq(documents.id, mediaAssets.documentId))
     .where(and(eq(mediaAssets.hasCaptionInText, true), isNotNull(mediaAssets.textForEmbed)));
 
+  const existingCaptions = await db
+    .select({ filename: figureCaptions.filename, label: figureCaptions.label })
+    .from(figureCaptions);
+  const covered = new Set(existingCaptions.map((row) => coveredKey(row.filename, row.label)));
+
   const summary: CaptionMigrationSummary = { rescued: 0, alreadyCovered: 0, reported: [] };
 
   for (const asset of captionedAssets) {
-    const existing = await db
-      .select({ id: figureCaptions.id })
-      .from(figureCaptions)
-      .where(
-        and(eq(figureCaptions.filename, asset.filename), eq(figureCaptions.label, asset.label)),
-      );
-
-    if (existing.length > 0) {
+    if (covered.has(coveredKey(asset.filename, asset.label))) {
       summary.alreadyCovered += 1;
       continue;
     }

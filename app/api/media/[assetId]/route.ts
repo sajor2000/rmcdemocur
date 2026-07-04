@@ -66,11 +66,11 @@ async function serveFromBlob(key: string, request: Request): Promise<NextRespons
   }
 
   const ifNoneMatch = request.headers.get("if-none-match");
-  if (ifNoneMatch && ifNoneMatch === result.blob.etag) {
-    return new NextResponse(null, { status: 304, headers: { ETag: result.blob.etag } });
-  }
-
-  if (result.statusCode === 304 || !result.stream) {
+  const notModified =
+    (ifNoneMatch && ifNoneMatch === result.blob.etag) ||
+    result.statusCode === 304 ||
+    !result.stream;
+  if (notModified) {
     return new NextResponse(null, { status: 304, headers: { ETag: result.blob.etag } });
   }
 

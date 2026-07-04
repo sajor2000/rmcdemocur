@@ -21,12 +21,7 @@
  */
 import "./load-env";
 import { neon } from "@neondatabase/serverless";
-
-function directUrl(): string {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set");
-  return url.replace("-pooler.", ".");
-}
+import { directUrl } from "./db-init";
 
 const RANKED_CTE = `
   ranked AS (

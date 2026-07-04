@@ -4,18 +4,14 @@ const dbMocks = vi.hoisted(() => {
   const captionedAssetsWhere = vi.fn<() => Promise<Record<string, unknown>[]>>(() =>
     Promise.resolve([]),
   );
-  const existingCaptionWhere = vi.fn<() => Promise<Record<string, unknown>[]>>(() =>
+  const existingCaptionsFrom = vi.fn<() => Promise<Record<string, unknown>[]>>(() =>
     Promise.resolve([]),
   );
-  const selectWhereQueue: (typeof captionedAssetsWhere)[] = [];
-  let selectCallIndex = 0;
   const select = vi.fn(() => ({
     from: vi.fn(() => ({
       innerJoin: vi.fn(() => ({ where: captionedAssetsWhere })),
-      where: () => {
-        const fn = selectWhereQueue[selectCallIndex] ?? existingCaptionWhere;
-        selectCallIndex += 1;
-        return fn();
+      then(onFulfilled?: (v: unknown) => unknown, onRejected?: (r: unknown) => unknown) {
+        return existingCaptionsFrom().then(onFulfilled, onRejected);
       },
     })),
   }));
@@ -28,14 +24,7 @@ const dbMocks = vi.hoisted(() => {
     values,
     onConflictDoNothing,
     captionedAssetsWhere,
-    existingCaptionWhere,
-    resetExistingQueue(results: Record<string, unknown>[][]) {
-      selectCallIndex = 0;
-      selectWhereQueue.length = 0;
-      for (const result of results) {
-        selectWhereQueue.push(vi.fn(() => Promise.resolve(result)));
-      }
-    },
+    existingCaptionsFrom,
   };
 });
 
@@ -49,13 +38,14 @@ describe("migrateCaptionsToInputTable", () => {
     dbMocks.insert.mockReturnValue({ values: dbMocks.values });
     dbMocks.values.mockReturnValue({ onConflictDoNothing: dbMocks.onConflictDoNothing });
     dbMocks.onConflictDoNothing.mockResolvedValue(undefined);
+    dbMocks.existingCaptionsFrom.mockResolvedValue([]);
   });
 
   it("rescues a captioned media_assets row with no matching figure_captions row", async () => {
     dbMocks.captionedAssetsWhere.mockResolvedValueOnce([
       { id: 5, filename: "f.docx", label: "Figure 1", sourceIndex: null, textForEmbed: "Old caption." },
     ]);
-    dbMocks.resetExistingQueue([[]]); // no existing figure_captions row for this asset
+    dbMocks.existingCaptionsFrom.mockResolvedValueOnce([]); // no existing figure_captions rows at all
 
     const summary = await migrateCaptionsToInputTable();
 
@@ -72,7 +62,7 @@ describe("migrateCaptionsToInputTable", () => {
     dbMocks.captionedAssetsWhere.mockResolvedValueOnce([
       { id: 6, filename: "f.docx", label: "Figure 2", sourceIndex: null, textForEmbed: "Covered caption." },
     ]);
-    dbMocks.resetExistingQueue([[{ id: 99 }]]); // a figure_captions row already exists
+    dbMocks.existingCaptionsFrom.mockResolvedValueOnce([{ filename: "f.docx", label: "Figure 2" }]);
 
     const summary = await migrateCaptionsToInputTable();
 
@@ -80,5 +70,18 @@ describe("migrateCaptionsToInputTable", () => {
     expect(summary.alreadyCovered).toBe(1);
     expect(summary.reported).toEqual([]);
     expect(dbMocks.insert).not.toHaveBeenCalled();
+  });
+
+  it("only queries figure_captions once regardless of the number of captioned assets", async () => {
+    dbMocks.captionedAssetsWhere.mockResolvedValueOnce([
+      { id: 5, filename: "a.docx", label: "Figure 1", sourceIndex: null, textForEmbed: "A." },
+      { id: 6, filename: "b.docx", label: "Figure 2", sourceIndex: null, textForEmbed: "B." },
+      { id: 7, filename: "c.docx", label: "Figure 3", sourceIndex: null, textForEmbed: "C." },
+    ]);
+    dbMocks.existingCaptionsFrom.mockResolvedValueOnce([]);
+
+    await migrateCaptionsToInputTable();
+
+    expect(dbMocks.existingCaptionsFrom).toHaveBeenCalledTimes(1);
   });
 });

@@ -10,9 +10,17 @@ import {
   linkChunksToMedia,
 } from "@/lib/media-linker";
 import { listExtractedMediaFiles } from "@/lib/media-storage";
-import type { DocumentFigureMeta, FigureRegistryEntry } from "@/lib/media-types";
+import type { CaptionSource, DocumentFigureMeta, FigureRegistryEntry } from "@/lib/media-types";
 
 const FACULTY_LINK_KINDS = new Set(["answer_image", "provided_image"]);
+
+type UpsertedMediaRow = {
+  id: number;
+  label: string;
+  textForEmbed: string | null;
+  referenceKind: string;
+  captionSource: CaptionSource | null;
+};
 
 /** Map faculty answer-image rows to extracted files (last N images in DOCX order). */
 export function assignFacultyAnswerImageStoragePaths(
@@ -120,13 +128,7 @@ export async function upsertDocumentMediaAssets(options: {
     );
   }
 
-  const upserted: {
-    id: number;
-    label: string;
-    textForEmbed: string | null;
-    referenceKind: string;
-    captionSource: string | null;
-  }[] = [];
+  const upserted: UpsertedMediaRow[] = [];
 
   for (const entry of registry) {
     let storagePath = facultyStorageByLine.get(entry.lineIndex) ?? null;
@@ -141,7 +143,7 @@ export async function upsertDocumentMediaAssets(options: {
     const captionOverride = captionByKey.get(captionKey(entry.label, entry.sourceIndex));
     const textForEmbed = captionOverride ?? entry.textForEmbed;
     const hasCaptionInText = captionOverride != null ? true : entry.hasCaptionInText;
-    const captionSource = captionOverride != null ? "csv" : "text";
+    const captionSource: CaptionSource = captionOverride != null ? "csv" : "text";
 
     // Drizzle 0.30's onConflictDoUpdate target only accepts plain columns, not
     // the expression index (COALESCE(source_index, -1)) media_assets_key_idx
@@ -168,13 +170,7 @@ export async function upsertDocumentMediaAssets(options: {
       RETURNING id, label, text_for_embed AS "textForEmbed", reference_kind AS "referenceKind",
         caption_source AS "captionSource"
     `);
-    const [row] = result.rows as {
-      id: number;
-      label: string;
-      textForEmbed: string | null;
-      referenceKind: string;
-      captionSource: string | null;
-    }[];
+    const [row] = result.rows as unknown as UpsertedMediaRow[];
     upserted.push(row);
   }
 

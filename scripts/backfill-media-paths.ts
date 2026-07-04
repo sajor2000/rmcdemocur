@@ -9,14 +9,19 @@
  *   npx tsx scripts/backfill-media-paths.ts
  */
 import "./load-env";
+import path from "path";
 import { eq, isNotNull } from "drizzle-orm";
 import { mediaAssets } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 
 const TAIL_PATTERN = /(\d+)\/([^/\\]+)\/(\d+)\.([a-zA-Z0-9]+)$/;
 
+// path.win32.isAbsolute (not path.isAbsolute, which is POSIX-only on this
+// platform) also treats a leading '/' as absolute alongside drive letters and
+// UNC paths — exactly the shape a storage_path written on any prior machine
+// could take.
 export function isAbsoluteLikePath(value: string): boolean {
-  return value.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(value);
+  return path.win32.isAbsolute(value);
 }
 
 /** Extract the {caseNumber}/{basename}/{sourceIndex}.{ext} tail from an
