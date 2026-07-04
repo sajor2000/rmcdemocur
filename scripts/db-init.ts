@@ -100,6 +100,7 @@ const DDL = [
     keyword text,
     category text
   )`,
+  `CREATE INDEX IF NOT EXISTS keyword_tags_chunk_id_idx ON keyword_tags (chunk_id)`,
   `CREATE TABLE IF NOT EXISTS processing_jobs (
     id serial PRIMARY KEY,
     document_id integer REFERENCES documents(id),

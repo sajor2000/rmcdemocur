@@ -3,330 +3,710 @@
     "domain": "PC",
     "domainName": "Patient Care",
     "subId": "PC1",
-    "description": "History and physical exam",
+    "description": "Perform all medical, diagnostic, and surgical procedures considered essential for the area of practice.",
     "stableId": "aamc:pc1",
-    "fullText": "Patient Care — History and physical exam",
+    "fullText": "Patient Care — Perform all medical, diagnostic, and surgical procedures considered essential for the area of practice.",
     "parentStableId": "aamc:pc",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
     "domain": "PC",
     "domainName": "Patient Care",
     "subId": "PC2",
-    "description": "Diagnosis",
+    "description": "Gather essential and accurate information about patients and their condition through history-taking, physical examination, and the use of laboratory data, imaging, and other tests.",
     "stableId": "aamc:pc2",
-    "fullText": "Patient Care — Diagnosis",
+    "fullText": "Patient Care — Gather essential and accurate information about patients and their condition through history-taking, physical examination, and the use of laboratory data, imaging, and other tests.",
     "parentStableId": "aamc:pc",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
     "domain": "PC",
     "domainName": "Patient Care",
     "subId": "PC3",
-    "description": "Management",
+    "description": "Organize and prioritize responsibilities to provide care that is safe, effective, and efficient.",
     "stableId": "aamc:pc3",
-    "fullText": "Patient Care — Management",
+    "fullText": "Patient Care — Organize and prioritize responsibilities to provide care that is safe, effective, and efficient.",
     "parentStableId": "aamc:pc",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
     "domain": "PC",
     "domainName": "Patient Care",
     "subId": "PC4",
-    "description": "Procedures",
+    "description": "Interpret laboratory data, imaging studies, and other tests required for the area of practice.",
     "stableId": "aamc:pc4",
-    "fullText": "Patient Care — Procedures",
+    "fullText": "Patient Care — Interpret laboratory data, imaging studies, and other tests required for the area of practice.",
     "parentStableId": "aamc:pc",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
-    "domain": "MK",
-    "domainName": "Medical Knowledge",
-    "subId": "MK1",
-    "description": "Basic science",
-    "stableId": "aamc:mk1",
-    "fullText": "Medical Knowledge — Basic science",
-    "parentStableId": "aamc:mk",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "domain": "PC",
+    "domainName": "Patient Care",
+    "subId": "PC5",
+    "description": "Make informed decisions about diagnostic and therapeutic interventions based on patient information and preferences, up-to-date scientific evidence, and clinical judgment.",
+    "stableId": "aamc:pc5",
+    "fullText": "Patient Care — Make informed decisions about diagnostic and therapeutic interventions based on patient information and preferences, up-to-date scientific evidence, and clinical judgment.",
+    "parentStableId": "aamc:pc",
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
-    "domain": "MK",
-    "domainName": "Medical Knowledge",
-    "subId": "MK2",
-    "description": "Clinical science",
-    "stableId": "aamc:mk2",
-    "fullText": "Medical Knowledge — Clinical science",
-    "parentStableId": "aamc:mk",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "domain": "PC",
+    "domainName": "Patient Care",
+    "subId": "PC6",
+    "description": "Develop and carry out patient management plans.",
+    "stableId": "aamc:pc6",
+    "fullText": "Patient Care — Develop and carry out patient management plans.",
+    "parentStableId": "aamc:pc",
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
-    "domain": "MK",
-    "domainName": "Medical Knowledge",
-    "subId": "MK3",
-    "description": "Social science",
-    "stableId": "aamc:mk3",
-    "fullText": "Medical Knowledge — Social science",
-    "parentStableId": "aamc:mk",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "domain": "PC",
+    "domainName": "Patient Care",
+    "subId": "PC7",
+    "description": "Counsel and educate patients and their families to empower them to participate in their care and enable shared decision making.",
+    "stableId": "aamc:pc7",
+    "fullText": "Patient Care — Counsel and educate patients and their families to empower them to participate in their care and enable shared decision making.",
+    "parentStableId": "aamc:pc",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PC",
+    "domainName": "Patient Care",
+    "subId": "PC8",
+    "description": "Provide appropriate referral of patients including ensuring continuity of care throughout transitions between providers or settings, and following up on patient progress and outcomes.",
+    "stableId": "aamc:pc8",
+    "fullText": "Patient Care — Provide appropriate referral of patients including ensuring continuity of care throughout transitions between providers or settings, and following up on patient progress and outcomes.",
+    "parentStableId": "aamc:pc",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PC",
+    "domainName": "Patient Care",
+    "subId": "PC9",
+    "description": "Provide health care services to patients, families, and communities aimed at preventing health problems or maintaining health.",
+    "stableId": "aamc:pc9",
+    "fullText": "Patient Care — Provide health care services to patients, families, and communities aimed at preventing health problems or maintaining health.",
+    "parentStableId": "aamc:pc",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PC",
+    "domainName": "Patient Care",
+    "subId": "PC10",
+    "description": "Provide appropriate role modeling.",
+    "stableId": "aamc:pc10",
+    "fullText": "Patient Care — Provide appropriate role modeling.",
+    "parentStableId": "aamc:pc",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PC",
+    "domainName": "Patient Care",
+    "subId": "PC11",
+    "description": "Perform supervisory responsibilities commensurate with one's roles, abilities, and qualifications.",
+    "stableId": "aamc:pc11",
+    "fullText": "Patient Care — Perform supervisory responsibilities commensurate with one's roles, abilities, and qualifications.",
+    "parentStableId": "aamc:pc",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "KP",
+    "domainName": "Knowledge for Practice",
+    "subId": "KP1",
+    "description": "Demonstrate an investigatory and analytic approach to clinical situations.",
+    "stableId": "aamc:kp1",
+    "fullText": "Knowledge for Practice — Demonstrate an investigatory and analytic approach to clinical situations.",
+    "parentStableId": "aamc:kp",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "KP",
+    "domainName": "Knowledge for Practice",
+    "subId": "KP2",
+    "description": "Apply established and emerging biophysical scientific principles fundamental to health care for patients and populations.",
+    "stableId": "aamc:kp2",
+    "fullText": "Knowledge for Practice — Apply established and emerging biophysical scientific principles fundamental to health care for patients and populations.",
+    "parentStableId": "aamc:kp",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "KP",
+    "domainName": "Knowledge for Practice",
+    "subId": "KP3",
+    "description": "Apply established and emerging principles of clinical sciences to diagnostic and therapeutic decision making, clinical problem solving, and other aspects of evidence-based health care.",
+    "stableId": "aamc:kp3",
+    "fullText": "Knowledge for Practice — Apply established and emerging principles of clinical sciences to diagnostic and therapeutic decision making, clinical problem solving, and other aspects of evidence-based health care.",
+    "parentStableId": "aamc:kp",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "KP",
+    "domainName": "Knowledge for Practice",
+    "subId": "KP4",
+    "description": "Apply principles of epidemiological sciences to the identification of health problems, risk factors, treatment strategies, resources, and disease prevention/health promotion efforts for patients and populations.",
+    "stableId": "aamc:kp4",
+    "fullText": "Knowledge for Practice — Apply principles of epidemiological sciences to the identification of health problems, risk factors, treatment strategies, resources, and disease prevention/health promotion efforts for patients and populations.",
+    "parentStableId": "aamc:kp",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "KP",
+    "domainName": "Knowledge for Practice",
+    "subId": "KP5",
+    "description": "Apply principles of social-behavioral sciences to provision of patient care, including assessment of the impact of psychosocial-cultural influences on health, disease, care-seeking, care-compliance, and barriers to and attitudes toward care.",
+    "stableId": "aamc:kp5",
+    "fullText": "Knowledge for Practice — Apply principles of social-behavioral sciences to provision of patient care, including assessment of the impact of psychosocial-cultural influences on health, disease, care-seeking, care-compliance, and barriers to and attitudes toward care.",
+    "parentStableId": "aamc:kp",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "KP",
+    "domainName": "Knowledge for Practice",
+    "subId": "KP6",
+    "description": "Contribute to the creation, dissemination, application, and translation of new health care knowledge and practices.",
+    "stableId": "aamc:kp6",
+    "fullText": "Knowledge for Practice — Contribute to the creation, dissemination, application, and translation of new health care knowledge and practices.",
+    "parentStableId": "aamc:kp",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PBLI",
+    "domainName": "Practice-Based Learning and Improvement",
+    "subId": "PBLI1",
+    "description": "Identify strengths, deficiencies, and limits in one's knowledge and expertise.",
+    "stableId": "aamc:pbli1",
+    "fullText": "Practice-Based Learning and Improvement — Identify strengths, deficiencies, and limits in one's knowledge and expertise.",
+    "parentStableId": "aamc:pbli",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PBLI",
+    "domainName": "Practice-Based Learning and Improvement",
+    "subId": "PBLI2",
+    "description": "Set learning and improvement goals.",
+    "stableId": "aamc:pbli2",
+    "fullText": "Practice-Based Learning and Improvement — Set learning and improvement goals.",
+    "parentStableId": "aamc:pbli",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PBLI",
+    "domainName": "Practice-Based Learning and Improvement",
+    "subId": "PBLI3",
+    "description": "Identify and perform learning activities that address one's gaps in knowledge, skills, or attitudes.",
+    "stableId": "aamc:pbli3",
+    "fullText": "Practice-Based Learning and Improvement — Identify and perform learning activities that address one's gaps in knowledge, skills, or attitudes.",
+    "parentStableId": "aamc:pbli",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PBLI",
+    "domainName": "Practice-Based Learning and Improvement",
+    "subId": "PBLI4",
+    "description": "Systematically analyze practice using quality-improvement methods, and implement changes with the goal of practice improvement.",
+    "stableId": "aamc:pbli4",
+    "fullText": "Practice-Based Learning and Improvement — Systematically analyze practice using quality-improvement methods, and implement changes with the goal of practice improvement.",
+    "parentStableId": "aamc:pbli",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PBLI",
+    "domainName": "Practice-Based Learning and Improvement",
+    "subId": "PBLI5",
+    "description": "Incorporate feedback into daily practice.",
+    "stableId": "aamc:pbli5",
+    "fullText": "Practice-Based Learning and Improvement — Incorporate feedback into daily practice.",
+    "parentStableId": "aamc:pbli",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PBLI",
+    "domainName": "Practice-Based Learning and Improvement",
+    "subId": "PBLI6",
+    "description": "Locate, appraise, and assimilate evidence from scientific studies related to patients' health problems.",
+    "stableId": "aamc:pbli6",
+    "fullText": "Practice-Based Learning and Improvement — Locate, appraise, and assimilate evidence from scientific studies related to patients' health problems.",
+    "parentStableId": "aamc:pbli",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PBLI",
+    "domainName": "Practice-Based Learning and Improvement",
+    "subId": "PBLI7",
+    "description": "Use information technology to optimize learning.",
+    "stableId": "aamc:pbli7",
+    "fullText": "Practice-Based Learning and Improvement — Use information technology to optimize learning.",
+    "parentStableId": "aamc:pbli",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PBLI",
+    "domainName": "Practice-Based Learning and Improvement",
+    "subId": "PBLI8",
+    "description": "Participate in the education of patients, families, students, trainees, peers, and other health professionals.",
+    "stableId": "aamc:pbli8",
+    "fullText": "Practice-Based Learning and Improvement — Participate in the education of patients, families, students, trainees, peers, and other health professionals.",
+    "parentStableId": "aamc:pbli",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PBLI",
+    "domainName": "Practice-Based Learning and Improvement",
+    "subId": "PBLI9",
+    "description": "Obtain and utilize information about individual patients, populations of patients, or communities from which patients are drawn to improve care.",
+    "stableId": "aamc:pbli9",
+    "fullText": "Practice-Based Learning and Improvement — Obtain and utilize information about individual patients, populations of patients, or communities from which patients are drawn to improve care.",
+    "parentStableId": "aamc:pbli",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PBLI",
+    "domainName": "Practice-Based Learning and Improvement",
+    "subId": "PBLI10",
+    "description": "Continually identify, analyze, and implement new knowledge, guidelines, standards, technologies, products, or services that have been demonstrated to improve outcomes.",
+    "stableId": "aamc:pbli10",
+    "fullText": "Practice-Based Learning and Improvement — Continually identify, analyze, and implement new knowledge, guidelines, standards, technologies, products, or services that have been demonstrated to improve outcomes.",
+    "parentStableId": "aamc:pbli",
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
     "domain": "ICS",
-    "domainName": "Interpersonal & Communication Skills",
+    "domainName": "Interpersonal and Communication Skills",
     "subId": "ICS1",
-    "description": "Patient communication",
+    "description": "Communicate effectively with patients, families, and the public, as appropriate, across a broad range of socioeconomic and cultural backgrounds.",
     "stableId": "aamc:ics1",
-    "fullText": "ICS — Patient communication",
+    "fullText": "Interpersonal and Communication Skills — Communicate effectively with patients, families, and the public, as appropriate, across a broad range of socioeconomic and cultural backgrounds.",
     "parentStableId": "aamc:ics",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
     "domain": "ICS",
-    "domainName": "Interpersonal & Communication Skills",
+    "domainName": "Interpersonal and Communication Skills",
     "subId": "ICS2",
-    "description": "Team communication",
+    "description": "Communicate effectively with colleagues within one's profession or specialty, other health professionals, and health-related agencies.",
     "stableId": "aamc:ics2",
-    "fullText": "ICS — Team communication",
+    "fullText": "Interpersonal and Communication Skills — Communicate effectively with colleagues within one's profession or specialty, other health professionals, and health-related agencies.",
     "parentStableId": "aamc:ics",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
     "domain": "ICS",
-    "domainName": "Interpersonal & Communication Skills",
+    "domainName": "Interpersonal and Communication Skills",
     "subId": "ICS3",
-    "description": "Documentation",
+    "description": "Work effectively with others as a member or leader of a health care team or other professional group.",
     "stableId": "aamc:ics3",
-    "fullText": "ICS — Documentation",
+    "fullText": "Interpersonal and Communication Skills — Work effectively with others as a member or leader of a health care team or other professional group.",
     "parentStableId": "aamc:ics",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "ICS",
+    "domainName": "Interpersonal and Communication Skills",
+    "subId": "ICS4",
+    "description": "Act in a consultative role to other health professionals.",
+    "stableId": "aamc:ics4",
+    "fullText": "Interpersonal and Communication Skills — Act in a consultative role to other health professionals.",
+    "parentStableId": "aamc:ics",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "ICS",
+    "domainName": "Interpersonal and Communication Skills",
+    "subId": "ICS5",
+    "description": "Maintain comprehensive, timely, and legible medical records.",
+    "stableId": "aamc:ics5",
+    "fullText": "Interpersonal and Communication Skills — Maintain comprehensive, timely, and legible medical records.",
+    "parentStableId": "aamc:ics",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "ICS",
+    "domainName": "Interpersonal and Communication Skills",
+    "subId": "ICS6",
+    "description": "Demonstrate sensitivity, honesty, and compassion in difficult conversations, including those about death, end-of-life issues, adverse events, bad news, disclosure of errors, and other sensitive topics.",
+    "stableId": "aamc:ics6",
+    "fullText": "Interpersonal and Communication Skills — Demonstrate sensitivity, honesty, and compassion in difficult conversations, including those about death, end-of-life issues, adverse events, bad news, disclosure of errors, and other sensitive topics.",
+    "parentStableId": "aamc:ics",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "ICS",
+    "domainName": "Interpersonal and Communication Skills",
+    "subId": "ICS7",
+    "description": "Demonstrate insight and understanding about emotions and human responses to emotions that allow one to develop and manage interpersonal interactions.",
+    "stableId": "aamc:ics7",
+    "fullText": "Interpersonal and Communication Skills — Demonstrate insight and understanding about emotions and human responses to emotions that allow one to develop and manage interpersonal interactions.",
+    "parentStableId": "aamc:ics",
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
     "domain": "P",
     "domainName": "Professionalism",
     "subId": "P1",
-    "description": "Compassion",
+    "description": "Demonstrate compassion, integrity, and respect for others.",
     "stableId": "aamc:p1",
-    "fullText": "Professionalism — Compassion",
+    "fullText": "Professionalism — Demonstrate compassion, integrity, and respect for others.",
     "parentStableId": "aamc:p",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
     "domain": "P",
     "domainName": "Professionalism",
     "subId": "P2",
-    "description": "Accountability",
+    "description": "Demonstrate responsiveness to patient needs that supersedes self-interest.",
     "stableId": "aamc:p2",
-    "fullText": "Professionalism — Accountability",
+    "fullText": "Professionalism — Demonstrate responsiveness to patient needs that supersedes self-interest.",
     "parentStableId": "aamc:p",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
     "domain": "P",
     "domainName": "Professionalism",
     "subId": "P3",
-    "description": "Ethics",
+    "description": "Demonstrate respect for patient privacy and autonomy.",
     "stableId": "aamc:p3",
-    "fullText": "Professionalism — Ethics",
+    "fullText": "Professionalism — Demonstrate respect for patient privacy and autonomy.",
     "parentStableId": "aamc:p",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
     "domain": "P",
     "domainName": "Professionalism",
     "subId": "P4",
-    "description": "Diversity",
+    "description": "Demonstrate accountability to patients, society, and the profession.",
     "stableId": "aamc:p4",
-    "fullText": "Professionalism — Diversity",
+    "fullText": "Professionalism — Demonstrate accountability to patients, society, and the profession.",
     "parentStableId": "aamc:p",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
-    "domain": "PBLI",
-    "domainName": "Practice-Based Learning",
-    "subId": "PBLI1",
-    "description": "Evidence",
-    "stableId": "aamc:pbli1",
-    "fullText": "PBLI — Evidence",
-    "parentStableId": "aamc:pbli",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "domain": "P",
+    "domainName": "Professionalism",
+    "subId": "P5",
+    "description": "Demonstrate sensitivity and responsiveness to a diverse patient population, including but not limited to diversity in gender, age, culture, race, religion, disabilities, and sexual orientation.",
+    "stableId": "aamc:p5",
+    "fullText": "Professionalism — Demonstrate sensitivity and responsiveness to a diverse patient population, including but not limited to diversity in gender, age, culture, race, religion, disabilities, and sexual orientation.",
+    "parentStableId": "aamc:p",
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
-    "domain": "PBLI",
-    "domainName": "Practice-Based Learning",
-    "subId": "PBLI2",
-    "description": "Education",
-    "stableId": "aamc:pbli2",
-    "fullText": "PBLI — Education",
-    "parentStableId": "aamc:pbli",
-    "sourceDoc": "aamc-pcrs-catalog"
-  },
-  {
-    "domain": "PBLI",
-    "domainName": "Practice-Based Learning",
-    "subId": "PBLI3",
-    "description": "Improvement",
-    "stableId": "aamc:pbli3",
-    "fullText": "PBLI — Improvement",
-    "parentStableId": "aamc:pbli",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "domain": "P",
+    "domainName": "Professionalism",
+    "subId": "P6",
+    "description": "Demonstrate a commitment to ethical principles pertaining to provision or withholding of care, confidentiality, informed consent, and business practices, including compliance with relevant laws, policies, and regulations.",
+    "stableId": "aamc:p6",
+    "fullText": "Professionalism — Demonstrate a commitment to ethical principles pertaining to provision or withholding of care, confidentiality, informed consent, and business practices, including compliance with relevant laws, policies, and regulations.",
+    "parentStableId": "aamc:p",
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
     "domain": "SBP",
     "domainName": "Systems-Based Practice",
     "subId": "SBP1",
-    "description": "Systems",
+    "description": "Work effectively in various health care delivery settings and systems relevant to one's clinical specialty.",
     "stableId": "aamc:sbp1",
-    "fullText": "SBP — Systems",
+    "fullText": "Systems-Based Practice — Work effectively in various health care delivery settings and systems relevant to one's clinical specialty.",
     "parentStableId": "aamc:sbp",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
     "domain": "SBP",
     "domainName": "Systems-Based Practice",
     "subId": "SBP2",
-    "description": "Teamwork",
+    "description": "Coordinate patient care within the health care system relevant to one's clinical specialty.",
     "stableId": "aamc:sbp2",
-    "fullText": "SBP — Teamwork",
+    "fullText": "Systems-Based Practice — Coordinate patient care within the health care system relevant to one's clinical specialty.",
     "parentStableId": "aamc:sbp",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
     "domain": "SBP",
     "domainName": "Systems-Based Practice",
     "subId": "SBP3",
-    "description": "Quality and safety",
+    "description": "Incorporate considerations of cost awareness and risk-benefit analysis in patient and/or population-based care.",
     "stableId": "aamc:sbp3",
-    "fullText": "SBP — Quality and safety",
+    "fullText": "Systems-Based Practice — Incorporate considerations of cost awareness and risk-benefit analysis in patient and/or population-based care.",
     "parentStableId": "aamc:sbp",
-    "sourceDoc": "aamc-pcrs-catalog"
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "SBP",
+    "domainName": "Systems-Based Practice",
+    "subId": "SBP4",
+    "description": "Advocate for quality patient care and optimal patient care systems.",
+    "stableId": "aamc:sbp4",
+    "fullText": "Systems-Based Practice — Advocate for quality patient care and optimal patient care systems.",
+    "parentStableId": "aamc:sbp",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "SBP",
+    "domainName": "Systems-Based Practice",
+    "subId": "SBP5",
+    "description": "Participate in identifying system errors and implementing potential systems solutions.",
+    "stableId": "aamc:sbp5",
+    "fullText": "Systems-Based Practice — Participate in identifying system errors and implementing potential systems solutions.",
+    "parentStableId": "aamc:sbp",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "SBP",
+    "domainName": "Systems-Based Practice",
+    "subId": "SBP6",
+    "description": "Perform administrative and practice management responsibilities commensurate with one's role, abilities, and qualifications.",
+    "stableId": "aamc:sbp6",
+    "fullText": "Systems-Based Practice — Perform administrative and practice management responsibilities commensurate with one's role, abilities, and qualifications.",
+    "parentStableId": "aamc:sbp",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "IPC",
+    "domainName": "Interprofessional Collaboration",
+    "subId": "IPC1",
+    "description": "Work with other health professionals to establish and maintain a climate of mutual respect, dignity, diversity, ethical integrity, and trust.",
+    "stableId": "aamc:ipc1",
+    "fullText": "Interprofessional Collaboration — Work with other health professionals to establish and maintain a climate of mutual respect, dignity, diversity, ethical integrity, and trust.",
+    "parentStableId": "aamc:ipc",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "IPC",
+    "domainName": "Interprofessional Collaboration",
+    "subId": "IPC2",
+    "description": "Use the knowledge of one's own role and those of other professions to appropriately assess and address the health care needs of the patients and populations served.",
+    "stableId": "aamc:ipc2",
+    "fullText": "Interprofessional Collaboration — Use the knowledge of one's own role and those of other professions to appropriately assess and address the health care needs of the patients and populations served.",
+    "parentStableId": "aamc:ipc",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "IPC",
+    "domainName": "Interprofessional Collaboration",
+    "subId": "IPC3",
+    "description": "Communicate with other health professionals in a responsive and responsible manner that supports the maintenance of health and the treatment of disease in individual patients and populations.",
+    "stableId": "aamc:ipc3",
+    "fullText": "Interprofessional Collaboration — Communicate with other health professionals in a responsive and responsible manner that supports the maintenance of health and the treatment of disease in individual patients and populations.",
+    "parentStableId": "aamc:ipc",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "IPC",
+    "domainName": "Interprofessional Collaboration",
+    "subId": "IPC4",
+    "description": "Participate in different team roles to establish, develop, and continuously enhance interprofessional teams to provide patient- and population-centered care that is safe, timely, efficient, effective, and equitable.",
+    "stableId": "aamc:ipc4",
+    "fullText": "Interprofessional Collaboration — Participate in different team roles to establish, develop, and continuously enhance interprofessional teams to provide patient- and population-centered care that is safe, timely, efficient, effective, and equitable.",
+    "parentStableId": "aamc:ipc",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PPD",
+    "domainName": "Personal and Professional Development",
+    "subId": "PPD1",
+    "description": "Develop the ability to use self-awareness of knowledge, skills, and emotional limitations to engage in appropriate help-seeking behaviors.",
+    "stableId": "aamc:ppd1",
+    "fullText": "Personal and Professional Development — Develop the ability to use self-awareness of knowledge, skills, and emotional limitations to engage in appropriate help-seeking behaviors.",
+    "parentStableId": "aamc:ppd",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PPD",
+    "domainName": "Personal and Professional Development",
+    "subId": "PPD2",
+    "description": "Demonstrate healthy coping mechanisms to respond to stress.",
+    "stableId": "aamc:ppd2",
+    "fullText": "Personal and Professional Development — Demonstrate healthy coping mechanisms to respond to stress.",
+    "parentStableId": "aamc:ppd",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PPD",
+    "domainName": "Personal and Professional Development",
+    "subId": "PPD3",
+    "description": "Manage conflict between personal and professional responsibilities.",
+    "stableId": "aamc:ppd3",
+    "fullText": "Personal and Professional Development — Manage conflict between personal and professional responsibilities.",
+    "parentStableId": "aamc:ppd",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PPD",
+    "domainName": "Personal and Professional Development",
+    "subId": "PPD4",
+    "description": "Practice flexibility and maturity in adjusting to change with the capacity to alter one's behavior.",
+    "stableId": "aamc:ppd4",
+    "fullText": "Personal and Professional Development — Practice flexibility and maturity in adjusting to change with the capacity to alter one's behavior.",
+    "parentStableId": "aamc:ppd",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PPD",
+    "domainName": "Personal and Professional Development",
+    "subId": "PPD5",
+    "description": "Demonstrate trustworthiness that makes colleagues feel secure when one is responsible for the care of patients.",
+    "stableId": "aamc:ppd5",
+    "fullText": "Personal and Professional Development — Demonstrate trustworthiness that makes colleagues feel secure when one is responsible for the care of patients.",
+    "parentStableId": "aamc:ppd",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PPD",
+    "domainName": "Personal and Professional Development",
+    "subId": "PPD6",
+    "description": "Provide leadership skills that enhance team functioning, the learning environment, and/or the health care delivery system.",
+    "stableId": "aamc:ppd6",
+    "fullText": "Personal and Professional Development — Provide leadership skills that enhance team functioning, the learning environment, and/or the health care delivery system.",
+    "parentStableId": "aamc:ppd",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PPD",
+    "domainName": "Personal and Professional Development",
+    "subId": "PPD7",
+    "description": "Demonstrate self-confidence that puts patients, families, and members of the health care team at ease.",
+    "stableId": "aamc:ppd7",
+    "fullText": "Personal and Professional Development — Demonstrate self-confidence that puts patients, families, and members of the health care team at ease.",
+    "parentStableId": "aamc:ppd",
+    "sourceDoc": "aamc-pcrs-2013"
+  },
+  {
+    "domain": "PPD",
+    "domainName": "Personal and Professional Development",
+    "subId": "PPD8",
+    "description": "Recognize that ambiguity is part of clinical health care and respond by using appropriate resources in dealing with uncertainty.",
+    "stableId": "aamc:ppd8",
+    "fullText": "Personal and Professional Development — Recognize that ambiguity is part of clinical health care and respond by using appropriate resources in dealing with uncertainty.",
+    "parentStableId": "aamc:ppd",
+    "sourceDoc": "aamc-pcrs-2013"
   },
   {
     "domain": "EPA",
     "domainName": "Core EPA",
     "subId": "EPA1",
-    "description": "Core Entrustable Professional Activity 1",
+    "description": "Gather a history and perform a physical examination.",
     "stableId": "aamc:epa1",
-    "fullText": "Core EPA 1 (stub — add official EPA source for full text)",
+    "fullText": "Core EPA 1 — Gather a history and perform a physical examination.",
     "parentStableId": "aamc:epa",
-    "sourceDoc": "aamc-epa-stub"
+    "sourceDoc": "aamc-core-epas"
   },
   {
     "domain": "EPA",
     "domainName": "Core EPA",
     "subId": "EPA2",
-    "description": "Core Entrustable Professional Activity 2",
+    "description": "Prioritize a differential diagnosis following a clinical encounter.",
     "stableId": "aamc:epa2",
-    "fullText": "Core EPA 2 (stub — add official EPA source for full text)",
+    "fullText": "Core EPA 2 — Prioritize a differential diagnosis following a clinical encounter.",
     "parentStableId": "aamc:epa",
-    "sourceDoc": "aamc-epa-stub"
+    "sourceDoc": "aamc-core-epas"
   },
   {
     "domain": "EPA",
     "domainName": "Core EPA",
     "subId": "EPA3",
-    "description": "Core Entrustable Professional Activity 3",
+    "description": "Recommend and interpret common diagnostic and screening tests.",
     "stableId": "aamc:epa3",
-    "fullText": "Core EPA 3 (stub — add official EPA source for full text)",
+    "fullText": "Core EPA 3 — Recommend and interpret common diagnostic and screening tests.",
     "parentStableId": "aamc:epa",
-    "sourceDoc": "aamc-epa-stub"
+    "sourceDoc": "aamc-core-epas"
   },
   {
     "domain": "EPA",
     "domainName": "Core EPA",
     "subId": "EPA4",
-    "description": "Core Entrustable Professional Activity 4",
+    "description": "Enter and discuss orders and prescriptions.",
     "stableId": "aamc:epa4",
-    "fullText": "Core EPA 4 (stub — add official EPA source for full text)",
+    "fullText": "Core EPA 4 — Enter and discuss orders and prescriptions.",
     "parentStableId": "aamc:epa",
-    "sourceDoc": "aamc-epa-stub"
+    "sourceDoc": "aamc-core-epas"
   },
   {
     "domain": "EPA",
     "domainName": "Core EPA",
     "subId": "EPA5",
-    "description": "Core Entrustable Professional Activity 5",
+    "description": "Document a clinical encounter in the patient record.",
     "stableId": "aamc:epa5",
-    "fullText": "Core EPA 5 (stub — add official EPA source for full text)",
+    "fullText": "Core EPA 5 — Document a clinical encounter in the patient record.",
     "parentStableId": "aamc:epa",
-    "sourceDoc": "aamc-epa-stub"
+    "sourceDoc": "aamc-core-epas"
   },
   {
     "domain": "EPA",
     "domainName": "Core EPA",
     "subId": "EPA6",
-    "description": "Core Entrustable Professional Activity 6",
+    "description": "Provide an oral presentation of a clinical encounter.",
     "stableId": "aamc:epa6",
-    "fullText": "Core EPA 6 (stub — add official EPA source for full text)",
+    "fullText": "Core EPA 6 — Provide an oral presentation of a clinical encounter.",
     "parentStableId": "aamc:epa",
-    "sourceDoc": "aamc-epa-stub"
+    "sourceDoc": "aamc-core-epas"
   },
   {
     "domain": "EPA",
     "domainName": "Core EPA",
     "subId": "EPA7",
-    "description": "Core Entrustable Professional Activity 7",
+    "description": "Form clinical questions and retrieve evidence to advance patient care.",
     "stableId": "aamc:epa7",
-    "fullText": "Core EPA 7 (stub — add official EPA source for full text)",
+    "fullText": "Core EPA 7 — Form clinical questions and retrieve evidence to advance patient care.",
     "parentStableId": "aamc:epa",
-    "sourceDoc": "aamc-epa-stub"
+    "sourceDoc": "aamc-core-epas"
   },
   {
     "domain": "EPA",
     "domainName": "Core EPA",
     "subId": "EPA8",
-    "description": "Core Entrustable Professional Activity 8",
+    "description": "Give or receive a patient handover to transition care responsibility.",
     "stableId": "aamc:epa8",
-    "fullText": "Core EPA 8 (stub — add official EPA source for full text)",
+    "fullText": "Core EPA 8 — Give or receive a patient handover to transition care responsibility.",
     "parentStableId": "aamc:epa",
-    "sourceDoc": "aamc-epa-stub"
+    "sourceDoc": "aamc-core-epas"
   },
   {
     "domain": "EPA",
     "domainName": "Core EPA",
     "subId": "EPA9",
-    "description": "Core Entrustable Professional Activity 9",
+    "description": "Collaborate as a member of an interprofessional team.",
     "stableId": "aamc:epa9",
-    "fullText": "Core EPA 9 (stub — add official EPA source for full text)",
+    "fullText": "Core EPA 9 — Collaborate as a member of an interprofessional team.",
     "parentStableId": "aamc:epa",
-    "sourceDoc": "aamc-epa-stub"
+    "sourceDoc": "aamc-core-epas"
   },
   {
     "domain": "EPA",
     "domainName": "Core EPA",
     "subId": "EPA10",
-    "description": "Core Entrustable Professional Activity 10",
+    "description": "Recognize a patient requiring urgent or emergent care and initiate evaluation and management.",
     "stableId": "aamc:epa10",
-    "fullText": "Core EPA 10 (stub — add official EPA source for full text)",
+    "fullText": "Core EPA 10 — Recognize a patient requiring urgent or emergent care and initiate evaluation and management.",
     "parentStableId": "aamc:epa",
-    "sourceDoc": "aamc-epa-stub"
+    "sourceDoc": "aamc-core-epas"
   },
   {
     "domain": "EPA",
     "domainName": "Core EPA",
     "subId": "EPA11",
-    "description": "Core Entrustable Professional Activity 11",
+    "description": "Obtain informed consent for tests and/or procedures.",
     "stableId": "aamc:epa11",
-    "fullText": "Core EPA 11 (stub — add official EPA source for full text)",
+    "fullText": "Core EPA 11 — Obtain informed consent for tests and/or procedures.",
     "parentStableId": "aamc:epa",
-    "sourceDoc": "aamc-epa-stub"
+    "sourceDoc": "aamc-core-epas"
   },
   {
     "domain": "EPA",
     "domainName": "Core EPA",
     "subId": "EPA12",
-    "description": "Core Entrustable Professional Activity 12",
+    "description": "Perform general procedures of a physician.",
     "stableId": "aamc:epa12",
-    "fullText": "Core EPA 12 (stub — add official EPA source for full text)",
+    "fullText": "Core EPA 12 — Perform general procedures of a physician.",
     "parentStableId": "aamc:epa",
-    "sourceDoc": "aamc-epa-stub"
+    "sourceDoc": "aamc-core-epas"
   },
   {
     "domain": "EPA",
     "domainName": "Core EPA",
     "subId": "EPA13",
-    "description": "Core Entrustable Professional Activity 13",
+    "description": "Identify system failures and contribute to a culture of safety and improvement.",
     "stableId": "aamc:epa13",
-    "fullText": "Core EPA 13 (stub — add official EPA source for full text)",
+    "fullText": "Core EPA 13 — Identify system failures and contribute to a culture of safety and improvement.",
     "parentStableId": "aamc:epa",
-    "sourceDoc": "aamc-epa-stub"
+    "sourceDoc": "aamc-core-epas"
   }
 ]

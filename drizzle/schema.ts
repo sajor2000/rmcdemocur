@@ -123,12 +123,19 @@ export const gapSummary = pgTable("gap_summary", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-export const keywordTags = pgTable("keyword_tags", {
-  id: serial("id").primaryKey(),
-  chunkId: integer("chunk_id").references(() => chunks.id),
-  keyword: text("keyword"),
-  category: text("category"),
-});
+export const keywordTags = pgTable(
+  "keyword_tags",
+  {
+    id: serial("id").primaryKey(),
+    chunkId: integer("chunk_id").references(() => chunks.id),
+    keyword: text("keyword"),
+    category: text("category"),
+  },
+  (table) => ({
+    // getMapData filters/joins keyword tags by chunk; index the FK so it scales.
+    chunkIdIdx: index("keyword_tags_chunk_id_idx").on(table.chunkId),
+  }),
+);
 
 export const processingJobs = pgTable("processing_jobs", {
   id: serial("id").primaryKey(),

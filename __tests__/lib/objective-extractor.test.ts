@@ -110,6 +110,72 @@ Explain how macronutrients are metabolized.`;
   });
 });
 
+describe("objective-extractor topic objectives (TO codes)", () => {
+  it("captures Self-Study Topics list items as objectives with TO codes", () => {
+    const text = [
+      "Case Specific Objectives* - Review prior to the case.",
+      "",
+      "Note: this anatomy is background and is not itself an objective line here.",
+      "",
+      "Self-Study Topics:",
+      "",
+      "Posterior Abdominal Wall Contents (TO-0010)",
+      "Superior and Inferior Mesenteric Vessels (TO-0011)",
+    ].join("\n");
+    const objectives = extractObjectivesFromText(text);
+    const to = objectives.filter((o) => o.eoCode?.startsWith("TO-"));
+    expect(to.map((o) => o.eoCode)).toEqual(["TO-0010", "TO-0011"]);
+    expect(to[0].text).toContain("Posterior Abdominal Wall Contents");
+    expect(to[0].confidence).toBe("high");
+  });
+
+  it("drops media-pointer variants and dedupes a topic by TO code", () => {
+    const text = [
+      "Case Specific Objectives:",
+      "",
+      "Self-Study Topics:",
+      "",
+      "Posterior Abdominal Wall Contents (TO-0010)",
+      "Abdominal Cavity: Posterior Abdominal Wall (TO-0010) (30:37)",
+      "SLIDES: Posterior Abdominal Wall Contents (TO-0010)",
+    ].join("\n");
+    const objectives = extractObjectivesFromText(text);
+    expect(objectives).toHaveLength(1);
+    expect(objectives[0].eoCode).toBe("TO-0010");
+    expect(objectives[0].text).toBe("Posterior Abdominal Wall Contents (TO-0010)");
+  });
+
+  it("captures EO objectives and topic objectives together", () => {
+    const text = [
+      "Case Specific Objectives:",
+      "",
+      "Identify the abdominal viscera of the foregut. (EO-0052)",
+      "",
+      "Self-Study Topics:",
+      "",
+      "Posterior Abdominal Wall Contents (TO-0010)",
+    ].join("\n");
+    const objectives = extractObjectivesFromText(text);
+    expect(objectives.map((o) => o.eoCode)).toEqual(["EO-0052", "TO-0010"]);
+  });
+
+  it("regression: a (TO-####) line without a Topics header still ends the section", () => {
+    // Guides where a trailing TO line marks the end of objectives must keep
+    // their current behavior — the topic reclassification is gated on the header.
+    const text = [
+      "Learning Objectives:",
+      "",
+      "Describe the foregut anatomy. (EO-0052)",
+      "",
+      "Some Topic Without Header (TO-0010)",
+      "",
+      "Describe the midgut anatomy. (EO-0053)",
+    ].join("\n");
+    const objectives = extractObjectivesFromText(text);
+    expect(objectives.map((o) => o.eoCode)).toEqual(["EO-0052"]);
+  });
+});
+
 describe("mergeCleanedWithRegex", () => {
   const base = (overrides: Partial<Parameters<typeof mergeCleanedWithRegex>[0][0]>) => ({
     text: "Describe the liver.",
