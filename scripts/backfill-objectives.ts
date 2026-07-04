@@ -15,11 +15,16 @@ import { getDb } from "../lib/db";
 import { documents, courseObjectives } from "../drizzle/schema";
 import { parseDocument } from "../lib/document-parser";
 import { extractAndCleanObjectives } from "../lib/objective-cleanup";
+import { extractObjectivesFromText } from "../lib/objective-extractor";
 
 const CURRICULUM_DIR = path.join(process.cwd(), "data/curriculum");
 
 async function main() {
   const db = getDb();
+  // Default matches the pipeline (regex + optional LLM cleanup). --regex-only
+  // forces the deterministic regex path for reproducible backfills (the LLM
+  // cleanup can vary run-to-run and needs Azure creds).
+  const regexOnly = process.argv.includes("--regex-only");
   const docs = await db
     .select({ id: documents.id, filename: documents.filename })
     .from(documents)
@@ -39,21 +44,34 @@ async function main() {
       await db.select().from(courseObjectives).where(eq(courseObjectives.documentId, doc.id))
     ).length;
 
+    // Extract BEFORE deleting so a parse/extract failure leaves the existing
+    // objectives intact (the throw skips this document's delete entirely).
     const parsed = await parseDocument(filePath);
-    const { objectives } = await extractAndCleanObjectives(parsed.text);
+    const objectives = regexOnly
+      ? extractObjectivesFromText(parsed.text)
+      : (await extractAndCleanObjectives(parsed.text)).objectives;
+    const rows = objectives.map((obj) => ({
+      documentId: doc.id,
+      ordinal: obj.ordinal,
+      text: obj.text,
+      sectionHeading: obj.sectionHeading,
+      eoCode: obj.eoCode ?? null,
+      extractionMethod: obj.extractionMethod,
+      confidence: obj.confidence,
+      sourceExcerpt: obj.sourceExcerpt.slice(0, 500),
+    }));
 
-    await db.delete(courseObjectives).where(eq(courseObjectives.documentId, doc.id));
-    for (const obj of objectives) {
-      await db.insert(courseObjectives).values({
-        documentId: doc.id,
-        ordinal: obj.ordinal,
-        text: obj.text,
-        sectionHeading: obj.sectionHeading,
-        eoCode: obj.eoCode ?? null,
-        extractionMethod: obj.extractionMethod,
-        confidence: obj.confidence,
-        sourceExcerpt: obj.sourceExcerpt.slice(0, 500),
-      });
+    // Replace atomically. The neon-http driver has no interactive transactions,
+    // but db.batch runs its statements as a single transaction — so the delete
+    // and the one multi-row insert can't half-apply and leave a document with
+    // partially-rewritten objectives.
+    if (rows.length) {
+      await db.batch([
+        db.delete(courseObjectives).where(eq(courseObjectives.documentId, doc.id)),
+        db.insert(courseObjectives).values(rows),
+      ]);
+    } else {
+      await db.delete(courseObjectives).where(eq(courseObjectives.documentId, doc.id));
     }
     const delta = objectives.length - before;
     console.log(
