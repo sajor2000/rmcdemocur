@@ -288,12 +288,26 @@ export async function runFullPipeline(options: {
       chunks: insertedChunks,
     });
 
+    // A CSV caption correction changes a linked asset's textForEmbed (via the
+    // merge in upsertDocumentMediaAssets) without changing chunk.content, so
+    // the resume gate above would otherwise carry over the stale embedding
+    // and the correction would never reach retrieval (KTD3/R8).
+    const csvCaptionedAssetIds = new Set(
+      linkedAssets.filter((asset) => asset.captionSource === "csv").map((asset) => asset.id),
+    );
+    const forceReembedChunkIds = new Set(
+      links
+        .filter((link) => csvCaptionedAssetIds.has(link.mediaAssetId))
+        .map((link) => link.chunkId),
+    );
+
     for (let i = 0; i < built.length; i += BATCH_SIZE) {
       const batch = built.slice(i, i + BATCH_SIZE);
       for (let j = 0; j < batch.length; j++) {
         const item = batch[j];
         const chunkId = insertedChunkIds[i + j];
-        if (chunkEmbeddings.has(chunkId)) continue; // already embedded (resume)
+        // already embedded (resume) — unless a CSV caption on this chunk changed
+        if (chunkEmbeddings.has(chunkId) && !forceReembedChunkIds.has(chunkId)) continue;
         const embedInput = buildEmbedTextForChunk(
           item.content,
           item.embedText,

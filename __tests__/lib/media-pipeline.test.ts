@@ -95,6 +95,11 @@ describe("upsertDocumentMediaAssets", () => {
   const singleFigureText =
     "Figure 1: A cirrhotic liver with nodular surface and irregular contour.";
 
+  // select() call order inside upsertDocumentMediaAssets: captionRows (figure_captions), then existingRows (media_assets).
+  function queueSelects(captionRows: Record<string, unknown>[], existingRows: Record<string, unknown>[]) {
+    dbMocks.selectWhere.mockResolvedValueOnce(captionRows).mockResolvedValueOnce(existingRows);
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     dbMocks.select.mockReturnValue({ from: dbMocks.selectFrom });
@@ -107,9 +112,11 @@ describe("upsertDocumentMediaAssets", () => {
   });
 
   it("upserts each registry entry via ON CONFLICT and returns the row set", async () => {
-    dbMocks.selectWhere.mockResolvedValueOnce([]); // existingRows: none yet
+    queueSelects([], []); // no CSV captions, no existing rows yet
     dbMocks.execute.mockResolvedValueOnce({
-      rows: [{ id: 1, label: "Figure 1", textForEmbed: null, referenceKind: "figure" }],
+      rows: [
+        { id: 1, label: "Figure 1", textForEmbed: null, referenceKind: "figure", captionSource: "text" },
+      ],
     });
 
     const result = await upsertDocumentMediaAssets({
@@ -124,17 +131,19 @@ describe("upsertDocumentMediaAssets", () => {
     const [query] = dbMocks.execute.mock.calls[0] as [{ queryChunks: unknown }];
     const queryText = JSON.stringify(query.queryChunks);
     expect(queryText).toContain("ON CONFLICT (document_id, label, reference_kind, (COALESCE(source_index, -1)))");
-    expect(result).toEqual([{ id: 1, label: "Figure 1", textForEmbed: null, referenceKind: "figure" }]);
+    expect(result).toEqual([
+      { id: 1, label: "Figure 1", textForEmbed: null, referenceKind: "figure", captionSource: "text" },
+    ]);
     // No existing rows to reconcile against — no vanished-key delete.
     expect(dbMocks.delete).not.toHaveBeenCalled();
   });
 
   it("deletes a media row (and its chunk_media links first) when its key vanishes from the registry", async () => {
-    dbMocks.selectWhere.mockResolvedValueOnce([
-      { id: 55, label: "Figure 2", referenceKind: "figure", sourceIndex: null },
-    ]);
+    queueSelects([], [{ id: 55, label: "Figure 2", referenceKind: "figure", sourceIndex: null }]);
     dbMocks.execute.mockResolvedValueOnce({
-      rows: [{ id: 1, label: "Figure 1", textForEmbed: null, referenceKind: "figure" }],
+      rows: [
+        { id: 1, label: "Figure 1", textForEmbed: null, referenceKind: "figure", captionSource: "text" },
+      ],
     });
 
     await upsertDocumentMediaAssets({
@@ -150,11 +159,11 @@ describe("upsertDocumentMediaAssets", () => {
   });
 
   it("does not delete a media row whose key still matches the registry", async () => {
-    dbMocks.selectWhere.mockResolvedValueOnce([
-      { id: 1, label: "Figure 1", referenceKind: "figure", sourceIndex: null },
-    ]);
+    queueSelects([], [{ id: 1, label: "Figure 1", referenceKind: "figure", sourceIndex: null }]);
     dbMocks.execute.mockResolvedValueOnce({
-      rows: [{ id: 1, label: "Figure 1", textForEmbed: null, referenceKind: "figure" }],
+      rows: [
+        { id: 1, label: "Figure 1", textForEmbed: null, referenceKind: "figure", captionSource: "text" },
+      ],
     });
 
     await upsertDocumentMediaAssets({
@@ -169,9 +178,7 @@ describe("upsertDocumentMediaAssets", () => {
   });
 
   it("refuses to delete existing rows when the freshly-parsed registry is empty", async () => {
-    dbMocks.selectWhere.mockResolvedValueOnce([
-      { id: 1, label: "Figure 1", referenceKind: "figure", sourceIndex: null },
-    ]);
+    queueSelects([], [{ id: 1, label: "Figure 1", referenceKind: "figure", sourceIndex: null }]);
 
     await expect(
       upsertDocumentMediaAssets({
@@ -185,6 +192,63 @@ describe("upsertDocumentMediaAssets", () => {
 
     expect(dbMocks.execute).not.toHaveBeenCalled();
     expect(dbMocks.delete).not.toHaveBeenCalled();
+  });
+
+  it("merges a matching figure_captions row over the text-derived default, marking caption_source csv", async () => {
+    queueSelects(
+      [{ label: "Figure 1", sourceIndex: null, textForEmbed: "Official CSV caption." }],
+      [],
+    );
+    dbMocks.execute.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 1,
+          label: "Figure 1",
+          textForEmbed: "Official CSV caption.",
+          referenceKind: "figure",
+          captionSource: "csv",
+        },
+      ],
+    });
+
+    const result = await upsertDocumentMediaAssets({
+      documentId: 10,
+      filename: "f.docx",
+      fileType: "docx",
+      caseNumber: 3,
+      text: singleFigureText,
+    });
+
+    const [query] = dbMocks.execute.mock.calls[0] as [{ queryChunks: unknown }];
+    const queryText = JSON.stringify(query.queryChunks);
+    expect(queryText).toContain("Official CSV caption.");
+    expect(queryText).toContain("csv");
+    expect(result[0].captionSource).toBe("csv");
+  });
+
+  it("falls back to the text-derived caption when no figure_captions row matches", async () => {
+    queueSelects([{ label: "Figure 99", sourceIndex: null, textForEmbed: "Unrelated caption." }], []);
+    dbMocks.execute.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 1,
+          label: "Figure 1",
+          textForEmbed: "A cirrhotic liver with nodular surface and irregular contour.",
+          referenceKind: "figure",
+          captionSource: "text",
+        },
+      ],
+    });
+
+    const result = await upsertDocumentMediaAssets({
+      documentId: 10,
+      filename: "f.docx",
+      fileType: "docx",
+      caseNumber: 3,
+      text: singleFigureText,
+    });
+
+    expect(result[0].captionSource).toBe("text");
   });
 });
 

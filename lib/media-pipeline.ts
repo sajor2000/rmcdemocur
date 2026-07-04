@@ -1,5 +1,5 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import { chunkMedia, mediaAssets } from "@/drizzle/schema";
+import { chunkMedia, figureCaptions, mediaAssets } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 import {
   buildDocumentFigureMeta,
@@ -59,6 +59,10 @@ function mediaAssetKey(
   return `${label}::${referenceKind}::${sourceIndex ?? -1}`;
 }
 
+function captionKey(label: string, sourceIndex: number | null): string {
+  return `${label}::${sourceIndex ?? -1}`;
+}
+
 export async function upsertDocumentMediaAssets(options: {
   documentId: number;
   filename: string;
@@ -80,6 +84,22 @@ export async function upsertDocumentMediaAssets(options: {
       ? assignFacultyAnswerImageStoragePaths(registry, extracted)
       : new Map<number, string>();
 
+  // Human-authored captions are an input, never a computed default — they
+  // live in figure_captions (never wiped) and are merged here, upstream of
+  // the embed stage (KTD3), so a caption correction always reaches chunk
+  // embeddings instead of shipping stale ones.
+  const captionRows = await db
+    .select({
+      label: figureCaptions.label,
+      sourceIndex: figureCaptions.sourceIndex,
+      textForEmbed: figureCaptions.textForEmbed,
+    })
+    .from(figureCaptions)
+    .where(eq(figureCaptions.filename, options.filename));
+  const captionByKey = new Map(
+    captionRows.map((row) => [captionKey(row.label, row.sourceIndex), row.textForEmbed]),
+  );
+
   const existingRows = await db
     .select({
       id: mediaAssets.id,
@@ -100,8 +120,13 @@ export async function upsertDocumentMediaAssets(options: {
     );
   }
 
-  const upserted: { id: number; label: string; textForEmbed: string | null; referenceKind: string }[] =
-    [];
+  const upserted: {
+    id: number;
+    label: string;
+    textForEmbed: string | null;
+    referenceKind: string;
+    captionSource: string | null;
+  }[] = [];
 
   for (const entry of registry) {
     let storagePath = facultyStorageByLine.get(entry.lineIndex) ?? null;
@@ -112,6 +137,12 @@ export async function upsertDocumentMediaAssets(options: {
     ) {
       storagePath = storageByIndex.get(entry.sourceIndex) ?? null;
     }
+
+    const captionOverride = captionByKey.get(captionKey(entry.label, entry.sourceIndex));
+    const textForEmbed = captionOverride ?? entry.textForEmbed;
+    const hasCaptionInText = captionOverride != null ? true : entry.hasCaptionInText;
+    const captionSource = captionOverride != null ? "csv" : "text";
+
     // Drizzle 0.30's onConflictDoUpdate target only accepts plain columns, not
     // the expression index (COALESCE(source_index, -1)) media_assets_key_idx
     // is built on — raw SQL is the only way to express this ON CONFLICT target.
@@ -121,8 +152,8 @@ export async function upsertDocumentMediaAssets(options: {
         text_for_embed, storage_path, source_index, extraction_scope, video_url, caption_source
       ) VALUES (
         ${options.documentId}, ${entry.type}, ${entry.label}, ${entry.section}, ${entry.referenceKind},
-        ${entry.hasCaptionInText}, ${entry.textForEmbed}, ${storagePath}, ${entry.sourceIndex},
-        ${entry.extractionScope}, ${entry.videoUrl ?? null}, 'text'
+        ${hasCaptionInText}, ${textForEmbed}, ${storagePath}, ${entry.sourceIndex},
+        ${entry.extractionScope}, ${entry.videoUrl ?? null}, ${captionSource}
       )
       ON CONFLICT (document_id, label, reference_kind, (COALESCE(source_index, -1)))
       DO UPDATE SET
@@ -132,14 +163,17 @@ export async function upsertDocumentMediaAssets(options: {
         text_for_embed = EXCLUDED.text_for_embed,
         storage_path = EXCLUDED.storage_path,
         extraction_scope = EXCLUDED.extraction_scope,
-        video_url = EXCLUDED.video_url
-      RETURNING id, label, text_for_embed AS "textForEmbed", reference_kind AS "referenceKind"
+        video_url = EXCLUDED.video_url,
+        caption_source = EXCLUDED.caption_source
+      RETURNING id, label, text_for_embed AS "textForEmbed", reference_kind AS "referenceKind",
+        caption_source AS "captionSource"
     `);
     const [row] = result.rows as {
       id: number;
       label: string;
       textForEmbed: string | null;
       referenceKind: string;
+      captionSource: string | null;
     }[];
     upserted.push(row);
   }
@@ -173,6 +207,7 @@ export async function linkDocumentMediaToChunks(options: {
       label: mediaAssets.label,
       textForEmbed: mediaAssets.textForEmbed,
       referenceKind: mediaAssets.referenceKind,
+      captionSource: mediaAssets.captionSource,
     })
     .from(mediaAssets)
     .where(eq(mediaAssets.documentId, options.documentId));
