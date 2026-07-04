@@ -73,15 +73,15 @@ export function AamcBarChart({
 export function CoverageHeatmap({
   data,
   cases,
-  domains,
+  systems,
 }: {
-  data: { caseNumber: number; domainId: string; status: string }[];
+  data: { caseNumber: number; system: string; status: string }[];
   cases: number[];
-  domains: string[];
+  systems: string[];
 }) {
-  const cell = (caseNum: number, domain: string) => {
+  const cell = (caseNum: number, system: string) => {
     const hit = data.find(
-      (d) => d.caseNumber === caseNum && d.domainId === domain,
+      (d) => d.caseNumber === caseNum && d.system === system,
     );
     const status = hit?.status ?? "gap";
     const color =
@@ -92,9 +92,9 @@ export function CoverageHeatmap({
           : "bg-gap-red";
     return (
       <div
-        key={`${caseNum}-${domain}`}
+        key={`${caseNum}-${system}`}
         className={`h-6 w-full min-w-[2rem] rounded-sm ${color}`}
-        title={`Case ${caseNum} — ${domain}: ${status}`}
+        title={`Case ${caseNum} — ${system}: ${status}`}
       />
     );
   };
@@ -112,11 +112,11 @@ export function CoverageHeatmap({
               Case {c}
             </div>
           ))}
-          {domains.slice(0, 12).map((domain) => (
-            <React.Fragment key={domain}>
-              <div className="truncate pr-2 text-xs">{domain}</div>
+          {systems.map((system) => (
+            <React.Fragment key={system}>
+              <div className="truncate pr-2 text-xs">{system}</div>
               {cases.map((c) => (
-                <div key={`${domain}-${c}`}>{cell(c, domain)}</div>
+                <div key={`${system}-${c}`}>{cell(c, system)}</div>
               ))}
             </React.Fragment>
           ))}

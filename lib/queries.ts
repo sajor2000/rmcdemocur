@@ -30,6 +30,32 @@ export async function getCourseWithDocuments(courseId: number) {
   return { course, documents: docs };
 }
 
+/**
+ * Roll a set of per-subdomain USMLE coverage statuses up to a single
+ * system-level status for the heatmap. Fully covered → covered; no coverage at
+ * all → gap; anything in between → partial. Pure + exported for testing.
+ */
+export function rollUpCoverageStatus(
+  covered: number,
+  partial: number,
+  total: number,
+): "covered" | "partial" | "gap" {
+  if (total <= 0) return "gap";
+  if (covered >= total) return "covered";
+  if (covered === 0 && partial === 0) return "gap";
+  return "partial";
+}
+
+/** Human-readable USMLE system name from a gap-summary label ("System — sub")
+ * with a slug fallback ("cardiovascular-system" → "Cardiovascular System"). */
+export function deriveUsmleSystem(sampleLabel: string, slug: string): string {
+  const fromLabel = (sampleLabel || "").split(" — ")[0]?.trim();
+  if (fromLabel) return fromLabel;
+  return (slug || "Other")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export async function getCourseSummary(courseId: number) {
   const db = getDb();
   const { course, documents: docs } = await getCourseWithDocuments(courseId);
@@ -61,7 +87,9 @@ export async function getCourseSummary(courseId: number) {
   };
 
   const aamcCoverage = await db.execute(sql`
-    SELECT ac.domain_name, COUNT(DISTINCT a.id)::int as cnt
+    SELECT ac.domain_name,
+           COUNT(DISTINCT ac.stable_id)::int as total,
+           COUNT(DISTINCT ac.stable_id) FILTER (WHERE a.id IS NOT NULL)::int as covered
     FROM aamc_competencies ac
     LEFT JOIN alignments a ON (
       (a.framework_id = ac.stable_id OR a.framework_id = ac.sub_id)
@@ -75,11 +103,19 @@ export async function getCourseSummary(courseId: number) {
     GROUP BY ac.domain_name
   `);
 
+  // Roll granular USMLE subdomain gap rows up to their organ system, per case,
+  // so the heatmap axis is the real systems present in the curriculum.
   const heatmap = await db.execute(sql`
-    SELECT d.case_number, gs.framework_id, gs.framework_label, gs.coverage_status
+    SELECT d.case_number,
+           split_part(gs.framework_id, ':', 2) AS system_slug,
+           MIN(gs.framework_label) AS sample_label,
+           COUNT(*) FILTER (WHERE gs.coverage_status = 'covered')::int AS covered,
+           COUNT(*) FILTER (WHERE gs.coverage_status = 'partial')::int AS partial_ct,
+           COUNT(*)::int AS total
     FROM gap_summary gs
     JOIN documents d ON d.id = gs.document_id
     WHERE d.course_id = ${courseId} AND gs.framework = 'USMLE'
+    GROUP BY d.case_number, split_part(gs.framework_id, ':', 2)
   `);
 
   const recentAlignments = await db
@@ -135,6 +171,17 @@ export async function getCourseSummary(courseId: number) {
       ? Math.round((aamcAlignedCount / aamcTotal.length) * 100)
       : 0;
 
+  const heatmapData = (heatmap.rows as Record<string, unknown>[]).map((r) => ({
+    caseNumber: Number(r.case_number),
+    system: deriveUsmleSystem(String(r.sample_label ?? ""), String(r.system_slug ?? "")),
+    status: rollUpCoverageStatus(
+      Number(r.covered ?? 0),
+      Number(r.partial_ct ?? 0),
+      Number(r.total ?? 0),
+    ),
+  }));
+  const usmleSystems = Array.from(new Set(heatmapData.map((h) => h.system))).sort();
+
   return {
     course,
     documents: docs,
@@ -146,19 +193,15 @@ export async function getCourseSummary(courseId: number) {
       usmleDomainsCovered: usmleAlignedCount,
       usmleDomainsTotal: totalUsmleLeafCount || 1,
     },
-    aamcDomainCoverage: (aamcCoverage.rows as { domain_name: string; cnt: number }[]).map(
+    aamcDomainCoverage: (aamcCoverage.rows as { domain_name: string; total: number; covered: number }[]).map(
       (r) => ({
         domain: r.domain_name,
-        count: r.cnt,
-        percent: Math.min(100, r.cnt * 12),
+        count: r.covered,
+        percent: r.total > 0 ? Math.round((r.covered / r.total) * 100) : 0,
       }),
     ),
-    heatmap: (heatmap.rows as Record<string, unknown>[]).map((r) => ({
-      caseNumber: Number(r.case_number),
-      domainId: String(r.framework_id),
-      domainLabel: String(r.framework_label),
-      status: String(r.coverage_status),
-    })),
+    heatmap: heatmapData,
+    usmleSystems,
     gaps: gaps.map((g) => g.gap_summary),
     recentAlignments,
     coveredDomains: usmleAlignedCount,
