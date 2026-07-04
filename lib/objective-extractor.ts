@@ -92,6 +92,19 @@ const NOISE_LINE_PATTERNS = [
 
 const BULLET_PREFIX = /^\s*(?:[-•▪●o*]|\d+[.)])\s+/;
 const EO_CODE_PATTERN = /\((EO-\d{4})\)\s*$/;
+// Topic-objective codes: captured anywhere in the line (some carry a trailing
+// timestamp like "(30:37)"). The end-anchored variant matches the section-end
+// shape in SECTION_END_PATTERNS so we can suppress it inside a topics subsection.
+const TO_CODE_PATTERN = /\((TO-\d{4})\)/;
+const TO_CODE_END_PATTERN = /\(TO-\d{4}\)\s*$/;
+// A "Self-Study Topics" sub-header flips subsequent (TO-####) lines from
+// section-enders into objectives (see Case 3 self-study).
+const TOPICS_SUBHEADER = /^Self-Study\s+Topics/i;
+// A topic can be listed several ways (the topic line, a "SLIDES:" pointer, a
+// video row with a "(30:37)" timestamp). Only the plain topic line is an
+// objective; drop the media-pointer variants and dedupe the rest by TO code.
+const MEDIA_REF_PATTERN = /^(?:SLIDES?\s*:|Slides?\s+\d)/i;
+const TIMESTAMP_END_PATTERN = /\(\d{1,2}:\d{2}\)\s*$/;
 const VERB_START =
   /^(?:Describe|Explain|Identify|Discuss|Define|Compare|Contrast|List|Name|Demonstrate|Apply|Analyze|Evaluate|Recognize|Interpret|Differentiate|Summarize|Outline|Predict|Calculate|Perform|Develop|Formulate|Integrate|Correlate|Review|Understand|Distinguish|Classify|Relate|Assess|Manage|Treat|Diagnose|Order|Counsel|Educate|Communicate|Document|Prioritize|Select|Recommend|Utilize|Employ|Construct|Draw|Label|Locate|Recall|State|Use|Show|Given|Given\s+a|Given\s+the)/i;
 
@@ -129,7 +142,7 @@ function cleanObjectiveLine(line: string): string {
 }
 
 function isCompleteObjective(text: string): boolean {
-  if (EO_CODE_PATTERN.test(text)) return true;
+  if (EO_CODE_PATTERN.test(text) || TO_CODE_PATTERN.test(text)) return true;
   const trimmed = text.trim();
   return /[.!?)]$/.test(trimmed);
 }
@@ -137,8 +150,12 @@ function isCompleteObjective(text: string): boolean {
 function looksLikeObjective(line: string): boolean {
   const cleaned = cleanObjectiveLine(line);
   if (isNoiseLine(cleaned) || isIntroLine(cleaned)) return false;
-  if (cleaned.length > 800 && !EO_CODE_PATTERN.test(cleaned)) return false;
-  if (EO_CODE_PATTERN.test(cleaned)) return cleaned.length >= 20;
+  const hasCode = EO_CODE_PATTERN.test(cleaned) || TO_CODE_PATTERN.test(cleaned);
+  if (cleaned.length > 800 && !hasCode) return false;
+  if (hasCode) {
+    if (MEDIA_REF_PATTERN.test(cleaned) || TIMESTAMP_END_PATTERN.test(cleaned)) return false;
+    return cleaned.length >= 20;
+  }
   if (!isCompleteObjective(cleaned)) return false;
   if (VERB_START.test(cleaned)) return cleaned.length >= 15;
   return false;
@@ -147,7 +164,7 @@ function looksLikeObjective(line: string): boolean {
 function scoreObjective(text: string): "high" | "medium" | "low" {
   if (text.length > 500 || text.split(/\.\s+/).length > 4) return "low";
   if (text.length < 20) return "low";
-  if (VERB_START.test(text) || EO_CODE_PATTERN.test(text)) return "high";
+  if (VERB_START.test(text) || EO_CODE_PATTERN.test(text) || TO_CODE_PATTERN.test(text)) return "high";
   return "medium";
 }
 
@@ -171,12 +188,20 @@ export function findObjectiveSections(text: string): ObjectiveSection[] {
     }
 
     const contentStart = i;
+    let sawTopicsHeader = false;
     while (i < lines.length) {
       const trimmed = lines[i].trim();
+      if (trimmed && TOPICS_SUBHEADER.test(trimmed)) {
+        sawTopicsHeader = true;
+      }
+      // Inside a "Self-Study Topics" subsection, (TO-####) lines are the
+      // objectives themselves — don't let them end the section.
+      const topicObjective = sawTopicsHeader && TO_CODE_END_PATTERN.test(trimmed);
       if (
         trimmed &&
         isSectionEnd(trimmed) &&
-        !isObjectiveSectionHeading(trimmed)
+        !isObjectiveSectionHeading(trimmed) &&
+        !topicObjective
       ) {
         break;
       }
@@ -222,7 +247,7 @@ function parseObjectiveLines(
       buffer = [];
       return;
     }
-    const eoMatch = text.match(EO_CODE_PATTERN);
+    const codeMatch = text.match(EO_CODE_PATTERN) ?? text.match(TO_CODE_PATTERN);
     objectives.push({
       text,
       ordinal: objectives.length + 1,
@@ -231,7 +256,7 @@ function parseObjectiveLines(
       sourceExcerpt,
       extractionMethod: "regex",
       confidence: scoreObjective(text),
-      eoCode: eoMatch?.[1],
+      eoCode: codeMatch?.[1],
     });
     buffer = [];
   };
@@ -251,14 +276,27 @@ function parseObjectiveLines(
     }
 
     const hasBullet = BULLET_PREFIX.test(trimmed);
+    const cleanedLine = cleanObjectiveLine(trimmed);
+    const hasCode = EO_CODE_PATTERN.test(cleanedLine) || TO_CODE_PATTERN.test(cleanedLine);
     const isStandaloneObjective =
-      looksLikeObjective(trimmed) && (hasBullet || VERB_START.test(cleanObjectiveLine(trimmed)));
+      looksLikeObjective(trimmed) && (hasBullet || VERB_START.test(cleanedLine) || hasCode);
+
+    const bufferText = buffer.join(" ");
+    const bufferComplete =
+      EO_CODE_PATTERN.test(bufferText) || TO_CODE_PATTERN.test(bufferText);
 
     if (hasBullet || isStandaloneObjective) {
       flushBuffer();
       bufferStartLine = startLineOffset + i;
       buffer.push(trimmed);
-    } else if (buffer.length > 0 && trimmed.length > 0 && !isSectionEnd(trimmed)) {
+    } else if (
+      buffer.length > 0 &&
+      trimmed.length > 0 &&
+      !isSectionEnd(trimmed) &&
+      !bufferComplete
+    ) {
+      // A buffer that already ends in an (EO/TO) code is a complete objective;
+      // don't let a following media-pointer / timestamp line accrete onto it.
       buffer.push(trimmed);
     } else if (looksLikeObjective(trimmed)) {
       flushBuffer();
@@ -296,11 +334,17 @@ export function dedupeObjectives(
   objectives: ExtractedObjective[],
 ): ExtractedObjective[] {
   const seen = new Set<string>();
+  const seenTopicCode = new Set<string>();
   const result: ExtractedObjective[] = [];
 
   for (const obj of objectives) {
     const key = normalizeForMatch(obj.text);
     if (seen.has(key)) continue;
+    // Collapse multiple listings of the same topic (same TO-#### code) to one.
+    if (obj.eoCode?.startsWith("TO-")) {
+      if (seenTopicCode.has(obj.eoCode)) continue;
+      seenTopicCode.add(obj.eoCode);
+    }
     seen.add(key);
     result.push({ ...obj, ordinal: result.length + 1 });
   }
