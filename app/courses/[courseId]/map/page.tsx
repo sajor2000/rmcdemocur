@@ -33,6 +33,10 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
         referenceKind: string;
       }[]
     >;
+    keywordsByChunkId?: Record<
+      number,
+      { keyword: string; definition: string | null }[]
+    >;
     aamc: { subId: string | null; domainName: string | null; description: string | null }[];
     usmle: { domain: string | null; subdomain: string | null }[];
   } | null>(null);
@@ -179,6 +183,11 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
         linkedMedia={
           drawerAlignment?.chunkId
             ? data.mediaByChunkId?.[drawerAlignment.chunkId] ?? []
+            : []
+        }
+        keywords={
+          drawerAlignment?.chunkId
+            ? data.keywordsByChunkId?.[drawerAlignment.chunkId] ?? []
             : []
         }
         onClose={() => setDrawerAlignment(null)}

@@ -27,10 +27,16 @@ type MediaAssetPreview = {
   referenceKind: string;
 };
 
+type KeywordTag = {
+  keyword: string;
+  definition: string | null;
+};
+
 type Props = {
   alignment: Alignment | null;
   excerpt: string;
   linkedMedia?: MediaAssetPreview[];
+  keywords?: KeywordTag[];
   onClose: () => void;
   onApprove: (id: number, status: "approved" | "rejected") => void;
 };
@@ -39,6 +45,7 @@ export function AlignmentDrawer({
   alignment,
   excerpt,
   linkedMedia = [],
+  keywords = [],
   onClose,
   onApprove,
 }: Props) {
@@ -95,6 +102,24 @@ export function AlignmentDrawer({
                         </p>
                       )}
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {keywords.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase text-rush-medium">
+                  AAMC keyword tags
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {keywords.map((k) => (
+                    <Badge
+                      key={k.keyword}
+                      title={k.definition ?? undefined}
+                      className={`border-rush-medium/40 bg-transparent text-rush-medium${k.definition ? " cursor-help" : ""}`}
+                    >
+                      {k.keyword}
+                    </Badge>
                   ))}
                 </div>
               </div>

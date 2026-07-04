@@ -2,12 +2,14 @@ import { sql, eq, desc, and } from "drizzle-orm";
 import {
   alignments,
   aamcCompetencies,
+  aamcKeywords,
   chunkMedia,
   chunks,
   courseObjectives,
   courses,
   documents,
   gapSummary,
+  keywordTags,
   mediaAssets,
   usmleDomains,
 } from "@/drizzle/schema";
@@ -163,6 +165,23 @@ export async function getCourseSummary(courseId: number) {
   };
 }
 
+/** Group per-chunk keyword-tag rows into a chunkId → tags map, dropping empty
+ * keywords and deduping repeats per chunk. Pure + exported for testing. */
+export function groupKeywordsByChunk(
+  rows: { chunkId: number | null; keyword: string | null; definition: string | null }[],
+): Record<number, { keyword: string; definition: string | null }[]> {
+  const byChunk: Record<number, { keyword: string; definition: string | null }[]> = {};
+  for (const row of rows) {
+    if (row.chunkId == null || !row.keyword) continue;
+    const list = byChunk[row.chunkId] ?? [];
+    if (!list.some((k) => k.keyword === row.keyword)) {
+      list.push({ keyword: row.keyword, definition: row.definition ?? null });
+    }
+    byChunk[row.chunkId] = list;
+  }
+  return byChunk;
+}
+
 export async function getMapData(courseId: number) {
   const db = getDb();
   const docs = await db
@@ -231,10 +250,26 @@ export async function getMapData(courseId: number) {
     mediaByChunkId[row.chunkId] = list;
   }
 
+  // Per-chunk AAMC keyword tags (what topics the chunk actually covers), joined
+  // to aamc_keywords for the definition shown on hover.
+  const keywordRows = await db
+    .select({
+      chunkId: keywordTags.chunkId,
+      keyword: keywordTags.keyword,
+      definition: aamcKeywords.definition,
+    })
+    .from(keywordTags)
+    .innerJoin(chunks, eq(chunks.id, keywordTags.chunkId))
+    .innerJoin(documents, eq(documents.id, chunks.documentId))
+    .leftJoin(aamcKeywords, eq(aamcKeywords.stableId, keywordTags.category))
+    .where(eq(documents.courseId, courseId));
+
+  const keywordsByChunkId = groupKeywordsByChunk(keywordRows);
+
   const aamc = await db.select().from(aamcCompetencies);
   const usmle = await db.select().from(usmleDomains);
 
-  return { documents: docs, chunks: chunkRows, alignments: alignmentRows, mediaByChunkId, aamc, usmle };
+  return { documents: docs, chunks: chunkRows, alignments: alignmentRows, mediaByChunkId, keywordsByChunkId, aamc, usmle };
 }
 
 export async function searchChunks(courseId: number, queryEmbedding: number[], limit = 5) {
