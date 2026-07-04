@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Image Ingestion — Ideation</title>
+  <style>
+    :root { --ink: #1a1a1a; --muted: #555; --bg: #fafafa; --card: #fff; --cut: #b33; }
+    body { font-family: system-ui, sans-serif; line-height: 1.55; max-width: 48rem; margin: 2rem auto; padding: 0 1.25rem; color: var(--ink); background: var(--bg); }
+    h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+    .meta { color: var(--muted); font-size: 0.88rem; margin-bottom: 1.5rem; }
+    h2 { font-size: 1.05rem; margin-top: 1.75rem; border-bottom: 1px solid #ddd; padding-bottom: 0.3rem; }
+    .idea { background: var(--card); border: 1px solid #e0e0e0; border-radius: 8px; padding: 0.9rem 1.1rem; margin: 0.75rem 0; }
+    .idea h3 { margin: 0 0 0.35rem; font-size: 1rem; }
+    .tags { font-size: 0.78rem; color: var(--muted); }
+    .basis { font-size: 0.85rem; background: #f0f4f8; padding: 0.45rem 0.65rem; border-radius: 4px; margin: 0.4rem 0; }
+    ul { padding-left: 1.15rem; }
+    code { font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <h1>Image Ingestion for RUSHMAP</h1>
+  <p class="meta">2026-07-03 · topic: image-ingestion · focus: self-study &amp; faculty guide figures · mode: repo-grounded</p>
+
+  <h2>Grounding</h2>
+  <ul>
+    <li><strong>~2,900 embedded images</strong> across 14 curriculum files (self-study guides dominate).</li>
+    <li><code>parseDocument</code> uses <code>mammoth.extractRawText</code> / pdf-parse — <strong>images never enter the pipeline</strong>.</li>
+    <li>Surviving text: <code>Answer Image:</code>, <code>Figure 1A</code>, answer captions in prose, instructions (“move the X on Figure 2A”).</li>
+    <li>Chunker stoplists <code>Answer Image</code> / <code>Provided image</code> so labels stay inside real sections.</li>
+    <li>Plan 007 explicitly <strong>defers</strong> OCR/vision — separate effort from chunking/alignment work.</li>
+    <li>Guides state figures in slides/notes <strong>can appear on assessments</strong> — visual-only content is a coverage gap.</li>
+  </ul>
+
+  <h2>Principle</h2>
+  <p><strong>Store pixels for display; embed text for search and alignment.</strong> Same split as video/transcript — never put raw images into pgvector.</p>
+
+  <h2>Ranked Ideas</h2>
+
+  <article class="idea">
+    <h3>1. Mine existing figure prose first</h3>
+    <p class="tags">Confidence: 90% · Complexity: Low</p>
+    <p>Chunk and align the captions already in Word: <code>Answer Figure 1A: …</code>, rationale lines, figure titles. Audit for sections that reference a figure with no descriptive text nearby.</p>
+    <div class="basis"><strong>Basis (direct):</strong> Faculty guides (Cases 3–5) already carry answer text for many <code>Answer Image</code> / <code>Figure N</code> blocks in extractable prose.</div>
+    <p><strong>Downside:</strong> Histology/radiology slides in self-study may have image-only content.</p>
+  </article>
+
+  <article class="idea">
+    <h3>2. Figure registry + gap audit</h3>
+    <p class="tags">Confidence: 85% · Complexity: Low–Medium</p>
+    <p>Parse labels (<code>Answer Image:</code>, <code>Figure \d+[A-Z]?</code>, <code>Provided image</code>) into a registry: case, section, label, has_caption_in_text. Extend <code>audit-chunks.ts</code> with “image-only reference” warnings.</p>
+    <div class="basis"><strong>Basis (direct):</strong> ~2,900 images invisible today; registry quantifies what prose cannot cover.</div>
+  </article>
+
+  <article class="idea">
+    <h3>3. Extract DOCX media + link in UI</h3>
+    <p class="tags">Confidence: 80% · Complexity: Medium</p>
+    <p>Unzip <code>word/media/*</code> (or mammoth image handler) → <code>data/curriculum/media/{case}/{doc}-{n}.png</code>. Attach <code>figure_id</code> / storage path on chunk or sibling <code>media_assets</code> row. UI shows image when chunk mentions the label.</p>
+    <div class="basis"><strong>Basis (reasoned):</strong> Enables faculty review and student “open figure” without vision cost; alignment still text-only until captions exist.</div>
+    <p><strong>Downside:</strong> DOCX order ≠ figure labels — needs heuristic or manual manifest for stable IDs.</p>
+  </article>
+
+  <article class="idea">
+    <h3>4. Selective vision/OCR on flagged figures only</h3>
+    <p class="tags">Confidence: 70% · Complexity: High</p>
+    <p>Run Azure vision/OCR only on registry rows marked <code>image-only</code> (especially faculty <code>Answer Image</code> blocks). Write description → auxiliary text chunk → embed with breadcrumb <code>Case › Section › Figure 1A (described)</code>.</p>
+    <div class="basis"><strong>Basis (direct):</strong> Plan 007 deferred full OCR; scoped pass avoids processing all 2,900 LWW textbook diagrams.</div>
+    <p><strong>Downside:</strong> Cost, latency, medical diagram accuracy needs human spot-check.</p>
+  </article>
+
+  <article class="idea">
+    <h3>5. Faculty caption bundle (ops path)</h3>
+    <p class="tags">Confidence: 75% · Complexity: Medium (external)</p>
+    <p>Ask curriculum team for a sidecar manifest: figure label → official caption / alt text (CSV or JSON). Prefer human captions over vision for assessment-critical images.</p>
+    <div class="basis"><strong>Basis (reasoned):</strong> Faculty already author answer rationales; many images are pedagogically labeled in guides.</div>
+  </article>
+
+  <h2>Rejected</h2>
+  <ul>
+    <li style="color:var(--cut)"><strong>Multimodal image embeddings</strong> — stack is text RAG; no ROI for curriculum map.</li>
+    <li style="color:var(--cut)"><strong>OCR all 2,900 images upfront</strong> — cost/noise; many are duplicate textbook art with prose parity elsewhere.</li>
+    <li style="color:var(--cut)"><strong>Replace text pipeline with HTML layout parse</strong> — plan chose lexical chunking first; HTML is a separate path for PDF/DOCX parity.</li>
+  </ul>
+
+  <h2>Recommended sequence</h2>
+  <ol>
+    <li>#1 prose mining + #2 registry/audit (ship together)</li>
+    <li>#3 extract &amp; link for UI on faculty <code>Answer Image</code> set first</li>
+    <li>#5 caption bundle from curriculum ops, then #4 vision only on remaining gaps</li>
+  </ol>
+
+  <h2>Pair with video work</h2>
+  <p>Shared <code>media_assets</code> shape: <code>type</code> (figure | video), <code>label</code>, <code>case_id</code>, <code>section</code>, <code>url_or_path</code>, <code>text_for_embed</code> (caption/transcript/description). One pipeline stage can ingest text sidecars; one UI component can render linked media.</p>
+</body>
+</html>

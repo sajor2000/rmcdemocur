@@ -22,6 +22,17 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
     documents: { id: number; caseNumber: number | null; caseTitle: string | null }[];
     chunks: { chunk: { id: number; section: string | null; content: string }; document: { caseNumber: number | null; caseTitle: string | null } }[];
     alignments: { alignment: Alignment; chunkId: number }[];
+    mediaByChunkId?: Record<
+      number,
+      {
+        id: number;
+        label: string;
+        textForEmbed: string | null;
+        hasFile: boolean;
+        hasCaptionInText: boolean | null;
+        referenceKind: string;
+      }[]
+    >;
     aamc: { subId: string | null; domainName: string | null; description: string | null }[];
     usmle: { domain: string | null; subdomain: string | null }[];
   } | null>(null);
@@ -164,6 +175,11 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
         excerpt={
           data.chunks.find((c) => c.chunk.id === drawerAlignment?.chunkId)?.chunk
             .content ?? ""
+        }
+        linkedMedia={
+          drawerAlignment?.chunkId
+            ? data.mediaByChunkId?.[drawerAlignment.chunkId] ?? []
+            : []
         }
         onClose={() => setDrawerAlignment(null)}
         onApprove={onApprove}

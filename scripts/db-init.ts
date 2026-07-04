@@ -1,8 +1,8 @@
 import "./load-env";
 import path from "path";
-import { neon } from "@neondatabase/serverless";
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 
-function directUrl(): string {
+export function directUrl(): string {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set");
   return url.replace("-pooler.", ".");
@@ -121,13 +121,89 @@ const DDL = [
     source_excerpt text,
     created_at timestamptz DEFAULT now()
   )`,
+  `CREATE TABLE IF NOT EXISTS media_assets (
+    id serial PRIMARY KEY,
+    document_id integer REFERENCES documents(id) NOT NULL,
+    type varchar(20) NOT NULL,
+    label text NOT NULL,
+    section text,
+    reference_kind varchar(30) NOT NULL,
+    has_caption_in_text boolean DEFAULT false,
+    text_for_embed text,
+    storage_path text,
+    source_index integer,
+    extraction_scope varchar(20),
+    video_url text,
+    created_at timestamptz DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS chunk_media (
+    chunk_id integer REFERENCES chunks(id) NOT NULL,
+    media_asset_id integer REFERENCES media_assets(id) NOT NULL,
+    PRIMARY KEY (chunk_id, media_asset_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS chunk_media_chunk_id_idx ON chunk_media (chunk_id)`,
+  `CREATE INDEX IF NOT EXISTS chunk_media_media_asset_id_idx ON chunk_media (media_asset_id)`,
+  // Append-only: safe on both a fresh CREATE TABLE (column already present)
+  // and a pre-existing media_assets table from before this column existed.
+  `ALTER TABLE media_assets ADD COLUMN IF NOT EXISTS caption_source varchar(10)`,
+  // Per-chunk marker: the alignment stage processed this chunk (whether or not
+  // it produced alignment rows). Drives resume skip + completeness.
+  `ALTER TABLE chunks ADD COLUMN IF NOT EXISTS aligned_at timestamptz`,
+  `CREATE TABLE IF NOT EXISTS figure_captions (
+    id serial PRIMARY KEY,
+    filename text NOT NULL,
+    label text NOT NULL,
+    text_for_embed text NOT NULL,
+    source_index integer,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+  )`,
+  // figure_captions is always empty pre-existing rows on a fresh table, so
+  // (unlike media_assets below) this index needs no duplicate guard.
+  `CREATE UNIQUE INDEX IF NOT EXISTS figure_captions_key_idx
+     ON figure_captions (filename, label, (COALESCE(source_index, -1)))`,
 ];
+
+// media_assets predates the keyed-upsert design (see docs/plans/2026-07-03-010-*),
+// so an already-bootstrapped DB may hold duplicate rows written by the old bare
+// insert. Guard the index instead of letting a dirty DB wedge every future
+// bootstrap: skip creation and warn rather than throwing mid-DDL-array.
+const MEDIA_ASSETS_UNIQUE_INDEX_SQL = `
+  CREATE UNIQUE INDEX IF NOT EXISTS media_assets_key_idx
+    ON media_assets (document_id, label, reference_kind, (COALESCE(source_index, -1)))
+`;
+
+async function hasDuplicateMediaAssetRows(
+  sql: NeonQueryFunction<false, false>,
+): Promise<boolean> {
+  const rows = (await sql(`
+    SELECT 1 FROM media_assets
+    GROUP BY document_id, label, reference_kind, COALESCE(source_index, -1)
+    HAVING COUNT(*) > 1
+    LIMIT 1
+  `)) as unknown[];
+  return rows.length > 0;
+}
 
 export async function pushSchema(): Promise<void> {
   const sql = neon(directUrl());
   for (const statement of DDL) {
     await sql(statement);
   }
+
+  if (await hasDuplicateMediaAssetRows(sql)) {
+    // Fail loudly instead of leaving media_assets_key_idx missing: the keyed
+    // upsert in lib/media-pipeline.ts unconditionally targets this index in
+    // its ON CONFLICT clause, so a DB that "succeeded" without it would only
+    // find out the hard way on the next document-processing run.
+    throw new Error(
+      "media_assets has duplicate rows on (document_id, label, reference_kind, source_index) — " +
+        "cannot create media_assets_key_idx. Run `npx tsx scripts/collapse-duplicate-media.ts` to " +
+        "collapse duplicates, then re-run this script.",
+    );
+  }
+  await sql(MEDIA_ASSETS_UNIQUE_INDEX_SQL);
+
   console.log("Schema ready (pgvector + RushMap tables).");
 }
 

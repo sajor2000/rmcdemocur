@@ -1,0 +1,26 @@
+{
+  "meta": {
+    "framework": "AAMC Core Entrustable Professional Activities for Entering Residency (Core EPAs)",
+    "edition": "2014 (13 activities)",
+    "count": 13,
+    "status": "Active/recommended; a 10-school national pilot ran 2014-2021 (results published 2022).",
+    "source": "Association of American Medical Colleges. Core Entrustable Professional Activities for Entering Residency: Curriculum Developers' Guide. Washington, DC: AAMC; 2014.",
+    "sourceUrl": "https://www.aamc.org/about-us/mission-areas/medical-education/cbme/core-epas",
+    "note": "Public short activity titles/descriptions committed as authority data with attribution (the detailed developer/faculty guides are AAMC Store items and are not reproduced here)."
+  },
+  "epas": [
+    "Gather a history and perform a physical examination.",
+    "Prioritize a differential diagnosis following a clinical encounter.",
+    "Recommend and interpret common diagnostic and screening tests.",
+    "Enter and discuss orders and prescriptions.",
+    "Document a clinical encounter in the patient record.",
+    "Provide an oral presentation of a clinical encounter.",
+    "Form clinical questions and retrieve evidence to advance patient care.",
+    "Give or receive a patient handover to transition care responsibility.",
+    "Collaborate as a member of an interprofessional team.",
+    "Recognize a patient requiring urgent or emergent care and initiate evaluation and management.",
+    "Obtain informed consent for tests and/or procedures.",
+    "Perform general procedures of a physician.",
+    "Identify system failures and contribute to a culture of safety and improvement."
+  ]
+}

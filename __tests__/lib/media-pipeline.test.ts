@@ -1,0 +1,335 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const listExtractedMediaFiles = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+vi.mock("@/lib/media-storage", () => ({ listExtractedMediaFiles }));
+
+const dbMocks = vi.hoisted(() => {
+  const selectWhere = vi.fn<() => Promise<Record<string, unknown>[]>>(() => Promise.resolve([]));
+  const selectFrom = vi.fn(() => ({ where: selectWhere }));
+  const select = vi.fn(() => ({ from: selectFrom }));
+  const execute = vi.fn<(query: unknown) => Promise<{ rows: Record<string, unknown>[] }>>(() =>
+    Promise.resolve({ rows: [] }),
+  );
+  const deleteWhere = vi.fn(() => Promise.resolve(undefined));
+  const deleteFn = vi.fn(() => ({ where: deleteWhere }));
+  const onConflictDoNothing = vi.fn(() => Promise.resolve(undefined));
+  const insertValues = vi.fn(() => ({ onConflictDoNothing }));
+  const insert = vi.fn(() => ({ values: insertValues }));
+  return {
+    select,
+    selectFrom,
+    selectWhere,
+    execute,
+    delete: deleteFn,
+    deleteWhere,
+    insert,
+    insertValues,
+    onConflictDoNothing,
+  };
+});
+
+vi.mock("@/lib/db", () => ({ getDb: () => dbMocks }));
+
+import {
+  assignFacultyAnswerImageStoragePaths,
+  buildEmbedTextForChunk,
+  clearDocumentMedia,
+  linkDocumentMediaToChunks,
+  linkedMediaIdsForChunk,
+  upsertDocumentMediaAssets,
+} from "@/lib/media-pipeline";
+import type { FigureRegistryEntry } from "@/lib/media-types";
+
+describe("assignFacultyAnswerImageStoragePaths", () => {
+  it("maps answer images to the last N extracted files in document order", () => {
+    const registry: FigureRegistryEntry[] = [
+      {
+        label: "Answer Image 1A",
+        referenceKind: "answer_image",
+        section: null,
+        lineIndex: 10,
+        hasCaptionInText: true,
+        textForEmbed: "Caption one",
+        extractionScope: "faculty",
+        sourceIndex: 1,
+        type: "figure",
+      },
+      {
+        label: "Answer Image 2",
+        referenceKind: "answer_image",
+        section: null,
+        lineIndex: 20,
+        hasCaptionInText: true,
+        textForEmbed: "Caption two",
+        extractionScope: "faculty",
+        sourceIndex: 2,
+        type: "figure",
+      },
+    ];
+    const extracted = [
+      { sourceIndex: 1, storagePath: "/tmp/media/1.png" },
+      { sourceIndex: 2, storagePath: "/tmp/media/2.png" },
+      { sourceIndex: 3, storagePath: "/tmp/media/3.png" },
+      { sourceIndex: 4, storagePath: "/tmp/media/4.png" },
+    ];
+
+    const map = assignFacultyAnswerImageStoragePaths(registry, extracted);
+    expect(map.get(10)).toBe("/tmp/media/3.png");
+    expect(map.get(20)).toBe("/tmp/media/4.png");
+  });
+
+  it("enriches embed text only for linked faculty media ids", () => {
+    const assets = [
+      {
+        id: 1,
+        label: "Answer Image 1A",
+        textForEmbed: "Cirrhosis caption.",
+        referenceKind: "answer_image",
+      },
+      {
+        id: 2,
+        label: "Figure 2A",
+        textForEmbed: "Histology caption.",
+        referenceKind: "figure",
+      },
+    ];
+    const linkedIds = linkedMediaIdsForChunk(10, [{ chunkId: 10, mediaAssetId: 1 }]);
+    const enriched = buildEmbedTextForChunk(
+      "Answer Image 1A appears here.",
+      "Case › Section › body",
+      assets,
+      linkedIds,
+    );
+    expect(enriched).toContain("Cirrhosis caption.");
+    expect(enriched).not.toContain("Histology caption.");
+  });
+});
+
+describe("upsertDocumentMediaAssets", () => {
+  const singleFigureText =
+    "Figure 1: A cirrhotic liver with nodular surface and irregular contour.";
+
+  // select() call order inside upsertDocumentMediaAssets: captionRows (figure_captions), then existingRows (media_assets).
+  function queueSelects(captionRows: Record<string, unknown>[], existingRows: Record<string, unknown>[]) {
+    dbMocks.selectWhere.mockResolvedValueOnce(captionRows).mockResolvedValueOnce(existingRows);
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    dbMocks.select.mockReturnValue({ from: dbMocks.selectFrom });
+    dbMocks.selectFrom.mockReturnValue({ where: dbMocks.selectWhere });
+    dbMocks.selectWhere.mockResolvedValue([]);
+    dbMocks.execute.mockResolvedValue({ rows: [] });
+    dbMocks.delete.mockReturnValue({ where: dbMocks.deleteWhere });
+    dbMocks.deleteWhere.mockResolvedValue(undefined);
+    listExtractedMediaFiles.mockResolvedValue([]);
+  });
+
+  it("upserts each registry entry via ON CONFLICT and returns the row set", async () => {
+    queueSelects([], []); // no CSV captions, no existing rows yet
+    dbMocks.execute.mockResolvedValueOnce({
+      rows: [
+        { id: 1, label: "Figure 1", textForEmbed: null, referenceKind: "figure", captionSource: "text" },
+      ],
+    });
+
+    const result = await upsertDocumentMediaAssets({
+      documentId: 10,
+      filename: "f.docx",
+      fileType: "docx",
+      caseNumber: 3,
+      text: singleFigureText,
+    });
+
+    expect(dbMocks.execute).toHaveBeenCalledTimes(1);
+    const [query] = dbMocks.execute.mock.calls[0] as [{ queryChunks: unknown }];
+    const queryText = JSON.stringify(query.queryChunks);
+    expect(queryText).toContain("ON CONFLICT (document_id, label, reference_kind, (COALESCE(source_index, -1)))");
+    expect(result).toEqual([
+      { id: 1, label: "Figure 1", textForEmbed: null, referenceKind: "figure", captionSource: "text" },
+    ]);
+    // No existing rows to reconcile against — no vanished-key delete.
+    expect(dbMocks.delete).not.toHaveBeenCalled();
+  });
+
+  it("deletes a media row (and its chunk_media links first) when its key vanishes from the registry", async () => {
+    queueSelects([], [{ id: 55, label: "Figure 2", referenceKind: "figure", sourceIndex: null }]);
+    dbMocks.execute.mockResolvedValueOnce({
+      rows: [
+        { id: 1, label: "Figure 1", textForEmbed: null, referenceKind: "figure", captionSource: "text" },
+      ],
+    });
+
+    await upsertDocumentMediaAssets({
+      documentId: 10,
+      filename: "f.docx",
+      fileType: "docx",
+      caseNumber: 3,
+      text: singleFigureText,
+    });
+
+    // Two deletes: chunk_media links first, then the media_assets row.
+    expect(dbMocks.delete).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not delete a media row whose key still matches the registry", async () => {
+    queueSelects([], [{ id: 1, label: "Figure 1", referenceKind: "figure", sourceIndex: null }]);
+    dbMocks.execute.mockResolvedValueOnce({
+      rows: [
+        { id: 1, label: "Figure 1", textForEmbed: null, referenceKind: "figure", captionSource: "text" },
+      ],
+    });
+
+    await upsertDocumentMediaAssets({
+      documentId: 10,
+      filename: "f.docx",
+      fileType: "docx",
+      caseNumber: 3,
+      text: singleFigureText,
+    });
+
+    expect(dbMocks.delete).not.toHaveBeenCalled();
+  });
+
+  it("refuses to delete existing rows when the freshly-parsed registry is empty", async () => {
+    queueSelects([], [{ id: 1, label: "Figure 1", referenceKind: "figure", sourceIndex: null }]);
+
+    await expect(
+      upsertDocumentMediaAssets({
+        documentId: 10,
+        filename: "f.docx",
+        fileType: "docx",
+        caseNumber: 3,
+        text: "No figures mentioned anywhere in this document.",
+      }),
+    ).rejects.toThrow(/refusing to delete/);
+
+    expect(dbMocks.execute).not.toHaveBeenCalled();
+    expect(dbMocks.delete).not.toHaveBeenCalled();
+  });
+
+  it("merges a matching figure_captions row over the text-derived default, marking caption_source csv", async () => {
+    queueSelects(
+      [{ label: "Figure 1", sourceIndex: null, textForEmbed: "Official CSV caption." }],
+      [],
+    );
+    dbMocks.execute.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 1,
+          label: "Figure 1",
+          textForEmbed: "Official CSV caption.",
+          referenceKind: "figure",
+          captionSource: "csv",
+        },
+      ],
+    });
+
+    const result = await upsertDocumentMediaAssets({
+      documentId: 10,
+      filename: "f.docx",
+      fileType: "docx",
+      caseNumber: 3,
+      text: singleFigureText,
+    });
+
+    const [query] = dbMocks.execute.mock.calls[0] as [{ queryChunks: unknown }];
+    const queryText = JSON.stringify(query.queryChunks);
+    expect(queryText).toContain("Official CSV caption.");
+    expect(queryText).toContain("csv");
+    expect(result[0].captionSource).toBe("csv");
+  });
+
+  it("falls back to the text-derived caption when no figure_captions row matches", async () => {
+    queueSelects([{ label: "Figure 99", sourceIndex: null, textForEmbed: "Unrelated caption." }], []);
+    dbMocks.execute.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 1,
+          label: "Figure 1",
+          textForEmbed: "A cirrhotic liver with nodular surface and irregular contour.",
+          referenceKind: "figure",
+          captionSource: "text",
+        },
+      ],
+    });
+
+    const result = await upsertDocumentMediaAssets({
+      documentId: 10,
+      filename: "f.docx",
+      fileType: "docx",
+      caseNumber: 3,
+      text: singleFigureText,
+    });
+
+    expect(result[0].captionSource).toBe("text");
+  });
+});
+
+describe("clearDocumentMedia", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    dbMocks.select.mockReturnValue({ from: dbMocks.selectFrom });
+    dbMocks.selectFrom.mockReturnValue({ where: dbMocks.selectWhere });
+    dbMocks.delete.mockReturnValue({ where: dbMocks.deleteWhere });
+    dbMocks.deleteWhere.mockResolvedValue(undefined);
+  });
+
+  it("clears chunk_media links only — media_assets rows are left for the keyed upsert to manage", async () => {
+    dbMocks.selectWhere.mockResolvedValueOnce([{ id: 7 }, { id: 8 }]);
+
+    await clearDocumentMedia(42);
+
+    // One delete per asset's chunk_media links, and nothing else.
+    expect(dbMocks.delete).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("linkDocumentMediaToChunks", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    dbMocks.select.mockReturnValue({ from: dbMocks.selectFrom });
+    dbMocks.selectFrom.mockReturnValue({ where: dbMocks.selectWhere });
+    dbMocks.insert.mockReturnValue({ values: dbMocks.insertValues });
+    dbMocks.insertValues.mockReturnValue({ onConflictDoNothing: dbMocks.onConflictDoNothing });
+    dbMocks.onConflictDoNothing.mockResolvedValue(undefined);
+  });
+
+  it("links a CSV-captioned figure so its override reaches the chunk embedding (R8)", async () => {
+    dbMocks.selectWhere.mockResolvedValueOnce([
+      {
+        id: 1,
+        label: "Figure 1",
+        textForEmbed: "Corrected CSV caption.",
+        referenceKind: "figure",
+        captionSource: "csv",
+      },
+    ]);
+
+    const { links } = await linkDocumentMediaToChunks({
+      documentId: 10,
+      chunks: [{ id: 100, content: "See Figure 1 for detail.", section: null }],
+    });
+
+    expect(links).toEqual([{ chunkId: 100, mediaAssetId: 1 }]);
+  });
+
+  it("does not link a text-derived figure — its caption is already inline, no override to inject", async () => {
+    dbMocks.selectWhere.mockResolvedValueOnce([
+      {
+        id: 1,
+        label: "Figure 1",
+        textForEmbed: "Caption already in the document text.",
+        referenceKind: "figure",
+        captionSource: "text",
+      },
+    ]);
+
+    const { links } = await linkDocumentMediaToChunks({
+      documentId: 10,
+      chunks: [{ id: 100, content: "See Figure 1 for detail.", section: null }],
+    });
+
+    expect(links).toEqual([]);
+  });
+});

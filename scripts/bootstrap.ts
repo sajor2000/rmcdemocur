@@ -123,7 +123,7 @@ async function smokeBootstrap() {
     });
   }
 
-  await processDocuments({
+  const smokeSummary = await processDocuments({
     onlyCase: caseNumber,
     skipComplete: true,
     bootstrapPhase: "process-smoke",
@@ -133,6 +133,9 @@ async function smokeBootstrap() {
   if (errors.length > 0) {
     console.error("\nSmoke verification FAILED:");
     for (const e of errors) console.error(`  - ${e}`);
+    // Surface the specific per-document failures so the operator sees the cause,
+    // not just the generic incomplete-pipeline result.
+    if (smokeSummary.exitCode !== 0) console.error(`\n${smokeSummary.message}`);
     process.exit(1);
   }
 
@@ -171,10 +174,18 @@ async function fullBootstrap() {
 
   await updateBootstrapState({ phase: "process-full" });
 
-  await processDocuments({
+  const summary = await processDocuments({
     skipComplete: true,
     bootstrapPhase: "process-full",
   });
+
+  // Per-document isolation means failures no longer throw — a phase must not be
+  // marked complete when any document failed (the documented "false complete" trap).
+  if (summary.exitCode !== 0) {
+    console.error(`\nFull bootstrap INCOMPLETE:\n${summary.message}`);
+    console.error("Fix the failing documents and re-run npm run db:bootstrap:full.\n");
+    process.exit(1);
+  }
 
   await updateBootstrapState({ phase: "complete" });
 

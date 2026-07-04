@@ -1,6 +1,54 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCourseSummary } from "@/lib/queries";
+
+// Without this, Next statically prerenders the page at build time and the
+// "real" stats freeze (or bake in the no-DB placeholders) until the next deploy.
+export const dynamic = "force-dynamic";
+
+const DEMO_COURSE_ID = 1;
+
+type LandingStat = { value: string; label: string };
+
+/** Real landing stats from the database — no fabricated numbers. Coverage and
+ * gap tiles read "Pending" until alignments exist (i.e. until the Azure-gated
+ * reprocess has run), so we never show numbers computed against stub authorities
+ * or pre-semantic chunks. */
+async function getLandingStats(): Promise<LandingStat[]> {
+  const courseLabel: LandingStat = { value: "RMD 563", label: "Food to Fuel" };
+  try {
+    const summary = await getCourseSummary(DEMO_COURSE_ID);
+    if (!summary) {
+      return [
+        { value: "—", label: "Guides Processed (seed pending)" },
+        courseLabel,
+        { value: "—", label: "AAMC Coverage (seed pending)" },
+        { value: "—", label: "USMLE Gaps (seed pending)" },
+      ];
+    }
+    const { metrics } = summary;
+    const hasAlignments = metrics.usmleDomainsCovered > 0 || metrics.aamcCoveragePercent > 0;
+    return [
+      { value: String(metrics.guidesProcessed), label: "Guides Processed" },
+      courseLabel,
+      hasAlignments
+        ? { value: `${metrics.aamcCoveragePercent}%`, label: "AAMC Coverage" }
+        : { value: "Pending", label: "AAMC Coverage (reprocess)" },
+      hasAlignments
+        ? { value: String(metrics.usmleGaps), label: "USMLE Gaps Detected" }
+        : { value: "Pending", label: "USMLE Gaps (reprocess)" },
+    ];
+  } catch {
+    // DB not configured (e.g. static preview): show honest placeholders, not fake numbers.
+    return [
+      { value: "—", label: "Guides Processed" },
+      courseLabel,
+      { value: "—", label: "AAMC Coverage" },
+      { value: "—", label: "USMLE Gaps Detected" },
+    ];
+  }
+}
 
 function VennDiagram() {
   return (
@@ -15,7 +63,8 @@ function VennDiagram() {
   );
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  const stats = await getLandingStats();
   return (
     <div>
       <section className="bg-gradient-to-br from-rush-green to-rush-green-dark px-4 py-16 text-white sm:px-6">
@@ -62,12 +111,7 @@ export default function HomePage() {
 
       <section className="border-y border-gray-200 bg-white py-10">
         <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 px-4 sm:grid-cols-4 sm:px-6">
-          {[
-            ["4", "Faculty Guides Processed"],
-            ["RMD 563", "Food to Fuel"],
-            ["87%", "AAMC Coverage"],
-            ["3", "USMLE Gaps Detected"],
-          ].map(([value, label]) => (
+          {stats.map(({ value, label }) => (
             <div key={label} className="text-center">
               <p className="font-heading text-3xl font-bold text-rush-green">{value}</p>
               <p className="text-sm text-rush-medium">{label}</p>

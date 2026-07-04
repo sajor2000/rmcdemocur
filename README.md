@@ -2,7 +2,9 @@
 
 AI-powered curriculum mapping demo for Rush Medical College — **RMD 563: Food to Fuel**.
 
-Maps faculty guides and self-study materials to **AAMC PCRS/Core EPAs** and the **USMLE 2025 Content Outline**, surfaces alignment gaps, natural-language search, and a regex-first **Learning Objectives** explorer with optional LLM cleanup.
+Maps faculty guides and self-study materials to the official **AAMC PCRS (2013 — 8 domains, 58 competencies)** and **13 Core EPAs**, plus the **USMLE 2025 Content Outline**, surfaces alignment gaps, natural-language search, and a regex-first **Learning Objectives** explorer with optional LLM cleanup.
+
+> Framework provenance: PCRS is the 2013 AAMC Physician Competency Reference Set (the AAMC Curriculum Inventory mapping standard); its successor "Foundational Competencies for UME" was released Dec 2024. Competency/EPA text is committed as attributed authority JSON under `data/frameworks/` (see `aamc-pcrs-2013.json`, `aamc-core-epas.json`).
 
 **Repository:** [github.com/sajor2000/rmcdemocur](https://github.com/sajor2000/rmcdemocur)  
 **Default branch:** `main`
@@ -61,7 +63,12 @@ npm install
 | `AZURE_OPENAI_DEPLOYMENT_CHAT` | Chat model (default `gpt-4.1`) |
 | `AZURE_OPENAI_DEPLOYMENT_EMBED` | Embedding model (default `text-embedding-3-large`) |
 | `AZURE_OPENAI_EMBEDDING_DIMENSIONS` | Must be `1536` (matches `vector(1536)` schema) |
-| `API_SECRET` | Optional — when set, all `/api/*` routes require `Authorization: Bearer ...` |
+| `API_SECRET` | Optional — when set, **all** `/api/*` routes (reads and writes) require a credential: a `Authorization: Bearer <API_SECRET>` header for server-to-server calls, or the short-lived HMAC session cookie the app issues to the browser on page load (so `fetch` and EventSource authenticate automatically same-origin). **Important:** any visitor who can load a page receives a session cookie, so `API_SECRET` alone blocks direct API scraping, not page-mediated access — put the deployment behind a page-level gate (e.g. Vercel Deployment Protection) when the content must be private. Unset = fully open (dev default). |
+| `RETRIEVAL_MAX_DISTANCE` | Optional — max cosine distance for framework/keyword candidate retrieval. Unset = no filtering. Calibrate after any re-embed with `npx tsx scripts/calibrate-thresholds.ts`. |
+| `SEARCH_MIN_SIMILARITY` | Optional — min cosine similarity for search results. Unset = no filtering. Calibrated by the same script. |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob token for private media storage. Required in production — Vercel's runtime filesystem is read-only, so figures 404 without it. Set this **or** `BLOB_STORE_ID`; either is sufficient, the SDK resolves auth from whichever is present. Unset = falls back to serving media from the local filesystem (dev only). |
+| `BLOB_STORE_ID` | Alternative to `BLOB_READ_WRITE_TOKEN` for a dashboard-connected Blob store (OIDC-based auth). |
+| `MEDIA_ROOT` | Optional override for the local filesystem media directory (dev fallback / tests). Defaults to `data/curriculum/media` under the repo root. |
 
 ### 2. Framework authority files
 
@@ -149,6 +156,8 @@ Framework binaries live under `data/frameworks/` (see `npm run copy:frameworks`)
 | `npm run db:seed-frameworks` | Parse and seed framework tables |
 | `npm run db:seed` | Seed course + 14 document rows |
 | `npm run db:process` | Copy, parse, embed, align all guides |
+| `npm run db:extract-media` | Extract faculty DOCX embedded images to `data/curriculum/media/` (MVP scope) |
+| `npx tsx scripts/audit-figures.ts --gate` | Figure registry audit before process |
 | `npm run db:realign` | Re-run alignment + gap recompute (no re-embed) |
 | `npm run db:extract-objectives` | Batch objective extraction report |
 
@@ -165,7 +174,7 @@ drizzle/              Schema and migrations
 lib/                  Pipeline, parsers, Azure AI, objective extraction
 scripts/              Seed, process, and setup CLIs
 data/                 Local curriculum + frameworks (gitignored binaries)
-AGENTS.md             Agent entry point — read order and conventions
+AGENTS.md             Canonical agent entry — read order, git/CE policy ([CLAUDE.md](CLAUDE.md) points here)
 CONCEPTS.md           Domain vocabulary
 docs/                 Architecture, schema, plans, solutions, ideation
 ```
@@ -184,7 +193,7 @@ docs/                 Architecture, schema, plans, solutions, ideation
 
 | Doc | Description |
 |-----|-------------|
-| [AGENTS.md](AGENTS.md) | Agent guide — read order, layout, commands |
+| [AGENTS.md](AGENTS.md) | **Canonical agent guide** — read order, git/CE policy, commands |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Pipeline stages, API routes, module map, data flow |
 | [docs/SCHEMA.md](docs/SCHEMA.md) | Postgres tables, ER diagram, framework ID conventions |
 | [docs/README.md](docs/README.md) | Doc index, bootstrap checklist, plan status |

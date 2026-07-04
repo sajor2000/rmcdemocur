@@ -104,6 +104,8 @@ erDiagram
 | `chunks` | ~500-token segments of parsed document text | `document_id`, `section`, `content`, `embedding` |
 | `course_objectives` | Learning objectives extracted regex-first during pipeline | `document_id`, `text`, `section_heading`, `eo_code`, `extraction_method`, `source_excerpt` |
 | `processing_jobs` | Upload/pipeline progress for SSE UI | `document_id`, `stage`, `progress`, `status` |
+| `media_assets` | Figure/video registry per document | `document_id`, `label`, `reference_kind`, `text_for_embed`, `storage_path`, `extraction_scope` |
+| `chunk_media` | Join table linking chunks to figures | `chunk_id`, `media_asset_id` |
 
 ### Framework catalogs (authority side)
 
@@ -112,7 +114,7 @@ These are seeded from USMLE 2025 PDF and AAMC keyword/competency files — not f
 | Table | Source | Purpose |
 |-------|--------|---------|
 | `usmle_domains` | USMLE Content Outline PDF | Hierarchical Step 1 systems/subdomains; `parent_stable_id` links children |
-| `aamc_competencies` | AAMC curriculum inventory | PCRS competency rows with `stable_id` |
+| `aamc_competencies` | `data/frameworks/aamc-pcrs-2013.json` + `aamc-core-epas.json` | Official 2013 PCRS (8 domains / 58 competencies) + 13 Core EPAs, with `stable_id` |
 | `aamc_keywords` | AAMC keywords xlsx | Keyword definitions for tagging |
 
 All three catalog tables include optional `embedding` vectors for RAG retrieval during alignment.
@@ -155,9 +157,10 @@ Gap analysis and heatmaps aggregate from `gap_summary` and `alignments` grouped 
 When a document is reprocessed (`runFullPipeline`), `clearDocumentArtifacts` removes in order:
 
 1. `alignments` and `keyword_tags` for all chunks of the document
-2. `chunks`
-3. `gap_summary`
-4. `course_objectives`
+2. `chunk_media` and `media_assets` for the document
+3. `chunks`
+4. `gap_summary`
+5. `course_objectives`
 
 Framework catalog tables are **not** wiped on document reprocess — only on `db:seed-frameworks`.
 
@@ -166,7 +169,7 @@ Framework catalog tables are **not** wiped on document reprocess — only on `db
 ## Bootstrap order
 
 ```
-db:push  →  db:seed-frameworks  →  db:seed  →  db:process
+db:push  →  db:seed-frameworks  →  db:seed  →  db:extract-media  →  db:process
    │              │                    │            │
  schema      USMLE/AAMC           course +      parse, objectives,
              catalogs             14 docs       embed, align, gaps

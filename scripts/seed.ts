@@ -3,12 +3,14 @@ import path from "path";
 import { sql } from "drizzle-orm";
 import {
   alignments,
+  chunkMedia,
   chunks,
   courseObjectives,
   courses,
   documents,
   gapSummary,
   keywordTags,
+  mediaAssets,
   processingJobs,
 } from "../drizzle/schema";
 import { getDb } from "../lib/db";
@@ -22,8 +24,8 @@ const DEMO_DOCUMENTS = [
     diagnosis: "GERD with gastric ulcer",
   },
   {
-    filename: "RMD563_FacultyGuide_Case2_JessicaDonner.docx",
-    fileType: "docx",
+    filename: "RMD563_FacultyGuide_Case2_JessicaDonner.pdf",
+    fileType: "pdf",
     caseNumber: 2,
     caseTitle: "Jessica Donner",
     diagnosis: "Pediatric GI/nutrition case",
@@ -121,6 +123,8 @@ export async function seedCourse(): Promise<void> {
   // FK-safe wipe: pipeline artifacts before documents/courses
   await db.delete(alignments);
   await db.delete(keywordTags);
+  await db.delete(chunkMedia);
+  await db.delete(mediaAssets);
   await db.delete(chunks);
   await db.delete(courseObjectives);
   await db.delete(processingJobs);

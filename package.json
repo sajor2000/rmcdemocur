@@ -17,12 +17,17 @@
     "db:seed-frameworks": "tsx scripts/seed-frameworks.ts",
     "db:seed": "tsx scripts/seed.ts",
     "db:process": "tsx scripts/process-documents.ts",
+    "db:extract-media": "tsx scripts/extract-docx-media.ts",
     "db:bootstrap:smoke": "tsx scripts/bootstrap.ts smoke",
     "db:bootstrap:full": "tsx scripts/bootstrap.ts full",
     "db:bootstrap:status": "tsx scripts/bootstrap.ts status",
     "db:audit-bootstrap": "tsx scripts/audit-bootstrap.ts",
     "db:extract-objectives": "tsx scripts/extract-objectives.ts",
-    "db:realign": "tsx scripts/realign.ts"
+    "db:realign": "tsx scripts/realign.ts",
+    "db:collapse-duplicate-media": "tsx scripts/collapse-duplicate-media.ts",
+    "db:backfill-media-paths": "tsx scripts/backfill-media-paths.ts",
+    "db:import-figure-captions": "tsx scripts/import-figure-captions.ts",
+    "db:migrate-captions": "tsx scripts/migrate-captions.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.5",
@@ -30,6 +35,7 @@
     "@radix-ui/react-progress": "^1.1.1",
     "@radix-ui/react-slider": "^1.2.2",
     "@radix-ui/react-slot": "^1.1.1",
+    "@vercel/blob": "^2.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^16.4.7",

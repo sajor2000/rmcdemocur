@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { DropZone } from "@/components/upload/DropZone";
 import { ProcessingStatus } from "@/components/upload/ProcessingStatus";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DEMO_CASES } from "@/lib/demo-data";
+import { SAMPLE_CASES } from "@/lib/demo-data";
 
 export default function UploadPage() {
   const [jobId, setJobId] = useState<number | null>(null);
@@ -71,17 +71,21 @@ export default function UploadPage() {
 
       <Card className="mt-10">
         <CardHeader>
-          <CardTitle>Recently Processed (Demo)</CardTitle>
+          <CardTitle>Sample cases — illustrative only</CardTitle>
         </CardHeader>
         <CardContent>
+          <p className="mb-3 text-xs text-rush-medium">
+            Example RMD 563 cases showing the expected shape of processed content. This is
+            sample data, not live processing status — see the dashboard for real results.
+          </p>
           <ul className="space-y-2 text-sm">
-            {DEMO_CASES.map((c) => (
+            {SAMPLE_CASES.map((c) => (
               <li key={c.id} className="flex items-center justify-between rounded border p-3">
                 <span>
                   Case {c.caseNumber}: {c.caseTitle}
                 </span>
-                <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
-                  {jobId ? status?.status ?? "processed" : "ready"}
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                  sample
                 </span>
               </li>
             ))}

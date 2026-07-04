@@ -3,6 +3,7 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import {
   buildUsmleChildStableId,
+  loadAamcPcrsCatalog,
   parseAamcKeywordsSheet,
   parseUsmleOutlineText,
   slugify,
@@ -77,6 +78,47 @@ describe("parseUsmleOutlineText", () => {
     expect(
       ssSubs.some((r) => /ethics|jurisprudence/i.test(r.subdomain ?? "")),
     ).toBe(true);
+  });
+});
+
+describe("loadAamcPcrsCatalog (U6 real framework data)", () => {
+  const rows = loadAamcPcrsCatalog(
+    path.join(__dirname, "../../data/frameworks"),
+  );
+
+  it("loads the full official 2013 PCRS: 8 domains, 58 competencies", () => {
+    const competencies = rows.filter((r) => r.domain !== "EPA");
+    const domains = new Set(competencies.map((r) => r.domain));
+    expect(domains.size).toBe(8);
+    expect(competencies).toHaveLength(58);
+  });
+
+  it("loads all 13 Core EPAs", () => {
+    const epas = rows.filter((r) => r.domain === "EPA");
+    expect(epas).toHaveLength(13);
+    expect(epas.map((e) => e.stableId)).toContain("aamc:epa1");
+    expect(epas.map((e) => e.stableId)).toContain("aamc:epa13");
+  });
+
+  it("has no stub text and non-empty fullText for every row", () => {
+    for (const r of rows) {
+      expect(r.fullText.trim().length).toBeGreaterThan(0);
+      expect(r.fullText.toLowerCase()).not.toContain("stub");
+      expect(r.sourceDoc).not.toContain("stub");
+    }
+  });
+
+  it("keeps every stable id within varchar(80)", () => {
+    for (const r of rows) {
+      expect(r.stableId.length).toBeLessThanOrEqual(80);
+      if (r.parentStableId) expect(r.parentStableId.length).toBeLessThanOrEqual(80);
+    }
+  });
+
+  it("carries edition provenance in sourceDoc", () => {
+    const pc1 = rows.find((r) => r.stableId === "aamc:pc1");
+    expect(pc1?.sourceDoc).toContain("pcrs");
+    expect(pc1?.fullText).toContain("Patient Care");
   });
 });
 

@@ -27,6 +27,25 @@ const PARSED_DIR = path.join(FRAMEWORKS_DIR, "parsed");
 const USMLE_STABLE_ID_MAX = 120;
 const EMBED_TEXT_MAX = 8000;
 
+/**
+ * Collapse USMLE rows sharing a stableId, keeping the first occurrence. The
+ * seed loop upserts each row keyed by stableId, so duplicates in the parsed
+ * bundle map to a single DB row (first wins). Deduping here makes the bundle
+ * length match the insertable-row count, so `frameworks.usmle.total` equals the
+ * number that can actually embed — otherwise `complete` (embedded >= total)
+ * never reads true (the 612/614 false-negative).
+ */
+export function dedupeUsmleByStableId<T extends { stableId: string }>(rows: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const row of rows) {
+    if (seen.has(row.stableId)) continue;
+    seen.add(row.stableId);
+    out.push(row);
+  }
+  return out;
+}
+
 export function assertUsmleStableIdLengths(
   rows: { stableId: string; parentStableId: string | null }[],
 ) {
@@ -289,6 +308,8 @@ export async function seedFrameworks(options?: {
   await db.execute(sql`CREATE EXTENSION IF NOT EXISTS vector`);
 
   const bundle = await parseAllFrameworkSources(FRAMEWORKS_DIR);
+  // Dedupe before totals/asserts so `total` matches the insertable-row count.
+  bundle.usmle = dedupeUsmleByStableId(bundle.usmle);
   assertUsmleStableIdLengths(bundle.usmle);
 
   await fs.mkdir(PARSED_DIR, { recursive: true });

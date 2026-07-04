@@ -2,14 +2,17 @@ import { sql, eq, desc, and } from "drizzle-orm";
 import {
   alignments,
   aamcCompetencies,
+  chunkMedia,
   chunks,
   courseObjectives,
   courses,
   documents,
   gapSummary,
+  mediaAssets,
   usmleDomains,
 } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
+import { passesSimilarity, resolveMinSimilarity } from "@/lib/retrieval-config";
 
 export async function getCourseWithDocuments(courseId: number) {
   const db = getDb();
@@ -188,10 +191,50 @@ export async function getMapData(courseId: number) {
     .innerJoin(documents, eq(documents.id, chunks.documentId))
     .where(eq(documents.courseId, courseId));
 
+  const mediaLinkRows = await db
+    .select({
+      chunkId: chunkMedia.chunkId,
+      mediaAssetId: chunkMedia.mediaAssetId,
+      asset: mediaAssets,
+    })
+    .from(chunkMedia)
+    .innerJoin(mediaAssets, eq(mediaAssets.id, chunkMedia.mediaAssetId))
+    .innerJoin(chunks, eq(chunks.id, chunkMedia.chunkId))
+    .innerJoin(documents, eq(documents.id, chunks.documentId))
+    .where(eq(documents.courseId, courseId));
+
+  const mediaByChunkId: Record<
+    number,
+    {
+      id: number;
+      label: string;
+      textForEmbed: string | null;
+      hasFile: boolean;
+      hasCaptionInText: boolean | null;
+      referenceKind: string;
+    }[]
+  > = {};
+
+  for (const row of mediaLinkRows) {
+    const list = mediaByChunkId[row.chunkId] ?? [];
+    list.push({
+      id: row.asset.id,
+      label: row.asset.label,
+      textForEmbed: row.asset.textForEmbed,
+      // Never expose the raw storage_path — it's a filesystem/Blob locator
+      // key, not client-facing data; the client only ever needs to know
+      // whether /api/media/{id} will actually return bytes.
+      hasFile: Boolean(row.asset.storagePath),
+      hasCaptionInText: row.asset.hasCaptionInText,
+      referenceKind: row.asset.referenceKind,
+    });
+    mediaByChunkId[row.chunkId] = list;
+  }
+
   const aamc = await db.select().from(aamcCompetencies);
   const usmle = await db.select().from(usmleDomains);
 
-  return { documents: docs, chunks: chunkRows, alignments: alignmentRows, aamc, usmle };
+  return { documents: docs, chunks: chunkRows, alignments: alignmentRows, mediaByChunkId, aamc, usmle };
 }
 
 export async function searchChunks(courseId: number, queryEmbedding: number[], limit = 5) {
@@ -202,11 +245,19 @@ export async function searchChunks(courseId: number, queryEmbedding: number[], l
            1 - (c.embedding <=> ${vectorStr}::vector) AS similarity
     FROM chunks c
     JOIN documents d ON d.id = c.document_id
-    WHERE d.course_id = ${courseId}
+    WHERE d.course_id = ${courseId} AND c.embedding IS NOT NULL
     ORDER BY similarity DESC
     LIMIT ${limit}
   `);
-  return result.rows as Record<string, unknown>[];
+  const rows = result.rows as Record<string, unknown>[];
+
+  // Relevance floor (default off). When set, keep only results that clear it;
+  // if none clear it, fall back to the single best hit so the caller can surface
+  // a low-confidence answer rather than an empty result.
+  const minSimilarity = resolveMinSimilarity();
+  if (minSimilarity === null) return rows;
+  const passing = rows.filter((r) => passesSimilarity(Number(r.similarity), minSimilarity));
+  return passing.length ? passing : rows.slice(0, 1);
 }
 
 export async function getGapExportRows(courseId: number) {

@@ -1,8 +1,16 @@
 import { sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import type { FrameworkCandidate } from "@/lib/framework-catalog";
+import { passesDistance, resolveMaxDistance } from "@/lib/retrieval-config";
 
 const DEFAULT_K = 20;
+
+/** Drop candidate rows whose cosine distance exceeds the configured floor
+ * (no-op when the floor is unset). Each row carries a `distance` column. */
+function withinDistanceFloor<T extends { distance?: unknown }>(rows: T[]): T[] {
+  const maxDistance = resolveMaxDistance();
+  return rows.filter((r) => passesDistance(Number(r.distance), maxDistance));
+}
 
 export async function retrieveUsmleCandidates(
   chunkEmbedding: number[],
@@ -14,14 +22,15 @@ export async function retrieveUsmleCandidates(
   const db = getDb();
   const vec = `[${chunkEmbedding.join(",")}]`;
   const rows = await db.execute(sql`
-    SELECT stable_id, domain, subdomain, full_text
+    SELECT stable_id, domain, subdomain, full_text,
+           embedding <=> ${vec}::vector AS distance
     FROM usmle_domains
     WHERE embedding IS NOT NULL AND subdomain IS NOT NULL
-    ORDER BY embedding <=> ${vec}::vector
+    ORDER BY distance
     LIMIT ${k}
   `);
 
-  return (rows.rows as Record<string, unknown>[]).map((r) => ({
+  return withinDistanceFloor(rows.rows as Record<string, unknown>[]).map((r) => ({
     stableId: String(r.stable_id),
     label: `${r.domain}${r.subdomain ? ` — ${r.subdomain}` : ""}`,
     description: String(r.full_text ?? r.description ?? "").slice(0, 500),
@@ -46,7 +55,7 @@ export async function retrieveAamcCandidates(
     LIMIT ${k}
   `);
 
-  return (rows.rows as Record<string, unknown>[]).map((r) => ({
+  return withinDistanceFloor(rows.rows as Record<string, unknown>[]).map((r) => ({
     stableId: String(r.stable_id ?? r.sub_id),
     label: `${r.sub_id}: ${r.domain_name} — ${r.description}`,
     description: String(r.full_text ?? r.description ?? "").slice(0, 500),
@@ -60,14 +69,15 @@ export async function retrieveKeywordCandidates(
   const db = getDb();
   const vec = `[${chunkEmbedding.join(",")}]`;
   const rows = await db.execute(sql`
-    SELECT stable_id, keyword, definition
+    SELECT stable_id, keyword, definition,
+           embedding <=> ${vec}::vector AS distance
     FROM aamc_keywords
     WHERE embedding IS NOT NULL
-    ORDER BY embedding <=> ${vec}::vector
+    ORDER BY distance
     LIMIT ${k}
   `);
 
-  return (rows.rows as Record<string, unknown>[]).map((r) => ({
+  return withinDistanceFloor(rows.rows as Record<string, unknown>[]).map((r) => ({
     stableId: String(r.stable_id),
     keyword: String(r.keyword),
     definition: String(r.definition ?? ""),
