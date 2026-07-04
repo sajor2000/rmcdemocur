@@ -2,13 +2,19 @@ import fs from "fs/promises";
 import path from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { put as blobPut } from "@vercel/blob";
 import { FACULTY_GUIDES, SELF_STUDY_GUIDES } from "./curriculum-sources";
 import { parseDocument } from "../lib/document-parser";
 import {
   buildDocumentFigureMeta,
   buildFigureRegistry,
 } from "../lib/figure-registry";
-import { mediaDirForDocument, mediaFilePath } from "../lib/media-storage";
+import {
+  blobConfigured,
+  mediaDirForDocument,
+  mediaFilePath,
+  mediaLocatorKey,
+} from "../lib/media-storage";
 
 const execFileAsync = promisify(execFile);
 
@@ -19,6 +25,7 @@ export type ExtractReport = {
   skippedReason?: string;
   extractedCount: number;
   outputDir?: string;
+  blobUploadErrors?: { sourceIndex: number; error: string }[];
 };
 
 export function resolveExtractTargets(scope: ExtractScope): string[] {
@@ -77,10 +84,13 @@ export async function extractDocxMedia(options?: {
     await fs.mkdir(outDir, { recursive: true });
 
     let extractedCount = 0;
+    const blobUploadErrors: { sourceIndex: number; error: string }[] = [];
+    const uploadToBlob = blobConfigured();
     for (let i = 0; i < mediaEntries.length; i++) {
       const entry = mediaEntries[i];
       const ext = path.extname(entry).slice(1) || "bin";
-      const destPath = mediaFilePath(mapping.caseNumber, filename, i + 1, ext);
+      const sourceIndex = i + 1;
+      const destPath = mediaFilePath(mapping.caseNumber, filename, sourceIndex, ext);
 
       try {
         const [existingStat, zipStat] = await Promise.all([
@@ -107,12 +117,31 @@ export async function extractDocxMedia(options?: {
       });
       await fs.writeFile(destPath, stdout as unknown as Buffer);
       extractedCount += 1;
+
+      if (uploadToBlob) {
+        const key = mediaLocatorKey(mapping.caseNumber, filename, sourceIndex, ext);
+        try {
+          await blobPut(key, stdout as unknown as Buffer, {
+            access: "private",
+            allowOverwrite: true,
+          });
+        } catch (err) {
+          // Local extraction already succeeded and must not be undone by an
+          // upload failure — report per-file so a forgotten/failed upload is
+          // diagnosable (surfaces again as a 404 at serve time, see R6).
+          blobUploadErrors.push({
+            sourceIndex,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
     }
 
     reports.push({
       filename,
       extractedCount,
       outputDir: outDir,
+      ...(blobUploadErrors.length > 0 ? { blobUploadErrors } : {}),
     });
   }
 

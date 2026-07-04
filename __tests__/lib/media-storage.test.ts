@@ -1,6 +1,7 @@
 import path from "path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
+  blobConfigured,
   mediaFilePath,
   mediaLocatorKey,
   resolveMediaKeyPath,
@@ -43,5 +44,30 @@ describe("mediaFilePath", () => {
     const filePath = mediaFilePath(4, "RMD563_FacultyGuide_Case4_JohnJackson.docx", 3, "png");
     const expectedKey = mediaLocatorKey(4, "RMD563_FacultyGuide_Case4_JohnJackson.docx", 3, "png");
     expect(filePath).toBe(resolveMediaKeyPath(expectedKey));
+  });
+});
+
+describe("blobConfigured", () => {
+  const original = { ...process.env };
+  afterEach(() => {
+    process.env = { ...original };
+  });
+
+  it("is false when neither credential env var is set", () => {
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    delete process.env.BLOB_STORE_ID;
+    expect(blobConfigured()).toBe(false);
+  });
+
+  it("is true with a static read-write token", () => {
+    delete process.env.BLOB_STORE_ID;
+    process.env.BLOB_READ_WRITE_TOKEN = "token";
+    expect(blobConfigured()).toBe(true);
+  });
+
+  it("is true with a store id (the dashboard-connected OIDC flow)", () => {
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    process.env.BLOB_STORE_ID = "store_123";
+    expect(blobConfigured()).toBe(true);
   });
 });

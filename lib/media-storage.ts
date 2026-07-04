@@ -29,6 +29,13 @@ export function mediaLocatorKey(
   );
 }
 
+/** True when Vercel Blob credentials are present, in either shape the SDK
+ * accepts: a static read-write token, or a store id (paired with the
+ * platform-injected OIDC token on Vercel's own dashboard-connected flow). */
+export function blobConfigured(): boolean {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
+}
+
 /** Reject a locator key that would resolve outside MEDIA_ROOT (traversal guard). */
 export function resolveMediaKeyPath(key: string): string | null {
   const root = path.resolve(MEDIA_ROOT);

@@ -35,6 +35,7 @@
     "@radix-ui/react-progress": "^1.1.1",
     "@radix-ui/react-slider": "^1.2.2",
     "@radix-ui/react-slot": "^1.1.1",
+    "@vercel/blob": "^2.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^16.4.7",
