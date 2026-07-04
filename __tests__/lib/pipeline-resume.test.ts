@@ -120,6 +120,8 @@ describe("runFullPipeline resume", () => {
     content: b.content,
     section: b.section,
     embedding: [0.1, 0.2, 0.3],
+    // Already alignment-processed → resume skips align via the aligned_at marker.
+    alignedAt: new Date(),
   }));
   const chunkIdRows = existingRows.map((r) => ({ chunk_id: r.id }));
 
@@ -135,10 +137,10 @@ describe("runFullPipeline resume", () => {
       [{ courseId: 1 }],
       [{ count: built.length }],
     ]);
-    // execute() order on resume: countObjectives → aligned set → tagged set → gaps
+    // execute() order on resume: countObjectives → tagged set → gaps. The aligned
+    // set is no longer an execute query — it is read from existingRows.alignedAt.
     dbMocks.execute
       .mockResolvedValueOnce({ rows: [{ n: 1 }] })
-      .mockResolvedValueOnce({ rows: chunkIdRows })
       .mockResolvedValueOnce({ rows: chunkIdRows })
       .mockResolvedValue({ rows: [] });
 

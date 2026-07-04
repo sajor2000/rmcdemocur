@@ -54,6 +54,10 @@ export const chunks = pgTable("chunks", {
   section: text("section"),
   content: text("content").notNull(),
   embedding: vector("embedding"),
+  // Set when the alignment stage processes a chunk, whether or not it produced
+  // alignment rows. Distinguishes "not yet aligned" from "aligned to nothing"
+  // for resume and completeness — see lib/pipeline.ts alignment loop.
+  alignedAt: timestamp("aligned_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
