@@ -12,7 +12,20 @@ const dbMocks = vi.hoisted(() => {
   );
   const deleteWhere = vi.fn(() => Promise.resolve(undefined));
   const deleteFn = vi.fn(() => ({ where: deleteWhere }));
-  return { select, selectFrom, selectWhere, execute, delete: deleteFn, deleteWhere };
+  const onConflictDoNothing = vi.fn(() => Promise.resolve(undefined));
+  const insertValues = vi.fn(() => ({ onConflictDoNothing }));
+  const insert = vi.fn(() => ({ values: insertValues }));
+  return {
+    select,
+    selectFrom,
+    selectWhere,
+    execute,
+    delete: deleteFn,
+    deleteWhere,
+    insert,
+    insertValues,
+    onConflictDoNothing,
+  };
 });
 
 vi.mock("@/lib/db", () => ({ getDb: () => dbMocks }));
@@ -21,6 +34,7 @@ import {
   assignFacultyAnswerImageStoragePaths,
   buildEmbedTextForChunk,
   clearDocumentMedia,
+  linkDocumentMediaToChunks,
   linkedMediaIdsForChunk,
   upsertDocumentMediaAssets,
 } from "@/lib/media-pipeline";
@@ -268,5 +282,54 @@ describe("clearDocumentMedia", () => {
 
     // One delete per asset's chunk_media links, and nothing else.
     expect(dbMocks.delete).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("linkDocumentMediaToChunks", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    dbMocks.select.mockReturnValue({ from: dbMocks.selectFrom });
+    dbMocks.selectFrom.mockReturnValue({ where: dbMocks.selectWhere });
+    dbMocks.insert.mockReturnValue({ values: dbMocks.insertValues });
+    dbMocks.insertValues.mockReturnValue({ onConflictDoNothing: dbMocks.onConflictDoNothing });
+    dbMocks.onConflictDoNothing.mockResolvedValue(undefined);
+  });
+
+  it("links a CSV-captioned figure so its override reaches the chunk embedding (R8)", async () => {
+    dbMocks.selectWhere.mockResolvedValueOnce([
+      {
+        id: 1,
+        label: "Figure 1",
+        textForEmbed: "Corrected CSV caption.",
+        referenceKind: "figure",
+        captionSource: "csv",
+      },
+    ]);
+
+    const { links } = await linkDocumentMediaToChunks({
+      documentId: 10,
+      chunks: [{ id: 100, content: "See Figure 1 for detail.", section: null }],
+    });
+
+    expect(links).toEqual([{ chunkId: 100, mediaAssetId: 1 }]);
+  });
+
+  it("does not link a text-derived figure — its caption is already inline, no override to inject", async () => {
+    dbMocks.selectWhere.mockResolvedValueOnce([
+      {
+        id: 1,
+        label: "Figure 1",
+        textForEmbed: "Caption already in the document text.",
+        referenceKind: "figure",
+        captionSource: "text",
+      },
+    ]);
+
+    const { links } = await linkDocumentMediaToChunks({
+      documentId: 10,
+      chunks: [{ id: 100, content: "See Figure 1 for detail.", section: null }],
+    });
+
+    expect(links).toEqual([]);
   });
 });

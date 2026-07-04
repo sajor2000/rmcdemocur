@@ -1,6 +1,6 @@
 import "./load-env";
 import path from "path";
-import { neon } from "@neondatabase/serverless";
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 
 export function directUrl(): string {
   const url = process.env.DATABASE_URL;
@@ -170,7 +170,9 @@ const MEDIA_ASSETS_UNIQUE_INDEX_SQL = `
     ON media_assets (document_id, label, reference_kind, (COALESCE(source_index, -1)))
 `;
 
-async function hasDuplicateMediaAssetRows(sql: ReturnType<typeof neon>): Promise<boolean> {
+async function hasDuplicateMediaAssetRows(
+  sql: NeonQueryFunction<false, false>,
+): Promise<boolean> {
   const rows = (await sql(`
     SELECT 1 FROM media_assets
     GROUP BY document_id, label, reference_kind, COALESCE(source_index, -1)
@@ -187,14 +189,17 @@ export async function pushSchema(): Promise<void> {
   }
 
   if (await hasDuplicateMediaAssetRows(sql)) {
-    console.warn(
+    // Fail loudly instead of leaving media_assets_key_idx missing: the keyed
+    // upsert in lib/media-pipeline.ts unconditionally targets this index in
+    // its ON CONFLICT clause, so a DB that "succeeded" without it would only
+    // find out the hard way on the next document-processing run.
+    throw new Error(
       "media_assets has duplicate rows on (document_id, label, reference_kind, source_index) — " +
-        "skipping unique index creation. Run `npx tsx scripts/collapse-duplicate-media.ts` to " +
+        "cannot create media_assets_key_idx. Run `npx tsx scripts/collapse-duplicate-media.ts` to " +
         "collapse duplicates, then re-run this script.",
     );
-  } else {
-    await sql(MEDIA_ASSETS_UNIQUE_INDEX_SQL);
   }
+  await sql(MEDIA_ASSETS_UNIQUE_INDEX_SQL);
 
   console.log("Schema ready (pgvector + RushMap tables).");
 }

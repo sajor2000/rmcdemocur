@@ -24,8 +24,8 @@ export type CaptionMigrationSummary = {
   reported: { mediaAssetId: number; filename: string; label: string }[];
 };
 
-function coveredKey(filename: string, label: string): string {
-  return `${filename}::${label}`;
+function coveredKey(filename: string, label: string, sourceIndex: number | null): string {
+  return `${filename}::${label}::${sourceIndex ?? -1}`;
 }
 
 export async function migrateCaptionsToInputTable(): Promise<CaptionMigrationSummary> {
@@ -43,14 +43,20 @@ export async function migrateCaptionsToInputTable(): Promise<CaptionMigrationSum
     .where(and(eq(mediaAssets.hasCaptionInText, true), isNotNull(mediaAssets.textForEmbed)));
 
   const existingCaptions = await db
-    .select({ filename: figureCaptions.filename, label: figureCaptions.label })
+    .select({
+      filename: figureCaptions.filename,
+      label: figureCaptions.label,
+      sourceIndex: figureCaptions.sourceIndex,
+    })
     .from(figureCaptions);
-  const covered = new Set(existingCaptions.map((row) => coveredKey(row.filename, row.label)));
+  const covered = new Set(
+    existingCaptions.map((row) => coveredKey(row.filename, row.label, row.sourceIndex)),
+  );
 
   const summary: CaptionMigrationSummary = { rescued: 0, alreadyCovered: 0, reported: [] };
 
   for (const asset of captionedAssets) {
-    if (covered.has(coveredKey(asset.filename, asset.label))) {
+    if (covered.has(coveredKey(asset.filename, asset.label, asset.sourceIndex))) {
       summary.alreadyCovered += 1;
       continue;
     }

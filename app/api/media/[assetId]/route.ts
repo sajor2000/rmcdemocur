@@ -50,8 +50,13 @@ async function serveFromBlob(key: string, request: Request): Promise<NextRespons
   let result: Awaited<ReturnType<typeof blobGet>>;
   try {
     result = await blobGet(key, { access: "private" });
-  } catch {
-    result = null;
+  } catch (err) {
+    // blobGet resolves null (not throws) for a genuinely missing object, so
+    // anything that throws here is a real failure (auth, network, rate
+    // limit) — conflating it with "not uploaded" would hide a Blob outage or
+    // misconfigured token behind a misleading 404.
+    console.error(`Blob fetch failed for ${key}:`, err);
+    return NextResponse.json({ error: "Media storage temporarily unavailable" }, { status: 502 });
   }
 
   if (!result) {

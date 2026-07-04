@@ -20,7 +20,7 @@
  *   npx tsx scripts/collapse-duplicate-media.ts
  */
 import "./load-env";
-import { neon } from "@neondatabase/serverless";
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import { directUrl } from "./db-init";
 
 const RANKED_CTE = `
@@ -38,7 +38,12 @@ const RANKED_CTE = `
   )
 `;
 
-type NeonSql = ReturnType<typeof neon>;
+// ReturnType<typeof neon> resolves to the widened NeonQueryFunction<boolean,
+// boolean> overload rather than the <false, false> shape neon(url) (no
+// options) actually returns, which then rejects that concrete value as an
+// argument wherever it's passed back in (a TS overload-inference quirk, not a
+// real type mismatch) — so this pins the concrete shape explicitly.
+type NeonSql = NeonQueryFunction<false, false>;
 
 export async function countDuplicateMediaGroups(sql: NeonSql): Promise<number> {
   const rows = (await sql(`

@@ -72,6 +72,25 @@ describe("migrateCaptionsToInputTable", () => {
     expect(dbMocks.insert).not.toHaveBeenCalled();
   });
 
+  it("rescues a same-labeled asset at a different sourceIndex instead of treating it as already covered", async () => {
+    dbMocks.captionedAssetsWhere.mockResolvedValueOnce([
+      { id: 7, filename: "f.docx", label: "Figure 1", sourceIndex: 2, textForEmbed: "Second instance." },
+    ]);
+    // An existing figure_captions row covers Figure 1 at sourceIndex 1 only —
+    // matching on (filename, label) alone would wrongly call this covered.
+    dbMocks.existingCaptionsFrom.mockResolvedValueOnce([
+      { filename: "f.docx", label: "Figure 1", sourceIndex: 1 },
+    ]);
+
+    const summary = await migrateCaptionsToInputTable();
+
+    expect(summary.rescued).toBe(1);
+    expect(summary.alreadyCovered).toBe(0);
+    expect(dbMocks.values).toHaveBeenCalledWith(
+      expect.objectContaining({ filename: "f.docx", label: "Figure 1", sourceIndex: 2 }),
+    );
+  });
+
   it("only queries figure_captions once regardless of the number of captioned assets", async () => {
     dbMocks.captionedAssetsWhere.mockResolvedValueOnce([
       { id: 5, filename: "a.docx", label: "Figure 1", sourceIndex: null, textForEmbed: "A." },

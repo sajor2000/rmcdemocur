@@ -92,6 +92,8 @@ export async function extractDocxMedia(options?: {
       const sourceIndex = i + 1;
       const destPath = mediaFilePath(mapping.caseNumber, filename, sourceIndex, ext);
 
+      let bytes: Buffer | null = null;
+      let locallyCached = false;
       try {
         const [existingStat, zipStat] = await Promise.all([
           fs.stat(destPath).catch(() => null),
@@ -102,26 +104,33 @@ export async function extractDocxMedia(options?: {
           existingStat.size > 0 &&
           existingStat.mtimeMs >= zipStat.mtimeMs
         ) {
-          extractedCount += 1;
-          continue;
+          locallyCached = true;
         }
       } catch {
         // extract below
       }
 
-      // encoding:"buffer" is load-bearing: the default utf8 decode corrupts binary
-      // image bytes (0x89504e47 PNG magic round-trips to efbfbd... replacement chars).
-      const { stdout } = await execFileAsync("unzip", ["-p", filePath, entry], {
-        maxBuffer: 20 * 1024 * 1024,
-        encoding: "buffer",
-      });
-      await fs.writeFile(destPath, stdout as unknown as Buffer);
+      if (!locallyCached) {
+        // encoding:"buffer" is load-bearing: the default utf8 decode corrupts binary
+        // image bytes (0x89504e47 PNG magic round-trips to efbfbd... replacement chars).
+        const { stdout } = await execFileAsync("unzip", ["-p", filePath, entry], {
+          maxBuffer: 20 * 1024 * 1024,
+          encoding: "buffer",
+        });
+        bytes = stdout as unknown as Buffer;
+        await fs.writeFile(destPath, bytes);
+      }
       extractedCount += 1;
 
+      // Attempted every time uploadToBlob is true, even when local extraction
+      // was skipped as already-cached — otherwise enabling Blob after a
+      // local-only extraction (the normal dev-then-deploy sequence) would
+      // permanently skip every already-extracted file's upload.
       if (uploadToBlob) {
         const key = mediaLocatorKey(mapping.caseNumber, filename, sourceIndex, ext);
         try {
-          await blobPut(key, stdout as unknown as Buffer, {
+          bytes ??= await fs.readFile(destPath);
+          await blobPut(key, bytes, {
             access: "private",
             allowOverwrite: true,
           });

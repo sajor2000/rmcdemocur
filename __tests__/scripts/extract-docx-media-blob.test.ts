@@ -11,6 +11,7 @@ const fsMocks = vi.hoisted(() => ({
   mkdir: vi.fn().mockResolvedValue(undefined),
   stat: vi.fn().mockRejectedValue(new Error("not found")), // force fresh extraction every time
   writeFile: vi.fn().mockResolvedValue(undefined),
+  readFile: vi.fn().mockResolvedValue(Buffer.from([0x89, 0x50, 0x4e, 0x47])),
 }));
 vi.mock("fs/promises", () => ({ default: fsMocks }));
 
@@ -43,6 +44,7 @@ describe("extractDocxMedia Blob upload", () => {
     fsMocks.mkdir.mockResolvedValue(undefined);
     fsMocks.stat.mockRejectedValue(new Error("not found"));
     fsMocks.writeFile.mockResolvedValue(undefined);
+    fsMocks.readFile.mockResolvedValue(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
     blobPut.mockResolvedValue({ url: "https://example/blob" });
     delete process.env.BLOB_READ_WRITE_TOKEN;
     delete process.env.BLOB_STORE_ID;
@@ -72,6 +74,29 @@ describe("extractDocxMedia Blob upload", () => {
     const [, , options] = blobPut.mock.calls[0];
     expect(options).toMatchObject({ access: "private", allowOverwrite: true });
     expect(fsMocks.writeFile).toHaveBeenCalledTimes(facultyCount);
+  });
+
+  it("still uploads to Blob when local extraction is already cached (dev-then-deploy sequence)", async () => {
+    process.env.BLOB_READ_WRITE_TOKEN = "fake-token";
+    // Simulate an already-extracted, up-to-date local file: fs.stat resolves
+    // for both the cached media file and the source docx, with the cached
+    // file newer than the docx.
+    fsMocks.stat.mockImplementation((p: string) => {
+      if (p.endsWith(".docx")) return Promise.resolve({ mtimeMs: 1000 });
+      return Promise.resolve({ size: 4, mtimeMs: 2000 });
+    });
+    mockUnzipCalls(["word/media/image1.png"]);
+
+    const reports = await extractDocxMedia({ scope: "faculty" });
+
+    // Cached, so no re-extraction or re-write of the local file...
+    expect(fsMocks.writeFile).not.toHaveBeenCalled();
+    // ...but the upload must still happen, reading bytes back from disk.
+    expect(fsMocks.readFile).toHaveBeenCalledTimes(facultyCount);
+    expect(blobPut).toHaveBeenCalledTimes(facultyCount);
+    const report = reports.find((r) => r.filename === facultyDocx);
+    expect(report?.extractedCount).toBe(1);
+    expect(report?.blobUploadErrors).toBeUndefined();
   });
 
   it("reports a Blob upload failure per-file without corrupting the local write", async () => {

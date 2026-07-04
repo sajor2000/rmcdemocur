@@ -208,8 +208,17 @@ export async function linkDocumentMediaToChunks(options: {
     .from(mediaAssets)
     .where(eq(mediaAssets.documentId, options.documentId));
 
-  const linkableAssets = assets.filter((asset) =>
-    FACULTY_LINK_KINDS.has(asset.referenceKind),
+  // chunk_media linking normally only covers answer_image/provided_image
+  // (their captions live outside the chunk that mentions them and need
+  // enrichEmbedText to inject the text). Regular "figure" captions are
+  // ordinarily already inline in chunk content, so linking was never needed —
+  // except when a CSV caption override replaces that inline text (R8): the
+  // override then also needs a chunk_media link so enrichEmbedText can inject
+  // it, and so the resume-path force-reembed check below can find it via
+  // `links`. enrichEmbedText's own chunkContent.includes(caption) guard
+  // prevents duplicating a caption that's already inline.
+  const linkableAssets = assets.filter(
+    (asset) => FACULTY_LINK_KINDS.has(asset.referenceKind) || asset.captionSource === "csv",
   );
   const links = linkChunksToMedia(options.chunks, linkableAssets);
   for (const link of links) {

@@ -121,4 +121,19 @@ describe("GET /api/media/[assetId]", () => {
     const body = await res.json();
     expect(body.error).toMatch(/not have been uploaded/i);
   });
+
+  it("does not mislabel a real Blob failure as 'not uploaded' — returns 502 instead", async () => {
+    process.env.BLOB_READ_WRITE_TOKEN = "fake-token";
+    dbMocks.limit.mockResolvedValueOnce([{ id: 1, storagePath: "4/doc/1.png" }]);
+    blobGet.mockRejectedValueOnce(new Error("network error"));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const res = await GET(fakeRequest(), { params: { assetId: "1" } });
+
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error).not.toMatch(/not have been uploaded/i);
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
 });
