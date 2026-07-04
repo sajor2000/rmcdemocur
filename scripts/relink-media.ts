@@ -6,6 +6,14 @@
  * and upserts storage_path onto the existing rows (matched by the media key),
  * so existing chunk_media links now resolve to real thumbnails.
  *
+ * Caveat: upsertDocumentMediaAssets does a FULL figure-registry reconciliation,
+ * not just a storage_path patch. Because the parse is deterministic this is a
+ * no-op for the intended same-corpus re-link. But if the parser/registry has
+ * drifted since the document was processed, rows whose key is no longer produced
+ * are deleted (with their chunk_media links) and text_for_embed is refreshed
+ * WITHOUT re-embedding — so run this only against the same parser version the
+ * documents were processed with, and re-run db:process if the registry changed.
+ *
  * Usage: npx tsx scripts/relink-media.ts
  */
 import "./load-env";
