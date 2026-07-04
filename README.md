@@ -63,7 +63,9 @@ npm install
 | `AZURE_OPENAI_DEPLOYMENT_CHAT` | Chat model (default `gpt-4.1`) |
 | `AZURE_OPENAI_DEPLOYMENT_EMBED` | Embedding model (default `text-embedding-3-large`) |
 | `AZURE_OPENAI_EMBEDDING_DIMENSIONS` | Must be `1536` (matches `vector(1536)` schema) |
-| `API_SECRET` | Optional — when set, **all** `/api/*` routes (reads and writes) require a credential: a `Authorization: Bearer <API_SECRET>` header for server-to-server calls, or the short-lived HMAC session cookie the app issues to the browser on page load (so `fetch` and EventSource authenticate automatically same-origin). A `?token=` query param is also accepted. Unset = fully open (dev default). |
+| `API_SECRET` | Optional — when set, **all** `/api/*` routes (reads and writes) require a credential: a `Authorization: Bearer <API_SECRET>` header for server-to-server calls, or the short-lived HMAC session cookie the app issues to the browser on page load (so `fetch` and EventSource authenticate automatically same-origin). **Important:** any visitor who can load a page receives a session cookie, so `API_SECRET` alone blocks direct API scraping, not page-mediated access — put the deployment behind a page-level gate (e.g. Vercel Deployment Protection) when the content must be private. Unset = fully open (dev default). |
+| `RETRIEVAL_MAX_DISTANCE` | Optional — max cosine distance for framework/keyword candidate retrieval. Unset = no filtering. Calibrate after any re-embed with `npx tsx scripts/calibrate-thresholds.ts`. |
+| `SEARCH_MIN_SIMILARITY` | Optional — min cosine similarity for search results. Unset = no filtering. Calibrated by the same script. |
 
 ### 2. Framework authority files
 

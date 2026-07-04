@@ -9,7 +9,9 @@
  */
 
 export const AUTH_COOKIE = "rmcmap_api_token";
-export const DEFAULT_TOKEN_TTL_SECONDS = 30 * 60;
+// Must exceed the SSE stream route's 3600s watch budget, or an idle upload page
+// loses API access mid-job when the cookie expires with no renewal navigation.
+export const DEFAULT_TOKEN_TTL_SECONDS = 2 * 60 * 60;
 
 const encoder = new TextEncoder();
 

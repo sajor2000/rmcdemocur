@@ -54,8 +54,9 @@ Central index for architecture, schema, plans, and bootstrap.
 
 1. `npm run db:seed-frameworks` — supports `--force`, `--track-bootstrap`; resumes per `stable_id`
 2. `npm run db:seed`
-3. `PROCESS_CASE_NUMBER=1 npm run db:process -- --skip-complete`
-4. `npm run db:process -- --skip-complete`
+3. `npm run db:extract-media` — extract faculty DOCX figures (see docs/SCHEMA.md bootstrap order)
+4. `PROCESS_CASE_NUMBER=1 npm run db:process -- --skip-complete`
+5. `npm run db:process -- --skip-complete`
 
 Or: `npm run setup` for the non-resumable full chain.
 

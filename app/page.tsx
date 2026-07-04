@@ -3,6 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCourseSummary } from "@/lib/queries";
 
+// Without this, Next statically prerenders the page at build time and the
+// "real" stats freeze (or bake in the no-DB placeholders) until the next deploy.
+export const dynamic = "force-dynamic";
+
 const DEMO_COURSE_ID = 1;
 
 type LandingStat = { value: string; label: string };

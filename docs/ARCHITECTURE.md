@@ -119,7 +119,7 @@ Framework parsers ([`lib/framework-parsers.ts`](../lib/framework-parsers.ts)) ar
 
 ### Security
 
-- Optional `API_SECRET`: when set in env, [`middleware.ts`](../middleware.ts) requires a valid credential on **all** `/api/*` routes — reads and writes alike (there is no GET exemption). Accepted credentials: a `Authorization: Bearer {API_SECRET}` header (server-to-server); the short-lived HMAC-signed httpOnly session cookie the middleware issues on page navigations (so browser `fetch` and EventSource authenticate automatically same-origin — see [`lib/api-auth.ts`](../lib/api-auth.ts)); or a `?token=` query param. Tokens are HMAC-SHA256 signed with `API_SECRET`, scoped, TTL-limited, verified with a timing-safe comparison, and never equal to `API_SECRET`. Because a session token can appear in a URL/`?token=`, it is short-lived and grants only API access, not the secret itself. Unset = fully open (dev default).
+- Optional `API_SECRET`: when set in env, [`middleware.ts`](../middleware.ts) requires a valid credential on **all** `/api/*` routes — reads and writes alike (there is no GET exemption). Accepted credentials: a `Authorization: Bearer {API_SECRET}` header (server-to-server), or the short-lived HMAC-signed httpOnly session cookie the middleware issues on page navigations (so browser `fetch` and EventSource authenticate automatically same-origin — see [`lib/api-auth.ts`](../lib/api-auth.ts)). Tokens are HMAC-SHA256 signed with `API_SECRET`, TTL-limited, verified with a timing-safe comparison, and never equal to `API_SECRET`. **Threat-model note:** the session cookie is minted for any page visitor, so `API_SECRET` blocks direct API access but not page-mediated access — private deployments need a page-level gate (e.g. Vercel Deployment Protection) in front of the app. Unset = fully open (dev default).
 - In-memory rate limits on search (30/min) and upload advance (10/min) via [`lib/rate-limit.ts`](../lib/rate-limit.ts).
 - Security headers configured in [`next.config.mjs`](../next.config.mjs).
 
@@ -151,6 +151,11 @@ Pages require a seeded database — empty DB shows bootstrap instructions instea
 | `lib/chunker.ts` | Semantic section detection + recursive sentence-aware chunking + heading breadcrumb |
 | `lib/retrieval-config.ts` | Optional relevance thresholds for retrieval/search (default off) |
 | `lib/api-auth.ts` | HMAC session-token mint/verify for API auth |
+| `lib/figure-registry.ts` | Parse figure/answer-image/video references from document text |
+| `lib/media-pipeline.ts` | Upsert media assets + link them to chunks during processing |
+| `lib/media-storage.ts` | Extracted-media paths + safe path containment for serving |
+| `lib/media-linker.ts` | Registry/storage merge helpers |
+| `lib/media-types.ts` | Media asset type definitions and guards |
 | `lib/objective-extractor.ts` | Regex objective parsing |
 | `lib/objective-cleanup.ts` | Optional LLM cleanup + merge |
 | `lib/azure-ai.ts` | Embeddings, alignment, search synthesis |

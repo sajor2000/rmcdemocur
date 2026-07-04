@@ -6,6 +6,7 @@
  * Usage:
  *   npx tsx scripts/import-figure-captions.ts data/curriculum/figure-captions.csv
  */
+import "./load-env";
 import fs from "fs/promises";
 import { eq } from "drizzle-orm";
 import { documents, mediaAssets } from "@/drizzle/schema";

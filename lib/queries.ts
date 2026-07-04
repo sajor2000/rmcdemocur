@@ -242,7 +242,7 @@ export async function searchChunks(courseId: number, queryEmbedding: number[], l
            1 - (c.embedding <=> ${vectorStr}::vector) AS similarity
     FROM chunks c
     JOIN documents d ON d.id = c.document_id
-    WHERE d.course_id = ${courseId}
+    WHERE d.course_id = ${courseId} AND c.embedding IS NOT NULL
     ORDER BY similarity DESC
     LIMIT ${limit}
   `);

@@ -121,6 +121,28 @@ const DDL = [
     source_excerpt text,
     created_at timestamptz DEFAULT now()
   )`,
+  `CREATE TABLE IF NOT EXISTS media_assets (
+    id serial PRIMARY KEY,
+    document_id integer REFERENCES documents(id) NOT NULL,
+    type varchar(20) NOT NULL,
+    label text NOT NULL,
+    section text,
+    reference_kind varchar(30) NOT NULL,
+    has_caption_in_text boolean DEFAULT false,
+    text_for_embed text,
+    storage_path text,
+    source_index integer,
+    extraction_scope varchar(20),
+    video_url text,
+    created_at timestamptz DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS chunk_media (
+    chunk_id integer REFERENCES chunks(id) NOT NULL,
+    media_asset_id integer REFERENCES media_assets(id) NOT NULL,
+    PRIMARY KEY (chunk_id, media_asset_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS chunk_media_chunk_id_idx ON chunk_media (chunk_id)`,
+  `CREATE INDEX IF NOT EXISTS chunk_media_media_asset_id_idx ON chunk_media (media_asset_id)`,
 ];
 
 export async function pushSchema(): Promise<void> {

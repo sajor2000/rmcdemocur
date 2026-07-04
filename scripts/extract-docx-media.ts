@@ -99,10 +99,13 @@ export async function extractDocxMedia(options?: {
         // extract below
       }
 
+      // encoding:"buffer" is load-bearing: the default utf8 decode corrupts binary
+      // image bytes (0x89504e47 PNG magic round-trips to efbfbd... replacement chars).
       const { stdout } = await execFileAsync("unzip", ["-p", filePath, entry], {
         maxBuffer: 20 * 1024 * 1024,
+        encoding: "buffer",
       });
-      await fs.writeFile(destPath, stdout);
+      await fs.writeFile(destPath, stdout as unknown as Buffer);
       extractedCount += 1;
     }
 
