@@ -372,25 +372,51 @@ Units U1–U7 are **MVP**. Units U8–U10 are **Full phase** — do not implemen
 
 ---
 
-### U9. PDF faculty raster extraction — **Full**
+### U9. PDF faculty image extraction — **Full** _(approach refined 2026-07-04)_
 
-**Goal:** Produce displayable assets for Cases 1–2 faculty answer images (~28 text refs).
+**Goal:** Produce displayable assets (`storage_path`) for Cases 1–2 faculty answer images so the map drawer shows a thumbnail. Registry + captions already exist from MVP; this only adds pixels.
 
 **Requirements:** R3 (Full), R5 (Full)
 
 **Dependencies:** U1–U7
 
-**Files:**
-- Create: `scripts/extract-pdf-media.ts`
-- Create: `__tests__/scripts/extract-pdf-media.test.ts`
+**Grounding facts (validated 2026-07-04 on this repo):**
+- **No system PDF tooling is installed** — `pdfimages`/poppler, `mutool`/mupdf, `pdftoppm`, `gs` all absent. The plan's original "PyMuPDF/pdfimages" suggestion is therefore not free; it means adding a system dependency.
+- The parser uses **`pdf-parse` (text only)** — it returns a single concatenated string with **no page boundaries and no image objects**, so it cannot support the original "page order + proximity" mapping. A page-aware parser is required.
+- **DB state:** Case 1 PDF = 5 answer-image registry rows, Case 2 PDF = 23 — all with mined `text_for_embed`, all with `storage_path` NULL. So captions already drive alignment; only the visual is missing.
+- **Unknown (blocking):** whether these answer images are embedded raster XObjects, vector drawings, or flattened page scans. Could not inspect without tooling → **U9.0 below**.
 
-**Approach:** Raster embedded images from `RMD563_FacultyGuide_Case1_DavidTilo.pdf` and `RMD563_FacultyGuide_Case2_JessicaDonner.pdf` (PyMuPDF/pdfimages or Node equivalent). Map to registry rows by page order + proximity to parsed `Answer image:` lines. MVP registry + captions already exist; this adds `storage_path`.
+**U9.0 — Classify the images first (do before choosing extract vs render).** Enumerate each answer image in the two PDFs and record its nature (raster XObject / vector / flattened). Cheapest path: add `pdfjs-dist` (pure-Node/WASM, no binary) and walk per-page operator lists + image XObjects; or a one-off poppler run in a container. This decision gates the approach and is ~30 min of read-only work.
+
+**Tooling decision — prefer pure-Node `pdfjs-dist` over a system binary:**
+- Runs in CI/local with no `brew install`, keeps the bootstrap script portable.
+- Gives **per-page text AND image positions** — exactly what `pdf-parse` lacks and what ref-mapping needs.
+- Can also **render a page (or caption-region crop) to PNG** as a universal fallback.
+- Reserve poppler `pdfimages` (via `node-poppler`) only if original-byte fidelity beats a rendered PNG and pdfjs extraction proves lossy.
+
+**Approach:**
+- Extract embedded raster XObjects per page when U9.0 shows they exist; **fall back to rendering the page/crop to PNG (~150 DPI)** for vector or flattened figures — guarantees a displayable asset either way.
+- Map image → registry row by **page association** (not blind order): pdfjs yields the page each `Answer image:` line sits on, so link images on that page to that row, writing `storage_path` + `source_index`.
+- Reuse the gitignored `data/curriculum/media/{case}/{doc}/` layout and idempotent mtime/size skip from `scripts/extract-docx-media.ts`.
+
+**Files:**
+- Create: `scripts/extract-pdf-media.ts` (mirror `scripts/extract-docx-media.ts`)
+- Create: `__tests__/scripts/extract-pdf-media.test.ts`
+- Add dep: `pdfjs-dist` (pure-Node) — or document poppler as an optional operator install
+- Modify: `README.md` (PDF extract step, Full phase)
 
 **Test scenarios:**
-- Happy path: Case 2 extract yields ≥1 PNG linked to sigmoidoscopy answer row
-- Edge path: text-only registry row upgraded with `storage_path` after raster
+- Happy path: Case 2 extract yields ≥1 PNG linked to the sigmoidoscopy answer row (`storage_path` set)
+- Fallback: a vector/flattened answer image renders a page-region PNG instead of failing
+- Mapping: an image on the same page as `Answer image: …` links to that registry row
+- Idempotent re-run skips unchanged files; DOCX/self-study inputs are skipped
 
-**Verification:** Map drawer shows thumbnail for Case 2 faculty answer image post-Full process.
+**Verification:** Map drawer shows a thumbnail for a Case 2 faculty answer image post-Full process; `audit-figures.ts` Cases 1–2 faculty rows now report `storage_path`, not caption-only.
+
+**Risks specific to U9:**
+- `pdf-parse` has no page model → **must** switch to pdfjs (or poppler) for mapping; do not attempt position mapping on `pdf-parse` output.
+- If answer images are flattened full-page scans, raster extraction returns the whole page; the render-crop-by-caption fallback mitigates, but a few rows may need a manual crop hint via the U7 CSV.
+- Extraction is a **local/bootstrap-only script, never serverless** — heavier deps are acceptable, but pure-Node `pdfjs-dist` keeps CI install clean.
 
 ---
 
