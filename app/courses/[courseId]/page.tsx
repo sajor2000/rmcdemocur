@@ -35,7 +35,9 @@ export default async function CourseDashboardPage({
   const { metrics, aamcDomainCoverage, heatmap, usmleSystems, recentAlignments, targetSystems } =
     summary;
   const aamcData = aamcDomainCoverage.map((d) => ({
-    domain: d.domain.replace("Interpersonal & Communication Skills", "ICS").slice(0, 18),
+    domain: d.domain
+      .replace("Interpersonal & Communication Skills", "Interpersonal & Comm.")
+      .slice(0, 28),
     percent: d.percent,
   }));
 
@@ -82,6 +84,30 @@ export default async function CourseDashboardPage({
           variant="blue"
         />
       </div>
+
+      {metrics.alignmentsTotal > 0 && (
+        <div className="rounded-lg border bg-white p-4">
+          <div className="mb-1 flex items-center justify-between text-sm">
+            <span className="font-medium">Human review progress</span>
+            <span className="text-rush-medium">
+              {metrics.alignmentsReviewed} of {metrics.alignmentsTotal} alignments
+              reviewed (
+              {Math.round(
+                (metrics.alignmentsReviewed / metrics.alignmentsTotal) * 100,
+              )}
+              %)
+            </span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-rush-green"
+              style={{
+                width: `${Math.round((metrics.alignmentsReviewed / metrics.alignmentsTotal) * 100)}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <AamcBarChart data={aamcData} />

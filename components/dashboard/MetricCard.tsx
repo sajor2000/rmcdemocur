@@ -55,12 +55,20 @@ export function AamcBarChart({
       <CardHeader>
         <CardTitle>AAMC PCRS Domain Coverage</CardTitle>
       </CardHeader>
-      <CardContent className="h-64">
+      <CardContent className="h-72">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="domain" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
-            <YAxis domain={[0, 100]} />
+          {/* Horizontal layout so domain names read left-to-right in full,
+              instead of rotated + truncated on a vertical x-axis. */}
+          <BarChart data={data} layout="vertical" margin={{ left: 8, right: 16 }}>
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
+            <YAxis
+              type="category"
+              dataKey="domain"
+              width={150}
+              tick={{ fontSize: 11 }}
+              interval={0}
+            />
             <Tooltip />
             <Bar dataKey="percent" fill="#00843D" radius={4} />
           </BarChart>
