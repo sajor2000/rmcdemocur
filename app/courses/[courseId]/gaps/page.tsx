@@ -37,9 +37,11 @@ export default async function GapsPage({
   }
 
   const { topicRows, metrics, targetSystems, usmleSpectrum, aamcSpectrum } = summary;
-  // The Coverage Table renders every catalog topic; the gap cards below show
-  // just the thin end (0-1 documents) — same source, no second query (KTD3).
-  const gaps = topicRows.filter((r) => r.docs < 2);
+  // The Coverage Table renders every catalog topic (both frameworks); the gap
+  // cards below are scoped to USMLE only so their count matches the headline
+  // sentence's metrics.usmleGaps exactly (one number, one methodology — AE2).
+  // AAMC gaps remain fully visible, framework-labeled, in the table/CSV below.
+  const gaps = topicRows.filter((r) => r.framework === "USMLE" && r.docs < 2);
   const tableRows = topicRows;
 
   // Cards are for the truly actionable bucket (0 documents) — "Introduced"
@@ -84,9 +86,11 @@ export default async function GapsPage({
       />
 
       <div>
-        <h2 className="font-heading text-lg font-semibold">Not addressed</h2>
+        <h2 className="font-heading text-lg font-semibold">Not addressed (USMLE)</h2>
         <p className="text-sm text-rush-medium">
-          Framework topics with no curriculum document addressing them yet.
+          USMLE topics with no curriculum document addressing them yet — the same{" "}
+          {metrics.usmleGaps} counted above. AAMC gaps are shown in the Coverage
+          Table below.
           {introducedCount > 0 && (
             <>
               {" "}
