@@ -13,7 +13,7 @@
  * Endocrine (681), then a cliff to Cardiovascular (179). Those three are its
  * scope; the rest are incidental cross-references.
  */
-export const COURSE_TARGET_SYSTEMS: Record<string, string[]> = {
+const COURSE_TARGET_SYSTEMS: Record<string, string[]> = {
   "RMD 563": [
     "Gastrointestinal System",
     "Endocrine System",
@@ -28,7 +28,7 @@ export const COURSE_TARGET_SYSTEMS: Record<string, string[]> = {
  * code; unmapped courses fall into "Unassigned". RMD 563 "Food to Fuel" is a
  * first-year (M1) organ-system block.
  */
-export const COURSE_MODULE: Record<string, string> = {
+const COURSE_MODULE: Record<string, string> = {
   "RMD 563": "M1",
 };
 

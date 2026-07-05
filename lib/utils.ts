@@ -19,12 +19,6 @@ export function confidenceBadgeClass(confidence: number): string {
   return "bg-red-100 text-red-800 border border-red-300";
 }
 
-export function coverageColor(status: string): string {
-  if (status === "covered") return "bg-covered-green";
-  if (status === "partial") return "bg-partial-yellow";
-  return "bg-gap-red";
-}
-
 /**
  * Collapse a framework label that had its own full text appended twice, e.g.
  * "PC5: Patient Care — … judgment. — Patient Care — … judgment." -> the single

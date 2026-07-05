@@ -1,19 +1,19 @@
-export const MEDIA_ASSET_TYPES = ["figure", "video"] as const;
+const MEDIA_ASSET_TYPES = ["figure", "video"] as const;
 export type MediaAssetType = (typeof MEDIA_ASSET_TYPES)[number];
 
-export const REFERENCE_KINDS = [
+const REFERENCE_KINDS = [
   "answer_image",
   "figure",
   "provided_image",
   "inline_ref",
   "video",
 ] as const;
-export type ReferenceKind = (typeof REFERENCE_KINDS)[number];
+type ReferenceKind = (typeof REFERENCE_KINDS)[number];
 
-export const EXTRACTION_SCOPES = ["faculty", "self_study", "pdf_pending"] as const;
+const EXTRACTION_SCOPES = ["faculty", "self_study", "pdf_pending"] as const;
 export type ExtractionScope = (typeof EXTRACTION_SCOPES)[number];
 
-export const CAPTION_SOURCES = ["text", "csv", "vision"] as const;
+const CAPTION_SOURCES = ["text", "csv", "vision"] as const;
 export type CaptionSource = (typeof CAPTION_SOURCES)[number];
 
 export type DocumentFigureMeta = {
@@ -51,11 +51,4 @@ export function assertMediaAssetType(value: string): MediaAssetType {
     throw new Error(`Invalid media asset type: ${value}`);
   }
   return value as MediaAssetType;
-}
-
-export function assertReferenceKind(value: string): ReferenceKind {
-  if (!(REFERENCE_KINDS as readonly string[]).includes(value)) {
-    throw new Error(`Invalid reference kind: ${value}`);
-  }
-  return value as ReferenceKind;
 }

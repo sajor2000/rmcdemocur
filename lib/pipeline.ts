@@ -24,7 +24,7 @@ import { parseDocument } from "@/lib/document-parser";
 import { retrieveKeywordCandidates } from "@/lib/framework-rag";
 import { getDb } from "@/lib/db";
 
-export const PIPELINE_STAGES = [
+const PIPELINE_STAGES = [
   "queued",
   "parsing",
   "extracting_objectives",
@@ -56,7 +56,7 @@ async function updateJob(
     .where(eq(processingJobs.id, jobId));
 }
 
-export async function clearDocumentArtifacts(documentId: number) {
+async function clearDocumentArtifacts(documentId: number) {
   const db = getDb();
   const existingChunks = await db
     .select({ id: chunks.id })
