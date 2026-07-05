@@ -28,6 +28,19 @@ test.describe("A1 — course director reviews coverage", () => {
     // "Endocrine System" appears in both the scope note and a heatmap row.
     await expect(page.getByText("Endocrine System").first()).toBeVisible();
     await expect(page.getByText("Behavioral Health")).toHaveCount(0);
+    // AE1 (no PR #8 all-red regression): the heatmap must show a real mix of
+    // cell statuses, not every cell rendering as "gap". Each cell's title
+    // attribute is "Case N — System: <status>" (components/dashboard/
+    // MetricCard.tsx); a residual gap this asserts at the e2e level, not
+    // just via the lib/queries.ts unit tests.
+    // title^="Case " disambiguates heatmap cells from the intensity bar's
+    // segments just above them, which also embed " — " and ":" in their titles.
+    const cells = page.locator('[title^="Case "]');
+    const statuses = await cells.evaluateAll((els) =>
+      els.map((el) => el.getAttribute("title")?.split(": ").pop()),
+    );
+    expect(statuses.length).toBeGreaterThan(0);
+    expect(new Set(statuses).size).toBeGreaterThan(1);
   });
 
   test("gap analysis is scoped and speaks one coverage methodology", async ({

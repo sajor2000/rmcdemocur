@@ -32,7 +32,7 @@ function GapCard({ courseId, gap }: { courseId: number; gap: { framework: string
         </span>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-rush-medium">{suggestedGapAction(label, "gap")}</p>
+        <p className="text-sm text-rush-medium">{suggestedGapAction(label)}</p>
         <Button asChild variant="outline" size="sm">
           <Link href={`/courses/${courseId}/search?q=${encodeURIComponent(label)}`}>
             Find Related Content
@@ -63,15 +63,6 @@ export default async function GapsPage({
   }
 
   const { topicRows, metrics, targetSystems, usmleSpectrum, aamcSpectrum } = summary;
-  // The Coverage Table renders every catalog topic (both frameworks); the gap
-  // cards below are scoped to USMLE only so their count matches the headline
-  // sentence's metrics.usmleGaps exactly (one number, one methodology — AE2).
-  // AAMC gaps remain fully visible, framework-labeled, in the table/CSV below.
-  // Bucketed via levelOf() (lib/coverage.ts) rather than raw doc-count
-  // comparisons — the single source of thresholds (AGENTS.md).
-  const gaps = topicRows.filter(
-    (r) => r.framework === "USMLE" && (levelOf(r.docs) === "gap" || levelOf(r.docs) === "introduced"),
-  );
   const tableRows = topicRows;
 
   // Cards are for the truly actionable bucket (0 documents) — "Introduced"
@@ -79,8 +70,16 @@ export default async function GapsPage({
   // remain in the full Coverage Table below, and rendering all ~100+ thin
   // topics as individual cards made the page unusably long, capped here at
   // CARD_LIMIT for the same reason (found in the U11 screenshot audit).
-  const notAddressed = gaps.filter((g) => levelOf(g.docs) === "gap");
-  const introducedCount = gaps.length - notAddressed.length;
+  // Both scoped to USMLE only so the counts match the headline sentence's
+  // metrics.usmleGaps exactly (one number, one methodology — AE2). AAMC gaps
+  // remain fully visible, framework-labeled, in the table/CSV and their own
+  // section below. Each bucket states its own condition directly via
+  // levelOf() (lib/coverage.ts) — the single source of thresholds
+  // (AGENTS.md) — rather than being derived by subtraction from the other.
+  const notAddressed = topicRows.filter((r) => r.framework === "USMLE" && levelOf(r.docs) === "gap");
+  const introducedCount = topicRows.filter(
+    (r) => r.framework === "USMLE" && levelOf(r.docs) === "introduced",
+  ).length;
   const CARD_LIMIT = 12;
   const shownGaps = notAddressed.slice(0, CARD_LIMIT);
   const hiddenGapCount = notAddressed.length - shownGaps.length;

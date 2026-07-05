@@ -96,11 +96,17 @@ export function CoverageHeatmap({
   cases: number[];
   systems: string[];
 }) {
+  // A O(1) lookup built once and shared by both the mobile strip and desktop
+  // grid below, instead of each cell() call doing its own O(data.length)
+  // linear find() — cell() runs once per (case, system) pair in each of the
+  // two layouts, so the scan cost would otherwise be paid twice per cell.
+  const statusByKey = new Map<string, string>();
+  for (const d of data) {
+    statusByKey.set(`${d.caseNumber}::${d.system}`, d.status);
+  }
+
   const cell = (caseNum: number, system: string) => {
-    const hit = data.find(
-      (d) => d.caseNumber === caseNum && d.system === system,
-    );
-    const status = hit?.status ?? "gap";
+    const status = statusByKey.get(`${caseNum}::${system}`) ?? "gap";
     const color =
       status === "covered"
         ? "bg-covered-green"

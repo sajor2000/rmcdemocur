@@ -66,131 +66,165 @@ export async function getCourseSummary(courseId: number) {
   const targetSystems = courseTargetSystems(course.code);
   const inScope = (system: string) => !targetSystems || targetSystems.includes(system);
 
-  const alignmentStats = await db.execute(sql`
-    SELECT AVG(a.confidence::numeric) as avg_confidence,
-           COUNT(*)::int as total,
-           COUNT(*) FILTER (WHERE a.status IN ('approved','rejected'))::int as reviewed
-    FROM alignments a
-    JOIN chunks c ON c.id = a.chunk_id
-    JOIN documents d ON d.id = c.document_id
-    WHERE d.course_id = ${courseId}
-  `);
+  // All of the following are independent of each other — each depends only
+  // on courseId/targetSystems (already resolved above), never on another
+  // query's result — so they run as one parallel batch instead of ~12
+  // sequential round trips (a known/deferred perf item).
+  const sysList = targetSystems ? sql.join(targetSystems.map((s) => sql`${s}`), sql`, `) : null;
+  const [
+    alignmentStats,
+    aamcCoverage,
+    heatmapTouched,
+    systemTotalsRes,
+    recentAlignments,
+    totalUsmleLeaf,
+    usmleDocRows,
+    usmleTotalRes,
+    aamcAligned,
+    aamcTotal,
+    aamcDocRows,
+    topicRows,
+  ] = await Promise.all([
+    db.execute(sql`
+      SELECT AVG(a.confidence::numeric) as avg_confidence,
+             COUNT(*)::int as total,
+             COUNT(*) FILTER (WHERE a.status IN ('approved','rejected'))::int as reviewed
+      FROM alignments a
+      JOIN chunks c ON c.id = a.chunk_id
+      JOIN documents d ON d.id = c.document_id
+      WHERE d.course_id = ${courseId}
+    `),
+    db.execute(sql`
+      SELECT ac.domain_name,
+             COUNT(DISTINCT ac.stable_id)::int as total,
+             COUNT(DISTINCT ac.stable_id) FILTER (WHERE a.id IS NOT NULL)::int as covered
+      FROM aamc_competencies ac
+      LEFT JOIN alignments a ON (
+        a.framework_id = ac.stable_id
+        AND a.framework IN ('AAMC_PCRS','AAMC_EPA')
+        AND EXISTS (
+          SELECT 1 FROM chunks c
+          JOIN documents d ON d.id = c.document_id
+          WHERE c.id = a.chunk_id AND d.course_id = ${courseId}
+        )
+      )
+      GROUP BY ac.domain_name
+    `),
+    // Per-(case, system) breadth: how many distinct USMLE leaf domains in each
+    // system did each session's document touch. A different question than the
+    // course-wide, per-topic document-count engine below — heatmapCellStatus
+    // (KTD1) buckets it independently, not tuned to any particular visual
+    // result. Inner query resolves one system per framework_id; outer GROUP
+    // BY does the distinct-domain rollup in SQL rather than a hand-rolled JS
+    // Map/Set.
+    db.execute(sql`
+      SELECT sub.case_number, sub.system, COUNT(DISTINCT sub.id)::int AS domains_touched
+      FROM (
+        SELECT d.case_number,
+               a.framework_id AS id,
+               COALESCE(MIN(ud.domain), split_part(MIN(a.framework_label), ' — ', 1)) AS system
+        FROM alignments a
+        JOIN chunks c ON c.id = a.chunk_id
+        JOIN documents d ON d.id = c.document_id
+        LEFT JOIN usmle_domains ud ON ud.stable_id = a.framework_id
+        WHERE d.course_id = ${courseId} AND a.framework = 'USMLE' AND d.case_number IS NOT NULL
+        GROUP BY d.case_number, a.framework_id
+      ) sub
+      GROUP BY sub.case_number, sub.system
+    `),
+    db.execute(sql`
+      SELECT domain AS system, COUNT(*)::int AS total
+      FROM usmle_domains WHERE parent_stable_id IS NOT NULL GROUP BY domain
+    `),
+    db
+      .select({
+        id: alignments.id,
+        framework: alignments.framework,
+        frameworkId: alignments.frameworkId,
+        frameworkLabel: alignments.frameworkLabel,
+        confidence: alignments.confidence,
+        status: alignments.status,
+        rationale: alignments.rationale,
+        excerpt: sql<string>`LEFT(${chunks.content}, 120)`,
+        section: chunks.section,
+        filename: documents.filename,
+      })
+      .from(alignments)
+      .innerJoin(chunks, eq(chunks.id, alignments.chunkId))
+      .innerJoin(documents, eq(documents.id, chunks.documentId))
+      .where(eq(documents.courseId, courseId))
+      .orderBy(desc(alignments.createdAt))
+      .limit(10),
+    db.execute(sql`
+      SELECT COUNT(*)::int as cnt FROM usmle_domains WHERE parent_stable_id IS NOT NULL
+    `),
+    // Distinct documents per addressed USMLE domain (organ-scoped when
+    // curated). Drives BOTH the covered count and the intensity spectrum —
+    // computed once, so the covered count is just the number of addressed
+    // domains (rows).
+    db.execute(sql`
+      SELECT COUNT(DISTINCT c.document_id)::int AS docs
+      FROM alignments a
+      JOIN chunks c ON c.id = a.chunk_id
+      JOIN documents d ON d.id = c.document_id
+      ${targetSystems ? sql`JOIN usmle_domains ud ON ud.stable_id = a.framework_id` : sql``}
+      WHERE d.course_id = ${courseId} AND a.framework = 'USMLE'
+        ${sysList ? sql`AND ud.domain IN (${sysList})` : sql``}
+      GROUP BY a.framework_id
+    `),
+    // Scope the "X of Y USMLE domains" denominator to the target systems when
+    // curated (the covered count already respects scope via usmleDocRows).
+    sysList
+      ? db.execute(sql`
+          SELECT COUNT(*)::int AS cnt FROM usmle_domains
+          WHERE parent_stable_id IS NOT NULL AND domain IN (${sysList})
+        `)
+      : Promise.resolve(null),
+    db.execute(sql`
+      SELECT COUNT(DISTINCT ac.stable_id)::int as cnt
+      FROM aamc_competencies ac
+      INNER JOIN alignments a ON a.framework_id = ac.stable_id
+      INNER JOIN chunks c ON c.id = a.chunk_id
+      INNER JOIN documents d ON d.id = c.document_id
+      WHERE d.course_id = ${courseId}
+    `),
+    db.select().from(aamcCompetencies),
+    db.execute(sql`
+      SELECT COUNT(DISTINCT c.document_id)::int AS docs
+      FROM alignments a
+      JOIN chunks c ON c.id = a.chunk_id
+      JOIN documents d ON d.id = c.document_id
+      WHERE d.course_id = ${courseId} AND a.framework IN ('AAMC_PCRS','AAMC_EPA')
+      GROUP BY a.framework_id
+    `),
+    // Same per-topic rows the course CSV export serializes (KTD3) — one
+    // source, no second query path to diverge from it. targetSystems is
+    // passed through since it's already resolved above — skips
+    // getGapExportRows' own course/documents fetch when called from here.
+    getGapExportRows(courseId, targetSystems),
+  ]);
+
   const stats = alignmentStats.rows[0] as {
     avg_confidence: string | null;
     total: number;
     reviewed: number;
   };
 
-  const aamcCoverage = await db.execute(sql`
-    SELECT ac.domain_name,
-           COUNT(DISTINCT ac.stable_id)::int as total,
-           COUNT(DISTINCT ac.stable_id) FILTER (WHERE a.id IS NOT NULL)::int as covered
-    FROM aamc_competencies ac
-    LEFT JOIN alignments a ON (
-      a.framework_id = ac.stable_id
-      AND a.framework IN ('AAMC_PCRS','AAMC_EPA')
-      AND EXISTS (
-        SELECT 1 FROM chunks c
-        JOIN documents d ON d.id = c.document_id
-        WHERE c.id = a.chunk_id AND d.course_id = ${courseId}
-      )
-    )
-    GROUP BY ac.domain_name
-  `);
-
-  // Per-(case, system) breadth: how many distinct USMLE leaf domains in each
-  // system did each session's document touch. A different question than the
-  // course-wide, per-topic document-count engine below — heatmapCellStatus
-  // (KTD1) buckets it independently, not tuned to any particular visual result.
-  // Inner query resolves one system per framework_id; outer GROUP BY does the
-  // distinct-domain rollup in SQL rather than a hand-rolled JS Map/Set.
-  const heatmapTouched = await db.execute(sql`
-    SELECT sub.case_number, sub.system, COUNT(DISTINCT sub.id)::int AS domains_touched
-    FROM (
-      SELECT d.case_number,
-             a.framework_id AS id,
-             COALESCE(MIN(ud.domain), split_part(MIN(a.framework_label), ' — ', 1)) AS system
-      FROM alignments a
-      JOIN chunks c ON c.id = a.chunk_id
-      JOIN documents d ON d.id = c.document_id
-      LEFT JOIN usmle_domains ud ON ud.stable_id = a.framework_id
-      WHERE d.course_id = ${courseId} AND a.framework = 'USMLE' AND d.case_number IS NOT NULL
-      GROUP BY d.case_number, a.framework_id
-    ) sub
-    GROUP BY sub.case_number, sub.system
-  `);
-  const systemTotalsRes = await db.execute(sql`
-    SELECT domain AS system, COUNT(*)::int AS total
-    FROM usmle_domains WHERE parent_stable_id IS NOT NULL GROUP BY domain
-  `);
   const domainsTotalBySystem = new Map<string, number>();
   for (const r of systemTotalsRes.rows as { system: string; total: number }[]) {
     domainsTotalBySystem.set(r.system, r.total);
   }
 
-  const recentAlignments = await db
-    .select({
-      id: alignments.id,
-      framework: alignments.framework,
-      frameworkId: alignments.frameworkId,
-      frameworkLabel: alignments.frameworkLabel,
-      confidence: alignments.confidence,
-      status: alignments.status,
-      rationale: alignments.rationale,
-      excerpt: sql<string>`LEFT(${chunks.content}, 120)`,
-      section: chunks.section,
-      filename: documents.filename,
-    })
-    .from(alignments)
-    .innerJoin(chunks, eq(chunks.id, alignments.chunkId))
-    .innerJoin(documents, eq(documents.id, chunks.documentId))
-    .where(eq(documents.courseId, courseId))
-    .orderBy(desc(alignments.createdAt))
-    .limit(10);
-
-  const totalUsmleLeaf = await db.execute(sql`
-    SELECT COUNT(*)::int as cnt FROM usmle_domains WHERE parent_stable_id IS NOT NULL
-  `);
   const totalUsmleLeafCount = Number(
     (totalUsmleLeaf.rows[0] as { cnt: number })?.cnt ?? 0,
   );
-  // Distinct documents per addressed USMLE domain (organ-scoped when curated).
-  // Drives BOTH the covered count and the intensity spectrum — computed once, so
-  // the covered count is just the number of addressed domains (rows).
-  const usmleDocRows = await db.execute(sql`
-    SELECT COUNT(DISTINCT c.document_id)::int AS docs
-    FROM alignments a
-    JOIN chunks c ON c.id = a.chunk_id
-    JOIN documents d ON d.id = c.document_id
-    ${targetSystems ? sql`JOIN usmle_domains ud ON ud.stable_id = a.framework_id` : sql``}
-    WHERE d.course_id = ${courseId} AND a.framework = 'USMLE'
-      ${targetSystems ? sql`AND ud.domain IN (${sql.join(targetSystems.map((s) => sql`${s}`), sql`, `)})` : sql``}
-    GROUP BY a.framework_id
-  `);
   const usmleCoveredDocs = (usmleDocRows.rows as { docs: number }[]).map((r) => r.docs);
   const usmleCovered = usmleCoveredDocs.length;
 
-  // Scope the "X of Y USMLE domains" denominator to the target systems when
-  // curated (the covered count already respects scope via usmleDocRows above).
-  let usmleTotal = totalUsmleLeafCount;
-  if (targetSystems) {
-    const sysList = sql.join(targetSystems.map((s) => sql`${s}`), sql`, `);
-    const t = await db.execute(sql`
-      SELECT COUNT(*)::int AS cnt FROM usmle_domains
-      WHERE parent_stable_id IS NOT NULL AND domain IN (${sysList})
-    `);
-    usmleTotal = Number((t.rows[0] as { cnt: number })?.cnt ?? 0);
-  }
+  const usmleTotal = usmleTotalRes
+    ? Number((usmleTotalRes.rows[0] as { cnt: number })?.cnt ?? 0)
+    : totalUsmleLeafCount;
 
-  const aamcAligned = await db.execute(sql`
-    SELECT COUNT(DISTINCT ac.stable_id)::int as cnt
-    FROM aamc_competencies ac
-    INNER JOIN alignments a ON a.framework_id = ac.stable_id
-    INNER JOIN chunks c ON c.id = a.chunk_id
-    INNER JOIN documents d ON d.id = c.document_id
-    WHERE d.course_id = ${courseId}
-  `);
-  const aamcTotal = await db.select().from(aamcCompetencies);
   const aamcAlignedCount = Number(
     (aamcAligned.rows[0] as { cnt: number })?.cnt ?? 0,
   );
@@ -225,25 +259,10 @@ export async function getCourseSummary(courseId: number) {
   // Intensity spectrum from the same per-domain doc counts (organ-scoped USMLE,
   // computed once above), plus all-AAMC (cross-cutting).
   const usmleSpectrum = distribution(usmleCoveredDocs, usmleTotal || 1);
-  const aamcDocRows = await db.execute(sql`
-    SELECT COUNT(DISTINCT c.document_id)::int AS docs
-    FROM alignments a
-    JOIN chunks c ON c.id = a.chunk_id
-    JOIN documents d ON d.id = c.document_id
-    WHERE d.course_id = ${courseId} AND a.framework IN ('AAMC_PCRS','AAMC_EPA')
-    GROUP BY a.framework_id
-  `);
   const aamcSpectrum = distribution(
     (aamcDocRows.rows as { docs: number }[]).map((r) => r.docs),
     aamcTotal.length || 1,
   );
-
-  // Same per-topic rows the course CSV export serializes (KTD3) — one source,
-  // no second query path to diverge from it. "Gap" cards show the thin end
-  // (0-1 documents); the intensity spectrum above is the authoritative summary.
-  // targetSystems is passed through since it's already resolved above — skips
-  // getGapExportRows' own course/documents fetch when called from here.
-  const topicRows = await getGapExportRows(courseId, targetSystems);
 
   return {
     course,
@@ -699,10 +718,14 @@ export async function getGapExportRows(
   preloadedTargetSystems?: string[] | null,
 ): Promise<CoverageExportRow[]> {
   const db = getDb();
-  const targetSystems =
-    preloadedTargetSystems !== undefined
-      ? preloadedTargetSystems
-      : courseTargetSystems((await getCourseWithDocuments(courseId)).course?.code);
+  let targetSystems = preloadedTargetSystems;
+  if (targetSystems === undefined) {
+    // Only course.code is needed here — a standalone caller (the CSV/JSON
+    // export route) doesn't need the full documents array
+    // getCourseWithDocuments also fetches.
+    const [course] = await db.select({ code: courses.code }).from(courses).where(eq(courses.id, courseId));
+    targetSystems = courseTargetSystems(course?.code);
+  }
 
   const usmleRows = await db.execute(sql`
     SELECT ud.stable_id AS id, ud.domain AS system, ud.subdomain AS subdomain,
