@@ -500,6 +500,7 @@ export async function getMapData(courseId: number) {
         id: chunks.id,
         section: chunks.section,
         content: chunks.content,
+        documentId: chunks.documentId,
       },
       document: {
         caseNumber: documents.caseNumber,
@@ -510,6 +511,24 @@ export async function getMapData(courseId: number) {
     .innerJoin(documents, eq(documents.id, chunks.documentId))
     .where(eq(documents.courseId, courseId))
     .orderBy(documents.caseNumber, chunks.chunkIndex);
+
+  // Per-document learning objectives (EO/TO), so the drawer can show the
+  // objectives of the selected item's document. Deterministic join (R10/R12).
+  const objectiveRows = await db
+    .select({
+      documentId: courseObjectives.documentId,
+      eoCode: courseObjectives.eoCode,
+      text: courseObjectives.text,
+    })
+    .from(courseObjectives)
+    .innerJoin(documents, eq(documents.id, courseObjectives.documentId))
+    .where(eq(documents.courseId, courseId))
+    .orderBy(courseObjectives.ordinal);
+  const objectivesByDocument: Record<number, { code: string | null; text: string }[]> = {};
+  for (const o of objectiveRows) {
+    if (o.documentId == null) continue;
+    (objectivesByDocument[o.documentId] ??= []).push({ code: o.eoCode, text: o.text });
+  }
 
   const alignmentRows = await db
     .select({
@@ -598,7 +617,7 @@ export async function getMapData(courseId: number) {
     .from(usmleDomains)
     .where(sql`${usmleDomains.parentStableId} IS NOT NULL`);
 
-  return { documents: docs, chunks: chunkRows, alignments: alignmentRows, mediaByChunkId, keywordsByChunkId, aamc, usmle };
+  return { documents: docs, chunks: chunkRows, alignments: alignmentRows, mediaByChunkId, keywordsByChunkId, objectivesByDocument, aamc, usmle };
 }
 
 export async function searchChunks(courseId: number, queryEmbedding: number[], limit = 5) {

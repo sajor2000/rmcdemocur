@@ -20,8 +20,9 @@ type Alignment = {
 export default function MapPage({ params }: { params: { courseId: string } }) {
   const [data, setData] = useState<{
     documents: { id: number; caseNumber: number | null; caseTitle: string | null }[];
-    chunks: { chunk: { id: number; section: string | null; content: string }; document: { caseNumber: number | null; caseTitle: string | null } }[];
+    chunks: { chunk: { id: number; section: string | null; content: string; documentId: number | null }; document: { caseNumber: number | null; caseTitle: string | null } }[];
     alignments: { alignment: Alignment; chunkId: number }[];
+    objectivesByDocument?: Record<number, { code: string | null; text: string }[]>;
     mediaByChunkId?: Record<
       number,
       {
@@ -243,6 +244,12 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
             ? data.keywordsByChunkId?.[drawerAlignment.chunkId] ?? []
             : []
         }
+        objectives={(() => {
+          const docId = data.chunks.find(
+            (c) => c.chunk.id === drawerAlignment?.chunkId,
+          )?.chunk.documentId;
+          return docId != null ? data.objectivesByDocument?.[docId] ?? [] : [];
+        })()}
         onClose={() => setDrawerAlignment(null)}
         onApprove={onApprove}
       />

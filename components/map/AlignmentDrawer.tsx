@@ -32,11 +32,14 @@ type KeywordTag = {
   definition: string | null;
 };
 
+type Objective = { code: string | null; text: string };
+
 type Props = {
   alignment: Alignment | null;
   excerpt: string;
   linkedMedia?: MediaAssetPreview[];
   keywords?: KeywordTag[];
+  objectives?: Objective[];
   onClose: () => void;
   onApprove: (id: number, status: "approved" | "rejected") => void;
 };
@@ -46,6 +49,7 @@ export function AlignmentDrawer({
   excerpt,
   linkedMedia = [],
   keywords = [],
+  objectives = [],
   onClose,
   onApprove,
 }: Props) {
@@ -69,6 +73,25 @@ export function AlignmentDrawer({
               </p>
               <p className="text-sm">{alignment.rationale}</p>
             </div>
+            {objectives.length > 0 && (
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase text-rush-medium">
+                  Document learning objectives
+                </p>
+                <ul className="space-y-1 text-sm">
+                  {objectives.map((o, i) => (
+                    <li key={`${o.code ?? "obj"}-${i}`} className="flex gap-2">
+                      {o.code && (
+                        <span className="shrink-0 font-mono text-xs text-rush-green">
+                          {o.code}
+                        </span>
+                      )}
+                      <span>{o.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {linkedMedia.length > 0 && (
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase text-rush-medium">
