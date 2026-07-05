@@ -413,6 +413,41 @@ export async function getProgramSummary() {
   };
 }
 
+/**
+ * Every framework topic (USMLE leaf domains + AAMC competencies) with the number
+ * of distinct documents/courses that address it — INCLUDING gaps (0 docs, via
+ * LEFT JOIN). The deterministic dataset behind the CSV/JSON export (R11).
+ */
+export async function getCoverageExportRows() {
+  const db = getDb();
+  const res = await db.execute(sql`
+    SELECT 'USMLE' AS framework, ud.domain AS system,
+           CASE WHEN ud.subdomain IS NOT NULL THEN ud.domain || ' — ' || ud.subdomain ELSE ud.domain END AS topic,
+           COALESCE(cov.docs, 0)::int AS docs, COALESCE(cov.courses, 0)::int AS courses
+    FROM usmle_domains ud
+    LEFT JOIN (
+      SELECT a.framework_id, COUNT(DISTINCT c.document_id) AS docs, COUNT(DISTINCT d.course_id) AS courses
+      FROM alignments a JOIN chunks c ON c.id = a.chunk_id JOIN documents d ON d.id = c.document_id
+      WHERE a.framework = 'USMLE' GROUP BY a.framework_id
+    ) cov ON cov.framework_id = ud.stable_id
+    WHERE ud.parent_stable_id IS NOT NULL
+    UNION ALL
+    SELECT 'AAMC' AS framework, ac.domain_name AS system,
+           ac.sub_id || ': ' || ac.description AS topic,
+           COALESCE(cov.docs, 0)::int AS docs, COALESCE(cov.courses, 0)::int AS courses
+    FROM aamc_competencies ac
+    LEFT JOIN (
+      SELECT a.framework_id, COUNT(DISTINCT c.document_id) AS docs, COUNT(DISTINCT d.course_id) AS courses
+      FROM alignments a JOIN chunks c ON c.id = a.chunk_id JOIN documents d ON d.id = c.document_id
+      WHERE a.framework IN ('AAMC_PCRS','AAMC_EPA') GROUP BY a.framework_id
+    ) cov ON cov.framework_id = ac.stable_id
+    ORDER BY framework, system, topic
+  `);
+  return res.rows as {
+    framework: string; system: string; topic: string; docs: number; courses: number;
+  }[];
+}
+
 export async function getMapData(courseId: number) {
   const db = getDb();
   // Only the columns the map renders — not sourcePath/filename (server-side

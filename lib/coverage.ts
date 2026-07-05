@@ -72,6 +72,13 @@ export function levelOf(docs: number): LevelKey {
   return "introduced";
 }
 
+const LEVEL_BY_KEY = Object.fromEntries(LEVELS.map((l) => [l.key, l])) as Record<LevelKey, Level>;
+
+/** The human level label for a document count (e.g. 5 -> "Strong"). */
+export function levelLabel(docs: number): string {
+  return LEVEL_BY_KEY[levelOf(docs)].label;
+}
+
 export type CoverageDist = {
   total: number;
   addressed: number; // >= 1 document (broad "addressed" metric)

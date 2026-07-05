@@ -50,6 +50,15 @@ export function ProgramView({ program }: { program: ProgramData }) {
           </Link>{" "}
           are scoped to their own organ systems; this program view is not.
         </p>
+        <div className="mt-3 flex flex-wrap gap-2 text-sm">
+          <span className="text-rush-medium">Download dataset:</span>
+          <a href="/api/program/export?format=csv" className="rounded border px-3 py-1 hover:bg-gray-50">
+            CSV (spreadsheet)
+          </a>
+          <a href="/api/program/export?format=json" className="rounded border px-3 py-1 hover:bg-gray-50">
+            JSON
+          </a>
+        </div>
       </div>
 
       <MethodExplainer />
