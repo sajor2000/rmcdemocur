@@ -16,13 +16,15 @@ type LandingStat = { value: string; label: string };
  * reprocess has run), so we never show numbers computed against stub authorities
  * or pre-semantic chunks. */
 async function getLandingStats(): Promise<LandingStat[]> {
-  const courseLabel: LandingStat = { value: "RMD 563", label: "Food to Fuel" };
+  // The stat row is all-numeric metrics; the course identity lives in the hero,
+  // not here (it isn't a number).
+  const pendingAlignments: LandingStat = { value: "—", label: "Curriculum Alignments" };
   try {
     const summary = await getCourseSummary(DEMO_COURSE_ID);
     if (!summary) {
       return [
         { value: "—", label: "Guides Processed (seed pending)" },
-        courseLabel,
+        pendingAlignments,
         { value: "—", label: "AAMC Coverage (seed pending)" },
         { value: "—", label: "USMLE Gaps (seed pending)" },
       ];
@@ -31,7 +33,9 @@ async function getLandingStats(): Promise<LandingStat[]> {
     const hasAlignments = metrics.usmleDomainsCovered > 0 || metrics.aamcCoveragePercent > 0;
     return [
       { value: String(metrics.guidesProcessed), label: "Guides Processed" },
-      courseLabel,
+      metrics.alignmentsTotal
+        ? { value: metrics.alignmentsTotal.toLocaleString(), label: "Curriculum Alignments" }
+        : pendingAlignments,
       hasAlignments
         ? { value: `${metrics.aamcCoveragePercent}%`, label: "AAMC Coverage" }
         : { value: "Pending", label: "AAMC Coverage (reprocess)" },
@@ -43,7 +47,7 @@ async function getLandingStats(): Promise<LandingStat[]> {
     // DB not configured (e.g. static preview): show honest placeholders, not fake numbers.
     return [
       { value: "—", label: "Guides Processed" },
-      courseLabel,
+      pendingAlignments,
       { value: "—", label: "AAMC Coverage" },
       { value: "—", label: "USMLE Gaps Detected" },
     ];

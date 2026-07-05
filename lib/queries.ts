@@ -82,7 +82,8 @@ export async function getCourseSummary(courseId: number) {
 
   const alignmentStats = await db.execute(sql`
     SELECT AVG(a.confidence::numeric) as avg_confidence,
-           COUNT(*)::int as total
+           COUNT(*)::int as total,
+           COUNT(*) FILTER (WHERE a.status IN ('approved','rejected'))::int as reviewed
     FROM alignments a
     JOIN chunks c ON c.id = a.chunk_id
     JOIN documents d ON d.id = c.document_id
@@ -91,6 +92,7 @@ export async function getCourseSummary(courseId: number) {
   const stats = alignmentStats.rows[0] as {
     avg_confidence: string | null;
     total: number;
+    reviewed: number;
   };
 
   const aamcCoverage = await db.execute(sql`
@@ -237,6 +239,8 @@ export async function getCourseSummary(courseId: number) {
       guidesProcessed: docs.length,
       usmleDomainsCovered: usmleCovered,
       usmleDomainsTotal: usmleTotal || 1,
+      alignmentsReviewed: Number(stats?.reviewed ?? 0),
+      alignmentsTotal: Number(stats?.total ?? 0),
     },
     aamcDomainCoverage: (aamcCoverage.rows as { domain_name: string; total: number; covered: number }[]).map(
       (r) => ({
