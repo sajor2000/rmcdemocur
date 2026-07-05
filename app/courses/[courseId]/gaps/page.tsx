@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { suggestedGapAction } from "@/lib/gap-analyzer";
 import { getCourseSummary, getGapExportRows } from "@/lib/queries";
+import { cleanFrameworkLabel } from "@/lib/utils";
 
 export default async function GapsPage({
   params,
@@ -26,6 +27,16 @@ export default async function GapsPage({
   const { gaps, metrics } = summary;
   const tableRows = await getGapExportRows(courseId).catch(() => []);
 
+  // Some gap rows exist twice (clean + doubled label) for one framework leaf —
+  // collapse to one card per framework so the list isn't duplicated.
+  const gapCards = Array.from(
+    new Map(
+      gaps
+        .filter((g) => g.coverageStatus === "gap" || g.coverageStatus === "partial")
+        .map((g) => [`${g.framework}-${g.frameworkId}`, g]),
+    ).values(),
+  );
+
   return (
     <div className="space-y-6">
       <div className="rounded-lg bg-white p-6 shadow-sm">
@@ -39,37 +50,43 @@ export default async function GapsPage({
       </div>
 
       <div className="grid gap-4">
-        {gaps
-          .filter((g) => g.coverageStatus === "gap" || g.coverageStatus === "partial")
-          .map((gap) => (
+        {gapCards.map((gap) => {
+          const label = cleanFrameworkLabel(gap.frameworkLabel);
+          const isGap = gap.coverageStatus === "gap";
+          const tone = isGap
+            ? { border: "border-gap-red", chip: "bg-red-100 text-red-800" }
+            : { border: "border-partial-yellow", chip: "bg-yellow-100 text-yellow-800" };
+          return (
             <Card
               key={`${gap.framework}-${gap.frameworkId}`}
-              className="border-2 border-gap-red"
+              className={`border-l-4 ${tone.border}`}
             >
-              <CardHeader>
-                <CardTitle className="text-gap-red">{gap.frameworkLabel}</CardTitle>
+              <CardHeader className="flex flex-row items-start justify-between gap-3">
+                <CardTitle className="text-base font-semibold">{label}</CardTitle>
+                <span
+                  className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${tone.chip}`}
+                >
+                  {isGap ? "Not covered" : "Partially covered"}
+                </span>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm capitalize">
-                  Gap severity:{" "}
-                  {gap.coverageStatus === "gap" ? "Not Covered" : "Partially Covered"}
-                </p>
                 <p className="text-sm text-rush-medium">
                   {suggestedGapAction(
-                    gap.frameworkLabel ?? "",
+                    label,
                     gap.coverageStatus as "gap" | "partial" | "covered",
                   )}
                 </p>
                 <Button asChild variant="outline" size="sm">
                   <Link
-                    href={`/courses/${courseId}/search?q=${encodeURIComponent(gap.frameworkLabel ?? "")}`}
+                    href={`/courses/${courseId}/search?q=${encodeURIComponent(label)}`}
                   >
                     Find Related Content
                   </Link>
                 </Button>
               </CardContent>
             </Card>
-          ))}
+          );
+        })}
       </div>
 
       <Card>

@@ -42,7 +42,8 @@ export default async function CourseLayout({
         director={course.director ?? ""}
         cases={docs}
       />
-      <div className="flex-1 overflow-auto p-6">{children}</div>
+      {/* Extra top padding below lg clears the fixed "Menu" drawer toggle. */}
+      <div className="flex-1 overflow-auto p-6 max-lg:pt-16">{children}</div>
     </div>
   );
 }
