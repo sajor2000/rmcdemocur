@@ -78,8 +78,8 @@ export default async function CourseDashboardPage({
 
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard
-          label="Overall AAMC Coverage"
-          value={`${metrics.aamcCoveragePercent}%`}
+          label="AAMC Competencies Addressed"
+          value={`${aamcSpectrum.addressed}/${aamcSpectrum.total}`}
           variant="green"
         />
         <MetricCard

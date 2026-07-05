@@ -49,6 +49,11 @@ export default async function GapsPage({
           {targetSystems ? "in-scope" : ""} USMLE domains.{" "}
           <strong>{metrics.usmleGaps}</strong> gaps require attention.
         </p>
+        <p className="mt-2 text-sm text-rush-medium">
+          These headline counts and the gap list below are a <strong>per-document snapshot</strong>.
+          The authoritative coverage picture — how many documents address each topic — is the
+          intensity distribution immediately below.
+        </p>
         {targetSystems && (
           <p className="mt-2 text-sm text-rush-medium">
             Scoped to this course&apos;s organ systems:{" "}
@@ -67,6 +72,16 @@ export default async function GapsPage({
         usmleSpectrum={usmleSpectrum}
         aamcSpectrum={aamcSpectrum}
       />
+
+      <div>
+        <h2 className="font-heading text-lg font-semibold">
+          Specific gaps — per-document snapshot
+        </h2>
+        <p className="text-sm text-rush-medium">
+          Individual framework topics flagged as not or partially covered in this course&apos;s
+          documents — a complement to the coverage distribution above, not a second measure of it.
+        </p>
+      </div>
 
       <div className="grid gap-4">
         {gapCards.map((gap) => {

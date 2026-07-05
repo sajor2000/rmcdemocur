@@ -72,6 +72,18 @@ export function ProgramView({ program }: { program: ProgramData }) {
         ))}
       </div>
 
+      {/* A module addresses a subset of the whole framework, so the denominator
+          stays the full framework — this is the module's SHARE of it, not an
+          organ-scoped module metric (which would understate what a module owes). */}
+      {scope !== program.scopes[0] && (
+        <p className="-mt-2 text-xs text-rush-medium">
+          <strong>{scope}</strong> coverage is measured against the <em>full</em> USMLE and
+          AAMC framework — one module addresses a subset of topics, so most read as gaps by
+          design. Read this as the module&apos;s share of the whole framework, not a
+          module-scoped denominator.
+        </p>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
