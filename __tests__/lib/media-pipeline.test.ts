@@ -173,7 +173,7 @@ describe("upsertDocumentMediaAssets", () => {
   });
 
   it("does not delete a media row whose key still matches the registry", async () => {
-    queueSelects([], [{ id: 1, label: "Figure 1", referenceKind: "figure", sourceIndex: null }]);
+    queueSelects([], [{ id: 1, label: "Figure 1", referenceKind: "figure", sourceIndex: 1 }]);
     dbMocks.execute.mockResolvedValueOnce({
       rows: [
         { id: 1, label: "Figure 1", textForEmbed: null, referenceKind: "figure", captionSource: "text" },
