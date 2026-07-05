@@ -4,6 +4,9 @@ import {
   CoverageHeatmap,
   MetricCard,
 } from "@/components/dashboard/MetricCard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CoverageSpectrum } from "@/components/coverage/CoverageSpectrum";
+import { MethodExplainer } from "@/components/coverage/MethodExplainer";
 import { getCourseSummary } from "@/lib/queries";
 
 export default async function CourseDashboardPage({
@@ -32,8 +35,16 @@ export default async function CourseDashboardPage({
     );
   }
 
-  const { metrics, aamcDomainCoverage, heatmap, usmleSystems, recentAlignments, targetSystems } =
-    summary;
+  const {
+    metrics,
+    aamcDomainCoverage,
+    heatmap,
+    usmleSystems,
+    recentAlignments,
+    targetSystems,
+    usmleSpectrum,
+    aamcSpectrum,
+  } = summary;
   const aamcData = aamcDomainCoverage.map((d) => ({
     domain: d.domain
       .replace("Interpersonal & Communication Skills", "Interpersonal & Comm.")
@@ -108,6 +119,29 @@ export default async function CourseDashboardPage({
           </div>
         </div>
       )}
+
+      {/* Intensity coverage — same model as the program view, organ-scoped here. */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Coverage intensity
+            {targetSystems ? " (in-scope USMLE + AAMC)" : " (USMLE + AAMC)"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <MethodExplainer />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div>
+              <p className="mb-2 text-sm font-medium">USMLE</p>
+              <CoverageSpectrum dist={usmleSpectrum} />
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium">AAMC</p>
+              <CoverageSpectrum dist={aamcSpectrum} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <AamcBarChart data={aamcData} />

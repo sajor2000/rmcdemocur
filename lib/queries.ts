@@ -233,10 +233,40 @@ export async function getCourseSummary(courseId: number) {
     ? Math.max(0, usmleTotal - usmleCovered)
     : gaps.filter((g) => g.gap_summary.coverageStatus === "gap").length;
 
+  // Intensity spectrum for the course via the canonical engine — organ-scoped
+  // USMLE (matching usmleTotal), all AAMC (cross-cutting).
+  const usmleDocRows = await db.execute(sql`
+    SELECT COUNT(DISTINCT c.document_id)::int AS docs
+    FROM alignments a
+    JOIN chunks c ON c.id = a.chunk_id
+    JOIN documents d ON d.id = c.document_id
+    WHERE d.course_id = ${courseId} AND a.framework = 'USMLE'
+      ${targetSystems ? sql`AND split_part(a.framework_label, ' — ', 1) IN (${sql.join(targetSystems.map((s) => sql`${s}`), sql`, `)})` : sql``}
+    GROUP BY a.framework_id
+  `);
+  const usmleSpectrum = distribution(
+    (usmleDocRows.rows as { docs: number }[]).map((r) => r.docs),
+    usmleTotal || 1,
+  );
+  const aamcDocRows = await db.execute(sql`
+    SELECT COUNT(DISTINCT c.document_id)::int AS docs
+    FROM alignments a
+    JOIN chunks c ON c.id = a.chunk_id
+    JOIN documents d ON d.id = c.document_id
+    WHERE d.course_id = ${courseId} AND a.framework IN ('AAMC_PCRS','AAMC_EPA')
+    GROUP BY a.framework_id
+  `);
+  const aamcSpectrum = distribution(
+    (aamcDocRows.rows as { docs: number }[]).map((r) => r.docs),
+    aamcTotal.length || 1,
+  );
+
   return {
     course,
     documents: docs,
     targetSystems,
+    usmleSpectrum,
+    aamcSpectrum,
     metrics: {
       aamcCoveragePercent: aamcPct,
       usmleGaps: scopedUsmleGaps,
