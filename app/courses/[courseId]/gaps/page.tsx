@@ -139,31 +139,51 @@ export default async function GapsPage({
             <a href={`/api/courses/${courseId}/export`}>Export Gap Report (CSV)</a>
           </Button>
         </CardHeader>
-        <CardContent className="max-h-[32rem] overflow-y-auto overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-white">
-              <tr className="border-b text-left">
-                <th className="pb-2">Topic</th>
-                <th className="pb-2">Level</th>
-                <th className="pb-2">Documents</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tableRows.map((row, i) => {
-                // Row tint derives from the canonical level (lib/coverage.ts's
-                // levelOf) rather than redefining the doc-count thresholds here
-                // (AGENTS.md: "Single source ... no inline redefinitions").
-                const rowClass = ROW_TINT[levelOf(row.docs)];
-                return (
-                  <tr key={i} className={`border-b ${rowClass}`}>
-                    <td className="py-2">{cleanFrameworkLabel(row.topic)}</td>
-                    <td className="py-2">{row.docs === 0 ? "Not addressed" : levelLabel(row.docs)}</td>
-                    <td className="py-2 font-mono">{row.docs}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <CardContent className="max-h-[32rem] overflow-y-auto">
+          {/* Below sm: the 3-column table genuinely overflows the viewport
+              (verified: 401px table in a 292px container) — a stacked list
+              instead, no horizontal scroll needed (found in the U11
+              screenshot audit). */}
+          <ul className="space-y-2 sm:hidden">
+            {tableRows.map((row, i) => {
+              const rowClass = ROW_TINT[levelOf(row.docs)];
+              return (
+                <li key={i} className={`rounded-md border-b p-2 text-sm ${rowClass}`}>
+                  <p>{cleanFrameworkLabel(row.topic)}</p>
+                  <p className="mt-1 text-xs text-rush-medium">
+                    {row.docs === 0 ? "Not addressed" : levelLabel(row.docs)} · {row.docs} doc
+                    {row.docs === 1 ? "" : "s"}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="hidden overflow-x-auto sm:block">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-white">
+                <tr className="border-b text-left">
+                  <th className="pb-2">Topic</th>
+                  <th className="pb-2">Level</th>
+                  <th className="pb-2">Documents</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tableRows.map((row, i) => {
+                  // Row tint derives from the canonical level (lib/coverage.ts's
+                  // levelOf) rather than redefining the doc-count thresholds here
+                  // (AGENTS.md: "Single source ... no inline redefinitions").
+                  const rowClass = ROW_TINT[levelOf(row.docs)];
+                  return (
+                    <tr key={i} className={`border-b ${rowClass}`}>
+                      <td className="py-2">{cleanFrameworkLabel(row.topic)}</td>
+                      <td className="py-2">{row.docs === 0 ? "Not addressed" : levelLabel(row.docs)}</td>
+                      <td className="py-2 font-mono">{row.docs}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>
