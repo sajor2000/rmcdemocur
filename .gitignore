@@ -12,3 +12,10 @@ data/frameworks/*.xlsx
 data/frameworks/.embedding-cache.jsonl
 data/bootstrap-state.json
 data/bootstrap-state.json.tmp
+.vercel
+.env*
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
