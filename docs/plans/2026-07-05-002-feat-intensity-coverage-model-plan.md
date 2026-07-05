@@ -26,6 +26,16 @@ Replace the misleading binary "% covered" with an **intensity** coverage model g
 
 ---
 
+## Guiding Principle: Auditable, deterministic-first knowledge (north star)
+The value to the Rush Medical College curriculum team is **trustworthy, verifiable knowledge about their own curriculum** — not AI opinions they cannot check. Three rules, in priority order, govern every feature:
+1. **Deterministic where possible.** Counts, structural extraction (regex objective codes EO-####/TO-####, framework IDs, document/course joins), and set operations are reproducible and need no faith. Use them for every metric and every rollup.
+2. **LLM only as a flagged backup.** The one inherently-fuzzy step is semantic alignment (curriculum passage -> framework topic). Confine LLM/embeddings to that step; label every LLM-derived claim as AI-generated, carry its confidence + rationale + source excerpt, and gate it behind faculty review. Never add LLM to metadata, counts, extraction, or exports.
+3. **Everything traces to source.** Every number a committee sees drills down to the exact document, page, and excerpt that produced it, and shows whether it is **AI-only** or **faculty-validated**. Auditability is the product, not a nicety.
+
+These rules make the tool's output defensible in front of an accreditation body — the ultimate audience.
+
+---
+
 ## Product Contract
 
 ### Requirements
@@ -42,6 +52,7 @@ Replace the misleading binary "% covered" with an **intensity** coverage model g
 - **R11** **Exportable datasets & files for the education team.** Every coverage view is downloadable as data — CSV (spreadsheet) and JSON — for both **per-course** and **full-curriculum** scope: the intensity spectrum per topic, the gap list, the redundancy list, and the topic->document/course provenance. Files are self-describing (headers + a method note) so a committee can use them outside the app.
 - **R12** **Deterministic-first, LLM-secondary doctrine.** Extraction and matching prefer deterministic/structural (regex, keys, framework IDs) signals; the LLM/embedding path is a secondary fallback only, mirroring the shipped objectives extractor (regex-first, LLM cleanup only on miss). New logic (objectives surfacing/join, export generation) follows this; it is also the direction for reducing alignment over-matching.
 - **R13** **Interactive curriculum map works for every course and for the full curriculum.** The selection-linked map is per-course today (`/courses/[courseId]/map`); it must work for all courses (not just course 1), and a full-curriculum map view spans courses/modules.
+- **R14** **Auditability (first-class).** Every surfaced figure (coverage level, gap, redundancy, objective mapping) traces to its source — document, page/section, excerpt — in at most one interaction; and every alignment shows whether it is **AI-only** or **faculty-validated**. Metrics are computed deterministically (reproducible); the only LLM-derived input (alignment) is labeled and confidence-carried. A committee can defend any number to an accreditor.
 
 ### Acceptance Examples
 - **AE1** For RMD 563 (one GI/M1 course), the program view shows USMLE **245 addressed of 597**, spectrum **105 introduced / 80 reinforced / 42 strong / 18 heavy**, **352 gaps**; AAMC **55/71 addressed**. Not a single "% covered".
@@ -162,11 +173,11 @@ A prototype is already committed and green — `tsc` clean, 211 tests pass, and 
 **Verification:** gaps page severity reflects levels; export includes level.
 
 ### U8. AGENTS.md coverage doctrine
-**Goal:** Permanent doctrine: the intensity model, KTD1 (document = place), the level thresholds, both-metrics rule, two-level IA, educator-legibility requirement.
-**Requirements:** R8.
+**Goal:** Permanent doctrine capturing the **north star** (auditable, deterministic-first knowledge — the three rules), the intensity model, KTD1 (document = place), level thresholds, both-metrics rule, two-level IA, pervasive method transparency (R6), and the export/deterministic rules.
+**Requirements:** R8, R12, R14.
 **Files:** `AGENTS.md`.
-**Approach:** A "Coverage model (canonical)" section; concise, points to `lib/coverage.ts` and `lib/course-scope.ts`. `Test expectation: none -- docs.`
-**Verification:** section present; future contributors can't reintroduce binary "% covered" without contradicting it.
+**Approach:** A "Curriculum coverage & knowledge model (canonical)" section; concise; points to `lib/coverage.ts`, `lib/course-scope.ts`. State plainly: deterministic where possible, LLM only as flagged backup confined to alignment, everything traces to source, never reintroduce binary "% covered". `Test expectation: none -- docs.`
+**Verification:** section present; a future contributor cannot add binary coverage, un-audited numbers, or new LLM dependence without contradicting it.
 
 ### U9. Verification pass
 **Goal:** Unit (engine, queries), integration (live numbers = AE1), e2e (program journey + tooltips).
@@ -203,14 +214,33 @@ A prototype is already committed and green — `tsc` clean, 211 tests pass, and 
 **Test scenarios:** map loads for a second course id; selection-linking works per course; program view links into the map.
 **Verification:** every course's map is reachable and functional; no course-1 hardcoding.
 
+### U13. Provenance drill-down + trust signals (auditability)
+**Goal:** Every coverage figure links to its source; every alignment shows AI-only vs faculty-validated. Deterministic.
+**Requirements:** R14, R6.
+**Dependencies:** U1, U2, U6.
+**Files:** `lib/queries.ts` (attach per-topic provenance: documents + excerpts + page/section; review-status counts), the coverage components (`components/coverage/*`) + drawer, program + course pages.
+**Approach:** For any level/gap/redundancy figure, expose the contributing documents (already in the engine's per-topic rollup) and let a click reveal document + section + excerpt + confidence + rationale (drawer pattern exists). Add a trust badge/summary: N alignments, X% faculty-validated (approved/rejected) vs AI-only. All from deterministic joins over `alignments`/`chunks`/`documents`.
+**Test scenarios:** clicking a system's covered count lists its documents; an alignment renders AI-only vs faculty-validated; the trust summary matches the review counts. `Covers R14`.
+**Verification:** every headline number reaches its source in one interaction; AI vs faculty is visible everywhere coverage appears.
+
+### U14. Learning-spiral / sequencing view
+**Goal:** For a framework topic, show where it is Introduced -> Reinforced across the curriculum (which documents/modules, in order) — make the spiral legible. Deterministic.
+**Requirements:** R1, R4, R14.
+**Dependencies:** U1, U2.
+**Files:** `lib/queries.ts` (per-topic document sequence), a `components/coverage/SpiralView.tsx`, surfaced from the program/topic view.
+**Approach:** For a selected topic, list the addressing documents ordered by course/module and case number; annotate each as a "place" so the committee sees the introduce->reinforce arc and spots topics introduced but never reinforced (thin) or over-repeated (redundant). Pure counts/order — no LLM.
+**Test scenarios:** a topic with docs across 2 modules shows the ordered sequence; a 1-doc topic reads "introduced, not reinforced". `Covers R14`.
+**Verification:** selecting a topic shows its coverage sequence across the curriculum.
+
 ---
 
 ## Scope Boundaries
 **In scope:** the intensity model + shared engine + program view + course dashboard retrofit + gap-analysis retrofit + tooltips/method box + AGENTS.md, both frameworks, entire + per-module.
 ### Deferred to Follow-Up Work
-- A real `courses.module` DB column + module CRUD (curated map suffices for now).
-- Fixing the deeper alignment over-matching in the AI engine (the intensity model mitigates at the metric level; re-running alignment is a separate effort).
-- "Introduced/Reinforced/Mastered" tied to assessment data (we infer from teaching documents only; no assessment signal yet).
+- A real `courses.module` / `courses.type` DB column + CRUD (curated maps suffice for now).
+- Fixing the deeper alignment over-matching in the AI engine (the intensity model mitigates at the metric level; re-running alignment is a separate effort). This is the biggest lever on the "deterministic-first" north star — a future pass could add deterministic pre-filters (keyword/framework-ID structural matches) so LLM alignment is truly a backup.
+- **Knowledge-surfacing roadmap (all deterministic, auditable):** objective->framework crosswalk report; duplicate/near-duplicate content detection across documents (text similarity, for consolidation); coverage change-over-time diff between reprocesses; framework-version tracking (which USMLE/AAMC edition a mapping is against); a cross-course single-canvas map.
+- "Introduced/Reinforced/Mastered" tied to *assessment* data (we infer from teaching documents only; no assessment signal yet).
 - Landing-page coverage stats adopting the spectrum.
 
 ---
@@ -235,6 +265,8 @@ A prototype is already committed and green — `tsc` clean, 211 tests pass, and 
 - [ ] Document learning objectives surfaced in the map (per course + full curriculum), regex-first extraction reused
 - [ ] Exportable CSV + JSON for per-course AND full-curriculum (spectrum, gaps, redundancy, provenance), self-describing with the method note
 - [ ] Interactive map works for every course (no course-1 hardcoding); reachable from the program view
+- [ ] Auditability: every headline figure drills to source (document/section/excerpt) in one interaction; AI-only vs faculty-validated visible everywhere coverage appears
+- [ ] Learning-spiral view: a topic's Introduced->Reinforced sequence across the curriculum is visible; all metrics computed deterministically (LLM confined to alignment, flagged)
 - [ ] AE1-AE5 verified; `npm test` + `npm run test:e2e` + `tsc` green
 
 ---
