@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { levelOf, distribution, heatmapCellStatus, LEVELS, METHOD_NOTE } from "@/lib/coverage";
+import {
+  levelOf,
+  distribution,
+  heatmapCellStatus,
+  spectrumTakeaway,
+  LEVELS,
+  METHOD_NOTE,
+} from "@/lib/coverage";
 
 describe("levelOf (document-count thresholds)", () => {
   it("maps boundaries to the Introduced -> Reinforced -> Mastered spectrum", () => {
@@ -50,6 +57,28 @@ describe("level metadata", () => {
   it("exposes a plain-language method note mentioning faculty review", () => {
     expect(METHOD_NOTE).toMatch(/faculty review/i);
     expect(METHOD_NOTE).toMatch(/document/i);
+  });
+});
+
+describe("spectrumTakeaway (deterministic annotation — KTD4, R11, R15)", () => {
+  it("names addressed/total/gap for a normal distribution", () => {
+    expect(spectrumTakeaway(distribution([1, 2, 5], 10))).toBe(
+      "3 of 10 domains addressed; 7 need attention.",
+    );
+  });
+
+  it("handles the zero-data edge case (no documents aligned yet)", () => {
+    expect(spectrumTakeaway(distribution([], 10))).toBe(
+      "0 of 10 domains addressed — no documents aligned yet.",
+    );
+  });
+
+  it("handles full coverage (no gaps)", () => {
+    expect(spectrumTakeaway(distribution([1, 1], 2))).toBe("All 2 domains addressed.");
+  });
+
+  it("handles an empty framework total", () => {
+    expect(spectrumTakeaway(distribution([], 0))).toBe("No framework domains to report yet.");
   });
 });
 

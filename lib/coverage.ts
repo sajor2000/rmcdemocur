@@ -133,6 +133,18 @@ export function heatmapCellStatus(
 }
 
 /**
+ * Deterministic takeaway sentence for a coverage spectrum (R11) — the "so
+ * what" a reader gets before the bar/legend, computed only from values
+ * already rendered elsewhere on the page (KTD4). Never LLM-generated (R15).
+ */
+export function spectrumTakeaway(dist: CoverageDist): string {
+  if (dist.total <= 0) return "No framework domains to report yet.";
+  if (dist.addressed === 0) return `0 of ${dist.total} domains addressed — no documents aligned yet.`;
+  if (dist.gap === 0) return `All ${dist.total} domains addressed.`;
+  return `${dist.addressed} of ${dist.total} domains addressed; ${dist.gap} need attention.`;
+}
+
+/**
  * The one-line method statement shown to educators wherever coverage appears
  * (R6) and embedded in exported files (R11). States the AI-assisted, faculty-
  * review-required nature and the document-count basis.

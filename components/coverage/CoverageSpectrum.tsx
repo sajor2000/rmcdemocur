@@ -1,4 +1,4 @@
-import { LEVELS, type CoverageDist } from "@/lib/coverage";
+import { LEVELS, spectrumTakeaway, type CoverageDist } from "@/lib/coverage";
 
 /**
  * The stacked intensity bar (gap -> heavy), every segment carrying its plain-
@@ -35,7 +35,10 @@ export function IntensityBar({
 export function CoverageSpectrum({ dist }: { dist: CoverageDist }) {
   return (
     <div className="space-y-2">
-      <p className="text-sm text-rush-medium">
+      {/* The takeaway leads — the reader gets the "so what" before the bar
+          (R11), a deterministic sentence over the same numbers below it. */}
+      <p className="font-takeaway text-base italic text-rush-dark">{spectrumTakeaway(dist)}</p>
+      <p className="text-sm tabular-nums text-rush-medium">
         <strong className="text-rush-dark">{dist.addressed}</strong> of {dist.total} addressed
         {" · "}
         <strong className="text-rush-dark">{dist.substantive}</strong> reinforced+

@@ -45,6 +45,13 @@ export function MetricCard({ label, value, sub, variant = "green" }: MetricCardP
   );
 }
 
+/** Deterministic takeaway naming the lowest-coverage domain (R11, KTD4). */
+function aamcTakeaway(data: { domain: string; percent: number }[]): string {
+  if (data.length === 0) return "No AAMC domain data yet.";
+  const lowest = data.reduce((min, d) => (d.percent < min.percent ? d : min), data[0]);
+  return `${lowest.domain} has the lowest coverage at ${lowest.percent}%.`;
+}
+
 export function AamcBarChart({
   data,
 }: {
@@ -54,6 +61,7 @@ export function AamcBarChart({
     <Card>
       <CardHeader>
         <CardTitle>AAMC PCRS Domain Coverage</CardTitle>
+        <p className="font-takeaway text-sm italic text-rush-dark">{aamcTakeaway(data)}</p>
       </CardHeader>
       <CardContent className="h-72">
         <ResponsiveContainer width="100%" height="100%">
@@ -76,6 +84,19 @@ export function AamcBarChart({
       </CardContent>
     </Card>
   );
+}
+
+/** Non-color redundancy (R12/design accessibility): a glyph per status so the
+ * grid is legible without relying on color alone. */
+const HEATMAP_GLYPH: Record<string, string> = { covered: "✓", partial: "◐", gap: "–" };
+
+/** Deterministic takeaway naming how many session x system cells are gaps. */
+function heatmapTakeaway(cases: number[], systems: string[], data: { status: string }[]): string {
+  const totalCells = cases.length * systems.length;
+  if (totalCells === 0) return "No sessions or systems to show yet.";
+  const gapCells = Math.max(0, totalCells - data.length);
+  if (gapCells === 0) return "Every session touches every in-scope system.";
+  return `${gapCells} of ${totalCells} session × system cells show no coverage yet.`;
 }
 
 export function CoverageHeatmap({
@@ -101,24 +122,33 @@ export function CoverageHeatmap({
     return (
       <div
         key={`${caseNum}-${system}`}
-        className={`h-6 w-full min-w-[2rem] rounded-sm ${color}`}
+        className={`flex h-6 w-full min-w-[2rem] items-center justify-center rounded-sm text-xs font-medium text-white ${color}`}
         title={`Case ${caseNum} — ${system}: ${status}`}
-      />
+      >
+        {HEATMAP_GLYPH[status]}
+      </div>
     );
   };
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle>USMLE Domain Coverage Heatmap</CardTitle>
+        <div>
+          <CardTitle>USMLE Domain Coverage Heatmap</CardTitle>
+          <p className="font-takeaway mt-1 text-sm italic text-rush-dark">
+            {heatmapTakeaway(cases, systems, data)}
+          </p>
+        </div>
         <div className="flex items-center gap-3 text-xs text-rush-medium">
           {[
-            ["bg-covered-green", "Covered"],
-            ["bg-partial-yellow", "Partial"],
-            ["bg-gap-red", "Gap"],
-          ].map(([c, label]) => (
+            ["bg-covered-green", "covered", "Covered"],
+            ["bg-partial-yellow", "partial", "Partial"],
+            ["bg-gap-red", "gap", "Gap"],
+          ].map(([c, key, label]) => (
             <span key={label} className="flex items-center gap-1">
-              <span className={`h-3 w-3 rounded-sm ${c}`} />
+              <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm text-[9px] text-white ${c}`}>
+                {HEATMAP_GLYPH[key]}
+              </span>
               {label}
             </span>
           ))}
