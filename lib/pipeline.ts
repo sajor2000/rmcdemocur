@@ -5,14 +5,12 @@ import {
   chunks,
   courseObjectives,
   documents,
-  gapSummary,
   keywordTags,
   processingJobs,
 } from "@/drizzle/schema";
 import { extractAndCleanObjectives } from "@/lib/objective-cleanup";
 import { alignToFramework, generateEmbedding } from "@/lib/azure-ai";
 import { buildChunksFromDocument } from "@/lib/chunker";
-import { deriveCoverageStatus, recomputeCourseFrameworkGaps } from "@/lib/gap-analyzer";
 import {
   buildEmbedTextForChunk,
   clearDocumentMedia,
@@ -32,7 +30,6 @@ const PIPELINE_STAGES = [
   "embedding",
   "aligning",
   "tagging",
-  "recomputing_gaps",
   "complete",
 ] as const;
 
@@ -70,7 +67,6 @@ async function clearDocumentArtifacts(documentId: number) {
   // chunk_media references chunks.id (no cascade) — media must clear before chunks.
   await clearDocumentMedia(documentId);
   await db.delete(chunks).where(eq(chunks.documentId, documentId));
-  await db.delete(gapSummary).where(eq(gapSummary.documentId, documentId));
   await db.delete(courseObjectives).where(eq(courseObjectives.documentId, documentId));
 }
 
@@ -393,7 +389,10 @@ export async function runFullPipeline(options: {
       ? await loadChunkIdsWithKeywordTags(documentId)
       : new Set<number>();
 
-    await setStage("tagging", 90, "Tagging AAMC keywords...");
+    // 95, not 90: with the old "recomputing_gaps" stage removed (KTD2), this
+    // is the last stage before 100 — closer spacing keeps the progress bar
+    // from holding at 90% through the whole tagging loop then jumping 10pts.
+    await setStage("tagging", 95, "Tagging AAMC keywords...");
     for (const chunkId of insertedChunkIds) {
       if (taggedChunkIds.has(chunkId)) continue;
       const embedding = chunkEmbeddings.get(chunkId);
@@ -409,17 +408,6 @@ export async function runFullPipeline(options: {
       } catch {
         // keyword tagging optional when frameworks not embedded
       }
-    }
-
-    await setStage("recomputing_gaps", 95, "Recomputing gap summary...");
-    await recomputeGapSummary(documentId);
-
-    const [docRow] = await db
-      .select({ courseId: documents.courseId })
-      .from(documents)
-      .where(eq(documents.id, documentId));
-    if (docRow?.courseId) {
-      await recomputeCourseFrameworkGaps(docRow.courseId);
     }
 
     const alignmentCount = await db
@@ -446,35 +434,6 @@ export async function runFullPipeline(options: {
       });
     }
     throw error;
-  }
-}
-
-export async function recomputeGapSummary(documentId: number) {
-  const db = getDb();
-  await db.delete(gapSummary).where(eq(gapSummary.documentId, documentId));
-
-  const rows = await db.execute(sql`
-    SELECT a.framework, a.framework_id, a.framework_label,
-           COUNT(DISTINCT c.id)::int as chunk_count,
-           AVG(a.confidence::numeric) as avg_confidence
-    FROM alignments a
-    JOIN chunks c ON c.id = a.chunk_id
-    WHERE c.document_id = ${documentId}
-    GROUP BY a.framework, a.framework_id, a.framework_label
-  `);
-
-  for (const row of rows.rows as Record<string, unknown>[]) {
-    const chunkCount = Number(row.chunk_count ?? 0);
-    const avgConfidence = Number(row.avg_confidence ?? 0);
-    await db.insert(gapSummary).values({
-      documentId,
-      framework: String(row.framework),
-      frameworkId: String(row.framework_id),
-      frameworkLabel: String(row.framework_label),
-      coverageStatus: deriveCoverageStatus(chunkCount, avgConfidence),
-      chunkCount,
-      avgConfidence: String(avgConfidence.toFixed(2)),
-    });
   }
 }
 

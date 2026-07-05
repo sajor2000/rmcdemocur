@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { levelOf, distribution, LEVELS, METHOD_NOTE } from "@/lib/coverage";
+import {
+  levelOf,
+  distribution,
+  heatmapCellStatus,
+  spectrumTakeaway,
+  aamcTakeaway,
+  heatmapTakeaway,
+  LEVELS,
+  METHOD_NOTE,
+} from "@/lib/coverage";
 
 describe("levelOf (document-count thresholds)", () => {
   it("maps boundaries to the Introduced -> Reinforced -> Mastered spectrum", () => {
@@ -50,5 +59,93 @@ describe("level metadata", () => {
   it("exposes a plain-language method note mentioning faculty review", () => {
     expect(METHOD_NOTE).toMatch(/faculty review/i);
     expect(METHOD_NOTE).toMatch(/document/i);
+  });
+});
+
+describe("spectrumTakeaway (deterministic annotation — KTD4, R11, R15)", () => {
+  it("names addressed/total/gap for a normal distribution", () => {
+    expect(spectrumTakeaway(distribution([1, 2, 5], 10))).toBe(
+      "3 of 10 domains addressed; 7 need attention.",
+    );
+  });
+
+  it("handles the zero-data edge case (no documents aligned yet)", () => {
+    expect(spectrumTakeaway(distribution([], 10))).toBe(
+      "0 of 10 domains addressed — no documents aligned yet.",
+    );
+  });
+
+  it("handles full coverage (no gaps)", () => {
+    expect(spectrumTakeaway(distribution([1, 1], 2))).toBe("All 2 domains addressed.");
+  });
+
+  it("handles an empty framework total", () => {
+    expect(spectrumTakeaway(distribution([], 0))).toBe("No framework domains to report yet.");
+  });
+});
+
+describe("aamcTakeaway (deterministic annotation — KTD4, R11, R15)", () => {
+  it("names the lowest-coverage domain", () => {
+    const data = [
+      { domain: "Professionalism", percent: 33 },
+      { domain: "Patient Care", percent: 90 },
+    ];
+    expect(aamcTakeaway(data)).toBe("Professionalism has the lowest coverage at 33%.");
+  });
+
+  it("handles no data", () => {
+    expect(aamcTakeaway([])).toBe("No AAMC domain data yet.");
+  });
+});
+
+describe("heatmapTakeaway (deterministic annotation — KTD4, R11, R15)", () => {
+  it("names the gap-cell count against the full case x system grid", () => {
+    const data = [{ status: "covered" }, { status: "partial" }];
+    expect(heatmapTakeaway([1, 2], ["A", "B"], data)).toBe(
+      "2 of 4 session × system cells show no coverage yet.",
+    );
+  });
+
+  it("handles full coverage (no gap cells)", () => {
+    const data = [{ status: "covered" }, { status: "partial" }];
+    expect(heatmapTakeaway([1], ["A", "B"], data)).toBe("Every session touches every in-scope system.");
+  });
+
+  it("handles no sessions or systems", () => {
+    expect(heatmapTakeaway([], [], [])).toBe("No sessions or systems to show yet.");
+  });
+
+  it("counts an explicit gap-status row as a gap, not as touched data (ultrareview finding)", () => {
+    // A returned row can itself carry status "gap" (e.g. a catalog join miss
+    // in heatmapCellStatus) — data.length alone would undercount gapCells and
+    // could print "every session touches every system" over a visible gap.
+    const data = [{ status: "covered" }, { status: "gap" }];
+    expect(heatmapTakeaway([1], ["A", "B"], data)).toBe(
+      "1 of 2 session × system cells show no coverage yet.",
+    );
+  });
+});
+
+describe("heatmapCellStatus (per-session, per-system breadth — KTD1)", () => {
+  it("gap when nothing in the system was touched, or the system has no domains", () => {
+    expect(heatmapCellStatus(0, 5)).toBe("gap");
+    expect(heatmapCellStatus(3, 0)).toBe("gap");
+  });
+
+  it("covered once at least half the system's domains are touched", () => {
+    expect(heatmapCellStatus(3, 6)).toBe("covered");
+    expect(heatmapCellStatus(4, 6)).toBe("covered");
+    expect(heatmapCellStatus(6, 6)).toBe("covered");
+  });
+
+  it("partial when some but fewer than half the system's domains are touched", () => {
+    expect(heatmapCellStatus(1, 6)).toBe("partial");
+    expect(heatmapCellStatus(2, 6)).toBe("partial");
+  });
+
+  it("is independently derived from breadth, not tuned to any single dataset", () => {
+    // The rule is a plain fraction threshold — verify it holds at odd totals too.
+    expect(heatmapCellStatus(1, 3)).toBe("partial");
+    expect(heatmapCellStatus(2, 3)).toBe("covered");
   });
 });

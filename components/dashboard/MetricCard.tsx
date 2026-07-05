@@ -12,21 +12,25 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { confidenceBadgeClass, formatConfidence } from "@/lib/utils";
+import { aamcTakeaway, heatmapTakeaway } from "@/lib/coverage";
 
 type MetricCardProps = {
   label: string;
   value: string;
   sub?: string;
-  variant?: "green" | "yellow" | "blue";
+  // "neutral" for metrics that aren't a coverage level (e.g. confidence) —
+  // color stays reserved for actual coverage meaning (R12).
+  variant?: "green" | "yellow" | "neutral";
 };
 
 export function MetricCard({ label, value, sub, variant = "green" }: MetricCardProps) {
   const ring =
     variant === "yellow"
       ? "border-partial-yellow"
-      : variant === "blue"
-        ? "border-blue-500"
+      : variant === "neutral"
+        ? "border-gray-300"
         : "border-covered-green";
   return (
     <Card>
@@ -54,6 +58,7 @@ export function AamcBarChart({
     <Card>
       <CardHeader>
         <CardTitle>AAMC PCRS Domain Coverage</CardTitle>
+        <p className="font-takeaway text-sm italic text-rush-dark">{aamcTakeaway(data)}</p>
       </CardHeader>
       <CardContent className="h-72">
         <ResponsiveContainer width="100%" height="100%">
@@ -78,6 +83,10 @@ export function AamcBarChart({
   );
 }
 
+/** Non-color redundancy (R12/design accessibility): a glyph per status so the
+ * grid is legible without relying on color alone. */
+const HEATMAP_GLYPH: Record<string, string> = { covered: "✓", partial: "◐", gap: "–" };
+
 export function CoverageHeatmap({
   data,
   cases,
@@ -101,31 +110,56 @@ export function CoverageHeatmap({
     return (
       <div
         key={`${caseNum}-${system}`}
-        className={`h-6 w-full min-w-[2rem] rounded-sm ${color}`}
+        className={`flex h-6 w-full min-w-[2rem] items-center justify-center rounded-sm text-xs font-medium text-white ${color}`}
         title={`Case ${caseNum} — ${system}: ${status}`}
-      />
+      >
+        {HEATMAP_GLYPH[status]}
+      </div>
     );
   };
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle>USMLE Domain Coverage Heatmap</CardTitle>
+        <div>
+          <CardTitle>USMLE Domain Coverage Heatmap</CardTitle>
+          <p className="font-takeaway mt-1 text-sm italic text-rush-dark">
+            {heatmapTakeaway(cases, systems, data)}
+          </p>
+        </div>
         <div className="flex items-center gap-3 text-xs text-rush-medium">
           {[
-            ["bg-covered-green", "Covered"],
-            ["bg-partial-yellow", "Partial"],
-            ["bg-gap-red", "Gap"],
-          ].map(([c, label]) => (
+            ["bg-covered-green", "covered", "Covered"],
+            ["bg-partial-yellow", "partial", "Partial"],
+            ["bg-gap-red", "gap", "Gap"],
+          ].map(([c, key, label]) => (
             <span key={label} className="flex items-center gap-1">
-              <span className={`h-3 w-3 rounded-sm ${c}`} />
+              <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm text-[9px] text-white ${c}`}>
+                {HEATMAP_GLYPH[key]}
+              </span>
               {label}
             </span>
           ))}
         </div>
       </CardHeader>
       <CardContent className="overflow-x-auto">
-        <div className="grid gap-1" style={{ gridTemplateColumns: `8rem repeat(${cases.length}, 1fr)` }}>
+        {/* Mobile (<640px): a per-system summary strip, not a shrunk grid — a
+            dense case×system matrix doesn't reflow to a narrow screen without
+            becoming illegible (R14, KTD source: small-multiples convention). */}
+        <div className="space-y-2 sm:hidden">
+          {systems.map((system) => (
+            <div
+              key={system}
+              className="flex items-center justify-between gap-3 rounded-md border border-gray-200 p-2"
+            >
+              <span className="truncate text-xs font-medium">{system}</span>
+              <div className="flex shrink-0 gap-1">
+                {cases.map((c) => cell(c, system))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden gap-1 sm:grid" style={{ gridTemplateColumns: `8rem repeat(${cases.length}, 1fr)` }}>
           <div />
           {cases.map((c) => (
             <div key={c} className="text-center text-xs font-medium">
@@ -158,40 +192,57 @@ export function AlignmentTable({
     status: string | null;
   }[];
 }) {
+  // Computed once per row and shared by both the mobile list and desktop
+  // table below — the CSS `sm:hidden`/`hidden sm:block` split only decides
+  // which markup is visible, not which is computed (ultrareview finding).
+  const decorated = rows.map((r) => {
+    const confidencePct = Number(r.confidence ?? 0);
+    return {
+      ...r,
+      confidenceClass: confidenceBadgeClass(confidencePct),
+      confidenceLabel: formatConfidence(confidencePct),
+    };
+  });
+
   return (
-    <Card>
+    <Card data-mask="dynamic">
       <CardHeader>
         <CardTitle>Recent Alignments</CardTitle>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left text-rush-medium">
-              <th className="pb-2 pr-4">Excerpt</th>
-              <th className="pb-2 pr-4">Framework</th>
-              <th className="pb-2 pr-4">Domain</th>
-              <th className="pb-2 pr-4">Confidence</th>
-              <th className="pb-2">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="border-b border-gray-100">
-                <td className="max-w-xs truncate py-2 pr-4">{r.excerpt ?? "—"}</td>
-                <td className="py-2 pr-4">{r.framework}</td>
-                <td className="py-2 pr-4">{r.frameworkLabel}</td>
-                <td className="py-2 pr-4">
-                  <Badge
-                    className={confidenceBadgeClass(Number(r.confidence ?? 0))}
-                  >
-                    {formatConfidence(Number(r.confidence ?? 0))}
-                  </Badge>
-                </td>
-                <td className="py-2 capitalize">{r.status}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <CardContent>
+        {/* Below sm: a wide table in overflow-x-auto left every row's height
+            set by off-screen wrapped Domain text, so mobile showed sparse
+            excerpt fragments floating in dead vertical space with no scroll
+            affordance (found in the U11 screenshot audit). ResponsiveTable
+            renders a stacked card list instead — same data, no horizontal
+            scroll needed. */}
+        <ResponsiveTable
+          rows={decorated}
+          rowKey={(r) => r.id}
+          columns={[
+            { header: "Excerpt", className: "max-w-xs truncate pr-4", cell: (r) => r.excerpt ?? "—" },
+            { header: "Framework", className: "pr-4", cell: (r) => r.framework },
+            { header: "Domain", className: "pr-4", cell: (r) => r.frameworkLabel },
+            {
+              header: "Confidence",
+              className: "pr-4",
+              cell: (r) => <Badge className={r.confidenceClass}>{r.confidenceLabel}</Badge>,
+            },
+            { header: "Status", className: "capitalize", cell: (r) => r.status },
+          ]}
+          renderMobileCard={(r) => (
+            <div className="rounded-md border border-gray-100 p-3 text-sm">
+              <p className="text-rush-dark">{r.excerpt ?? "—"}</p>
+              <p className="mt-1 text-xs text-rush-medium">
+                {r.framework} · {r.frameworkLabel}
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <Badge className={r.confidenceClass}>{r.confidenceLabel}</Badge>
+                <span className="text-xs capitalize text-rush-medium">{r.status}</span>
+              </div>
+            </div>
+          )}
+        />
       </CardContent>
     </Card>
   );

@@ -14,12 +14,6 @@ vi.mock("@/lib/azure-ai", () => ({ generateEmbedding, alignToFramework }));
 vi.mock("@/lib/document-parser", () => ({ parseDocument }));
 vi.mock("@/lib/objective-cleanup", () => ({ extractAndCleanObjectives }));
 vi.mock("@/lib/framework-rag", () => ({ retrieveKeywordCandidates }));
-vi.mock("@/lib/gap-analyzer", () => ({
-  recomputeCourseFrameworkGaps: vi.fn(),
-  recomputeGapSummary: vi.fn(),
-  deriveCoverageStatus: vi.fn(() => "covered"),
-}));
-
 // One linked media asset, csv-captioned, on chunk id 101 — the resume path
 // must still re-embed that chunk even though its content is unchanged.
 const linkDocumentMediaToChunks = vi.hoisted(() =>
@@ -120,7 +114,6 @@ describe("runFullPipeline resume — caption-aware re-embed", () => {
     dbMocks.setSelectQueue([
       [{ caseTitle: "Marie Hernandez", filename: "f.docx", caseNumber: 3 }],
       existingRows,
-      [{ courseId: 1 }],
       [{ count: built.length }],
     ]);
     dbMocks.execute
@@ -141,7 +134,6 @@ describe("runFullPipeline resume — caption-aware re-embed", () => {
     dbMocks.setSelectQueue([
       [{ caseTitle: "Marie Hernandez", filename: "f.docx", caseNumber: 3 }],
       existingRows,
-      [{ courseId: 1 }],
       [{ count: built.length }],
     ]);
     dbMocks.execute

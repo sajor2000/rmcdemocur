@@ -90,12 +90,12 @@ export default async function CourseDashboardPage({
         <MetricCard
           label="Avg Alignment Confidence"
           value={metrics.avgConfidence.toFixed(2)}
-          variant="blue"
+          variant="neutral"
         />
       </div>
 
       {metrics.alignmentsTotal > 0 && (
-        <div className="rounded-lg border bg-white p-4">
+        <div className="rounded-lg border bg-white p-4" data-mask="dynamic">
           <div className="mb-1 flex items-center justify-between text-sm">
             <span className="font-medium">Human review progress</span>
             <span className="text-rush-medium">

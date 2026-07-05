@@ -7,7 +7,9 @@ export default defineConfig({
   test: {
     environment: "node",
     // Playwright e2e specs live in e2e/ and must not be run by vitest.
-    exclude: [...configDefaults.exclude, "e2e/**"],
+    // .claude/** excludes any nested Claude Code agent worktrees (unrelated
+    // checkouts of other branches) from test discovery.
+    exclude: [...configDefaults.exclude, "e2e/**", ".claude/**"],
   },
   resolve: {
     alias: {

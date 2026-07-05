@@ -30,12 +30,15 @@ test.describe("A1 — course director reviews coverage", () => {
     await expect(page.getByText("Behavioral Health")).toHaveCount(0);
   });
 
-  test("gap analysis is scoped and severity is honest (amber, not all-red)", async ({
+  test("gap analysis is scoped and speaks one coverage methodology", async ({
     page,
   }) => {
     await page.goto(`${COURSE}/gaps`);
     await expect(page.getByText(/in-scope USMLE domains/i)).toBeVisible();
-    await expect(page.getByText("Partially covered").first()).toBeVisible();
+    // One vocabulary, not a "per-document snapshot" vs "authoritative" split —
+    // the intensity spectrum and the gap cards below it use the same levels.
+    await expect(page.getByText(/How coverage is measured/i)).toBeVisible();
+    await expect(page.getByText("Introduced").first()).toBeVisible();
   });
 });
 

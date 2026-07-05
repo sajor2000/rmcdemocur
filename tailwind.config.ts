@@ -9,6 +9,11 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // Semantic-only color discipline (R12, KTD5): gap/covered/partial (plus
+      // the amber/green shades LEVELS also uses in lib/coverage.ts) are the
+      // ONLY colors that carry coverage meaning anywhere in the app. Every
+      // other surface — chrome, borders, secondary text — uses Tailwind's
+      // built-in gray/neutral scale, never a new decorative color.
       colors: {
         rush: {
           green: "#00843D",
@@ -23,6 +28,9 @@ const config: Config = {
         partial: { yellow: "#D97706" },
       },
       fontFamily: {
+        // Editorial takeaway headline (the "so what" above a chart/section) —
+        // serif, distinct from the sans used for data labels and body (R13).
+        takeaway: ["var(--font-lora)", "serif"],
         heading: ["var(--font-sora)", "sans-serif"],
         body: ["var(--font-inter)", "sans-serif"],
         mono: ["var(--font-jetbrains)", "monospace"],

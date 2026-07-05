@@ -8,8 +8,10 @@ import { LEVELS, METHOD_NOTE } from "@/lib/coverage";
  */
 export function MethodExplainer() {
   return (
-    <div className="rounded-lg border border-rush-green/30 bg-green-50/50 p-4 text-sm">
-      <p className="font-medium text-rush-dark">How coverage is measured</p>
+    <div className="border-l-2 border-gray-300 pl-4 text-sm">
+      <p className="font-heading text-xs font-semibold uppercase tracking-wide text-gray-500">
+        How coverage is measured
+      </p>
       <p className="mt-1 text-rush-medium">{METHOD_NOTE}</p>
       <ul className="mt-3 grid gap-1 sm:grid-cols-2">
         {LEVELS.map((l) => (

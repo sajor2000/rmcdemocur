@@ -37,12 +37,17 @@ export function courseModule(courseCode: string | null | undefined): string {
   return COURSE_MODULE[courseCode] ?? "Unassigned";
 }
 
-/** Target USMLE systems for a course, or null when none are curated (= all). */
+/** Target USMLE systems for a course, or null when none are curated (= all).
+ * An empty array normalizes to null too — every caller treats a truthy
+ * targetSystems as a non-empty SQL `IN (...)` list (an empty array would
+ * produce invalid `IN ()` SQL), so there is no reachable "curated to zero
+ * systems" state. */
 export function courseTargetSystems(
   courseCode: string | null | undefined,
 ): string[] | null {
   if (!courseCode) return null;
-  return COURSE_TARGET_SYSTEMS[courseCode] ?? null;
+  const systems = COURSE_TARGET_SYSTEMS[courseCode];
+  return systems && systems.length > 0 ? systems : null;
 }
 
 /** The organ system a USMLE framework label belongs to ("System — sub" -> "System"). */

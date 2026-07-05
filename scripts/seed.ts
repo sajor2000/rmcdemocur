@@ -128,6 +128,9 @@ export async function seedCourse(): Promise<void> {
   await db.delete(chunks);
   await db.delete(courseObjectives);
   await db.delete(processingJobs);
+  // Permanent no-op: nothing writes gap_summary anymore (coverage is computed
+  // live from alignments/chunks/documents). Left in the wipe order in case the
+  // table is ever repopulated by something else; always deletes zero rows today.
   await db.delete(gapSummary);
   await db.delete(documents);
   await db.delete(courses);

@@ -117,6 +117,59 @@ export function distribution(docCounts: number[], total: number): CoverageDist {
 }
 
 /**
+ * Per-session (case) x system heatmap cell status. This answers a different
+ * question than `distribution()` above: not "how many documents across the
+ * course address topic X" (course-wide depth), but "how much of system Y did
+ * THIS session's document touch" (per-document breadth). Cutoffs are
+ * independently derived from system coverage breadth — not tuned to produce
+ * a particular visual result — so the rule stays falsifiable on its own terms.
+ */
+export function heatmapCellStatus(
+  domainsTouched: number,
+  domainsTotal: number,
+): "covered" | "partial" | "gap" {
+  if (domainsTotal <= 0 || domainsTouched <= 0) return "gap";
+  return domainsTouched / domainsTotal >= 0.5 ? "covered" : "partial";
+}
+
+/**
+ * Deterministic takeaway sentence for a coverage spectrum (R11) — the "so
+ * what" a reader gets before the bar/legend, computed only from values
+ * already rendered elsewhere on the page (KTD4). Never LLM-generated (R15).
+ */
+export function spectrumTakeaway(dist: CoverageDist): string {
+  if (dist.total <= 0) return "No framework domains to report yet.";
+  if (dist.addressed === 0) return `0 of ${dist.total} domains addressed — no documents aligned yet.`;
+  if (dist.gap === 0) return `All ${dist.total} domains addressed.`;
+  return `${dist.addressed} of ${dist.total} domains addressed; ${dist.gap} need attention.`;
+}
+
+/** Deterministic takeaway naming the lowest-coverage AAMC domain (R11, KTD4). */
+export function aamcTakeaway(data: { domain: string; percent: number }[]): string {
+  if (data.length === 0) return "No AAMC domain data yet.";
+  const lowest = data.reduce((min, d) => (d.percent < min.percent ? d : min), data[0]);
+  return `${lowest.domain} has the lowest coverage at ${lowest.percent}%.`;
+}
+
+/** Deterministic takeaway naming how many session x system heatmap cells are
+ * gaps (R11, KTD4). `data` is every returned (case, system) row — an absent
+ * pair is implicitly a gap too, and a returned row can itself carry an
+ * explicit "gap" status (e.g. a catalog join miss), so gap cells are counted
+ * by status, not inferred from array length alone. */
+export function heatmapTakeaway(
+  cases: number[],
+  systems: string[],
+  data: { status: string }[],
+): string {
+  const totalCells = cases.length * systems.length;
+  if (totalCells === 0) return "No sessions or systems to show yet.";
+  const nonGapCells = data.filter((d) => d.status !== "gap").length;
+  const gapCells = Math.max(0, totalCells - nonGapCells);
+  if (gapCells === 0) return "Every session touches every in-scope system.";
+  return `${gapCells} of ${totalCells} session × system cells show no coverage yet.`;
+}
+
+/**
  * The one-line method statement shown to educators wherever coverage appears
  * (R6) and embedded in exported files (R11). States the AI-assisted, faculty-
  * review-required nature and the document-count basis.
