@@ -18,15 +18,17 @@ type MetricCardProps = {
   label: string;
   value: string;
   sub?: string;
-  variant?: "green" | "yellow" | "blue";
+  // "neutral" for metrics that aren't a coverage level (e.g. confidence) —
+  // color stays reserved for actual coverage meaning (R12).
+  variant?: "green" | "yellow" | "neutral";
 };
 
 export function MetricCard({ label, value, sub, variant = "green" }: MetricCardProps) {
   const ring =
     variant === "yellow"
       ? "border-partial-yellow"
-      : variant === "blue"
-        ? "border-blue-500"
+      : variant === "neutral"
+        ? "border-gray-300"
         : "border-covered-green";
   return (
     <Card>

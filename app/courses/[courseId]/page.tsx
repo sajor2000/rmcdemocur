@@ -90,7 +90,7 @@ export default async function CourseDashboardPage({
         <MetricCard
           label="Avg Alignment Confidence"
           value={metrics.avgConfidence.toFixed(2)}
-          variant="blue"
+          variant="neutral"
         />
       </div>
 
