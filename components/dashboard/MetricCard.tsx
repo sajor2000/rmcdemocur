@@ -13,6 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { confidenceBadgeClass, formatConfidence } from "@/lib/utils";
+import { aamcTakeaway, heatmapTakeaway } from "@/lib/coverage";
 
 type MetricCardProps = {
   label: string;
@@ -45,13 +46,6 @@ export function MetricCard({ label, value, sub, variant = "green" }: MetricCardP
       </CardContent>
     </Card>
   );
-}
-
-/** Deterministic takeaway naming the lowest-coverage domain (R11, KTD4). */
-function aamcTakeaway(data: { domain: string; percent: number }[]): string {
-  if (data.length === 0) return "No AAMC domain data yet.";
-  const lowest = data.reduce((min, d) => (d.percent < min.percent ? d : min), data[0]);
-  return `${lowest.domain} has the lowest coverage at ${lowest.percent}%.`;
 }
 
 export function AamcBarChart({
@@ -91,15 +85,6 @@ export function AamcBarChart({
 /** Non-color redundancy (R12/design accessibility): a glyph per status so the
  * grid is legible without relying on color alone. */
 const HEATMAP_GLYPH: Record<string, string> = { covered: "✓", partial: "◐", gap: "–" };
-
-/** Deterministic takeaway naming how many session x system cells are gaps. */
-function heatmapTakeaway(cases: number[], systems: string[], data: { status: string }[]): string {
-  const totalCells = cases.length * systems.length;
-  if (totalCells === 0) return "No sessions or systems to show yet.";
-  const gapCells = Math.max(0, totalCells - data.length);
-  if (gapCells === 0) return "Every session touches every in-scope system.";
-  return `${gapCells} of ${totalCells} session × system cells show no coverage yet.`;
-}
 
 export function CoverageHeatmap({
   data,

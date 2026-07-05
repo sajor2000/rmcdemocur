@@ -82,16 +82,22 @@ export async function getCourseSummary(courseId: number) {
   // system did each session's document touch. A different question than the
   // course-wide, per-topic document-count engine below — heatmapCellStatus
   // (KTD1) buckets it independently, not tuned to any particular visual result.
+  // Inner query resolves one system per framework_id; outer GROUP BY does the
+  // distinct-domain rollup in SQL rather than a hand-rolled JS Map/Set.
   const heatmapTouched = await db.execute(sql`
-    SELECT d.case_number,
-           a.framework_id AS id,
-           COALESCE(MIN(ud.domain), split_part(MIN(a.framework_label), ' — ', 1)) AS system
-    FROM alignments a
-    JOIN chunks c ON c.id = a.chunk_id
-    JOIN documents d ON d.id = c.document_id
-    LEFT JOIN usmle_domains ud ON ud.stable_id = a.framework_id
-    WHERE d.course_id = ${courseId} AND a.framework = 'USMLE' AND d.case_number IS NOT NULL
-    GROUP BY d.case_number, a.framework_id
+    SELECT sub.case_number, sub.system, COUNT(DISTINCT sub.id)::int AS domains_touched
+    FROM (
+      SELECT d.case_number,
+             a.framework_id AS id,
+             COALESCE(MIN(ud.domain), split_part(MIN(a.framework_label), ' — ', 1)) AS system
+      FROM alignments a
+      JOIN chunks c ON c.id = a.chunk_id
+      JOIN documents d ON d.id = c.document_id
+      LEFT JOIN usmle_domains ud ON ud.stable_id = a.framework_id
+      WHERE d.course_id = ${courseId} AND a.framework = 'USMLE' AND d.case_number IS NOT NULL
+      GROUP BY d.case_number, a.framework_id
+    ) sub
+    GROUP BY sub.case_number, sub.system
   `);
   const systemTotalsRes = await db.execute(sql`
     SELECT domain AS system, COUNT(*)::int AS total
@@ -173,27 +179,15 @@ export async function getCourseSummary(courseId: number) {
       ? Math.round((aamcAlignedCount / aamcTotal.length) * 100)
       : 0;
 
-  // Roll the per-(case, framework_id) rows up to distinct-domains-touched per
-  // (case, system), then bucket each cell deterministically (KTD1).
-  const touchedByCase = new Map<number, Map<string, Set<string>>>();
-  for (const r of heatmapTouched.rows as { case_number: number; id: string; system: string }[]) {
-    const caseNum = Number(r.case_number);
-    const bySystem = touchedByCase.get(caseNum) ?? new Map<string, Set<string>>();
-    const set = bySystem.get(r.system) ?? new Set<string>();
-    set.add(r.id);
-    bySystem.set(r.system, set);
-    touchedByCase.set(caseNum, bySystem);
-  }
-  const heatmapData: { caseNumber: number; system: string; status: ReturnType<typeof heatmapCellStatus> }[] = [];
-  touchedByCase.forEach((bySystem, caseNum) => {
-    bySystem.forEach((touched, system) => {
-      heatmapData.push({
-        caseNumber: caseNum,
-        system,
-        status: heatmapCellStatus(touched.size, domainsTotalBySystem.get(system) ?? 0),
-      });
-    });
-  });
+  // Bucket each (case, system) cell deterministically (KTD1) — the distinct-
+  // domain rollup itself already happened in SQL above.
+  const heatmapData = (
+    heatmapTouched.rows as { case_number: number; system: string; domains_touched: number }[]
+  ).map((r) => ({
+    caseNumber: Number(r.case_number),
+    system: r.system,
+    status: heatmapCellStatus(r.domains_touched, domainsTotalBySystem.get(r.system) ?? 0),
+  }));
   const allSystems = Array.from(new Set(heatmapData.map((h) => h.system))).sort();
   // Scope the heatmap rows + axis to the course's target systems (all if none).
   const scopedHeatmap = heatmapData.filter((h) => inScope(h.system));
@@ -225,7 +219,9 @@ export async function getCourseSummary(courseId: number) {
   // Same per-topic rows the course CSV export serializes (KTD3) — one source,
   // no second query path to diverge from it. "Gap" cards show the thin end
   // (0-1 documents); the intensity spectrum above is the authoritative summary.
-  const topicRows = await getGapExportRows(courseId);
+  // targetSystems is passed through since it's already resolved above — skips
+  // getGapExportRows' own course/documents fetch when called from here.
+  const topicRows = await getGapExportRows(courseId, targetSystems);
 
   return {
     course,
@@ -252,7 +248,9 @@ export async function getCourseSummary(courseId: number) {
     ),
     heatmap: scopedHeatmap,
     usmleSystems,
-    gaps: topicRows.filter((r) => r.docs < 2),
+    // Full per-topic catalog rows (KTD3) — the gaps page derives both its gap
+    // cards (docs < 2) and its full Coverage Table from this one array.
+    topicRows,
     recentAlignments,
   };
 }
@@ -636,10 +634,18 @@ export async function searchChunks(courseId: number, queryEmbedding: number[], l
  * gaps page's cards, its CSV export (KTD3), and getCourseSummary's "gaps"
  * list: one query, so none of them can diverge from each other.
  */
-export async function getGapExportRows(courseId: number): Promise<CoverageExportRow[]> {
+export async function getGapExportRows(
+  courseId: number,
+  // Pass the course's already-resolved target systems when the caller has
+  // them (e.g. getCourseSummary) to skip a redundant course/documents fetch.
+  // Standalone callers (the CSV export route) omit it and resolve it here.
+  preloadedTargetSystems?: string[] | null,
+): Promise<CoverageExportRow[]> {
   const db = getDb();
-  const { course } = await getCourseWithDocuments(courseId);
-  const targetSystems = courseTargetSystems(course?.code);
+  const targetSystems =
+    preloadedTargetSystems !== undefined
+      ? preloadedTargetSystems
+      : courseTargetSystems((await getCourseWithDocuments(courseId)).course?.code);
 
   const usmleRows = await db.execute(sql`
     SELECT ud.stable_id AS id, ud.domain AS system, ud.subdomain AS subdomain,

@@ -4,6 +4,8 @@ import {
   distribution,
   heatmapCellStatus,
   spectrumTakeaway,
+  aamcTakeaway,
+  heatmapTakeaway,
   LEVELS,
   METHOD_NOTE,
 } from "@/lib/coverage";
@@ -79,6 +81,38 @@ describe("spectrumTakeaway (deterministic annotation — KTD4, R11, R15)", () =>
 
   it("handles an empty framework total", () => {
     expect(spectrumTakeaway(distribution([], 0))).toBe("No framework domains to report yet.");
+  });
+});
+
+describe("aamcTakeaway (deterministic annotation — KTD4, R11, R15)", () => {
+  it("names the lowest-coverage domain", () => {
+    const data = [
+      { domain: "Professionalism", percent: 33 },
+      { domain: "Patient Care", percent: 90 },
+    ];
+    expect(aamcTakeaway(data)).toBe("Professionalism has the lowest coverage at 33%.");
+  });
+
+  it("handles no data", () => {
+    expect(aamcTakeaway([])).toBe("No AAMC domain data yet.");
+  });
+});
+
+describe("heatmapTakeaway (deterministic annotation — KTD4, R11, R15)", () => {
+  it("names the gap-cell count against the full case x system grid", () => {
+    const data = [{ status: "covered" }, { status: "partial" }];
+    expect(heatmapTakeaway([1, 2], ["A", "B"], data)).toBe(
+      "2 of 4 session × system cells show no coverage yet.",
+    );
+  });
+
+  it("handles full coverage (no gap cells)", () => {
+    const data = [{ status: "covered" }, { status: "partial" }];
+    expect(heatmapTakeaway([1], ["A", "B"], data)).toBe("Every session touches every in-scope system.");
+  });
+
+  it("handles no sessions or systems", () => {
+    expect(heatmapTakeaway([], [], [])).toBe("No sessions or systems to show yet.");
   });
 });
 

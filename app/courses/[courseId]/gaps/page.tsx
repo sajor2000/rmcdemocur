@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { suggestedGapAction } from "@/lib/gap-analyzer";
-import { getCourseSummary, getGapExportRows } from "@/lib/queries";
+import { getCourseSummary } from "@/lib/queries";
 import { levelLabel } from "@/lib/coverage";
 import { cleanFrameworkLabel } from "@/lib/utils";
 import { CoverageIntensityCard } from "@/components/coverage/CoverageIntensityCard";
@@ -26,20 +26,19 @@ export default async function GapsPage({
     );
   }
 
-  const { gaps, metrics, targetSystems, usmleSpectrum, aamcSpectrum } = summary;
-  const tableRows = await getGapExportRows(courseId).catch(() => []);
+  const { topicRows, metrics, targetSystems, usmleSpectrum, aamcSpectrum } = summary;
+  // The Coverage Table renders every catalog topic; the gap cards below show
+  // just the thin end (0-1 documents) — same source, no second query (KTD3).
+  const gaps = topicRows.filter((r) => r.docs < 2);
+  const tableRows = topicRows;
 
   // Cards are for the truly actionable bucket (0 documents) — "Introduced"
-  // (1 document) topics are already counted in the intensity spectrum above
-  // and remain in the full Coverage Table below; rendering all ~100+ thin
-  // topics as individual cards made the page unusably long (found in the
-  // U11 screenshot audit).
+  // (1 document) topics are already counted in the intensity spectrum above,
+  // remain in the full Coverage Table below, and rendering all ~100+ thin
+  // topics as individual cards made the page unusably long, capped here at
+  // CARD_LIMIT for the same reason (found in the U11 screenshot audit).
   const notAddressed = gaps.filter((g) => g.docs === 0);
   const introducedCount = gaps.length - notAddressed.length;
-  // Cards are for scanning the highest-priority gaps at a glance, not for
-  // reproducing the whole catalog — the Coverage Table + CSV export already
-  // do that compactly. 12 cards keeps the page a reasonable length even when
-  // a course has 80+ uncovered topics (found in the U11 screenshot audit).
   const CARD_LIMIT = 12;
   const shownGaps = notAddressed.slice(0, CARD_LIMIT);
   const hiddenGapCount = notAddressed.length - shownGaps.length;

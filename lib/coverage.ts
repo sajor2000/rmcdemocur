@@ -144,6 +144,28 @@ export function spectrumTakeaway(dist: CoverageDist): string {
   return `${dist.addressed} of ${dist.total} domains addressed; ${dist.gap} need attention.`;
 }
 
+/** Deterministic takeaway naming the lowest-coverage AAMC domain (R11, KTD4). */
+export function aamcTakeaway(data: { domain: string; percent: number }[]): string {
+  if (data.length === 0) return "No AAMC domain data yet.";
+  const lowest = data.reduce((min, d) => (d.percent < min.percent ? d : min), data[0]);
+  return `${lowest.domain} has the lowest coverage at ${lowest.percent}%.`;
+}
+
+/** Deterministic takeaway naming how many session x system heatmap cells are
+ * gaps (R11, KTD4). `data` is the set of non-gap cells actually returned by
+ * the query — an absent (case, system) pair is implicitly a gap. */
+export function heatmapTakeaway(
+  cases: number[],
+  systems: string[],
+  data: { status: string }[],
+): string {
+  const totalCells = cases.length * systems.length;
+  if (totalCells === 0) return "No sessions or systems to show yet.";
+  const gapCells = Math.max(0, totalCells - data.length);
+  if (gapCells === 0) return "Every session touches every in-scope system.";
+  return `${gapCells} of ${totalCells} session × system cells show no coverage yet.`;
+}
+
 /**
  * The one-line method statement shown to educators wherever coverage appears
  * (R6) and embedded in exported files (R11). States the AI-assisted, faculty-
