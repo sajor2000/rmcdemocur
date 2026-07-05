@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { groupKeywordsByChunk } from "@/lib/queries";
+import { buildCaptionByKey, captionKey, groupKeywordsByChunk } from "@/lib/queries";
+
+describe("buildCaptionByKey / captionKey", () => {
+  it("keys official captions by filename+label", () => {
+    const byKey = buildCaptionByKey([
+      { filename: "f.docx", label: "Figure 1", textForEmbed: "Official caption." },
+    ]);
+    expect(byKey.get(captionKey("f.docx", "Figure 1"))).toBe("Official caption.");
+  });
+
+  it("does not match a same-label figure in a different document", () => {
+    const byKey = buildCaptionByKey([
+      { filename: "f.docx", label: "Figure 1", textForEmbed: "Official caption." },
+    ]);
+    expect(byKey.get(captionKey("other.docx", "Figure 1"))).toBeUndefined();
+  });
+});
 
 describe("groupKeywordsByChunk", () => {
   it("groups keyword tags by chunk with definitions", () => {
