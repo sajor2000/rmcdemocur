@@ -25,6 +25,7 @@
     "db:extract-objectives": "tsx scripts/extract-objectives.ts",
     "db:realign": "tsx scripts/realign.ts",
     "db:collapse-duplicate-media": "tsx scripts/collapse-duplicate-media.ts",
+    "db:describe-figure-images": "tsx scripts/describe-figure-images.ts",
     "db:backfill-media-paths": "tsx scripts/backfill-media-paths.ts",
     "db:import-figure-captions": "tsx scripts/import-figure-captions.ts",
     "db:migrate-captions": "tsx scripts/migrate-captions.ts",
