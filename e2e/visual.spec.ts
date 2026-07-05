@@ -36,7 +36,10 @@ for (const route of ROUTES) {
       // between identical draws (verified: only source of diff on an
       // unmodified page) — mask it rather than loosen the tolerance that
       // catches real text/layout regressions everywhere else (KTD7).
-      mask: [page.locator(".recharts-wrapper")],
+      // [data-mask="dynamic"] covers the other DB-driven regions that can
+      // change independently of a code change (human review progress,
+      // recent alignments) — same rationale, not tied to a specific chart.
+      mask: [page.locator(".recharts-wrapper"), page.locator('[data-mask="dynamic"]')],
     });
   });
 }

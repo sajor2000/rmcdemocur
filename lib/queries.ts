@@ -204,7 +204,12 @@ export async function getCourseSummary(courseId: number) {
     heatmapTouched.rows as { case_number: number; system: string; domains_touched: number }[],
     domainsTotalBySystem,
   );
-  const allSystems = Array.from(new Set(heatmapData.map((h) => h.system))).sort();
+  // The axis is every canonical system (domainsTotalBySystem, unconditional
+  // on touched data) — not just systems this course happened to touch. A
+  // target system with zero alignments must still appear as an all-gap row,
+  // not vanish from the axis entirely (that would silently hide a real gap,
+  // the opposite of what AE1 guards against).
+  const allSystems = Array.from(domainsTotalBySystem.keys()).sort();
   // Scope the heatmap rows + axis to the course's target systems (all if none).
   const scopedHeatmap = heatmapData.filter((h) => inScope(h.system));
   const usmleSystems = targetSystems

@@ -192,7 +192,7 @@ export function AlignmentTable({
   }[];
 }) {
   return (
-    <Card>
+    <Card data-mask="dynamic">
       <CardHeader>
         <CardTitle>Recent Alignments</CardTitle>
       </CardHeader>
