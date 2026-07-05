@@ -16,7 +16,12 @@ export type CoverageExportRow = {
 const withLevel = (r: CoverageExportRow) => ({ ...r, level: levelLabel(r.docs) });
 
 function csvCell(value: string | number): string {
-  return `"${String(value).replace(/"/g, '""')}"`;
+  const s = String(value);
+  // Neutralize spreadsheet formula injection: a cell starting with = + - @ (or
+  // tab/CR) is auto-evaluated by Excel/Sheets. Defense-in-depth — export cells
+  // are controlled framework data, but the team opens these in spreadsheets.
+  const guarded = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  return `"${guarded.replace(/"/g, '""')}"`;
 }
 
 /** CSV with a leading method-note comment row, then a header row, then data. */
@@ -28,7 +33,10 @@ export function coverageRowsToCsv(rows: CoverageExportRow[]): string {
       .map(csvCell)
       .join(",");
   });
-  return [`# ${METHOD_NOTE}`, columns.join(","), ...dataLines].join("\n");
+  // Quote the method note as one cell (it contains commas) so the first row
+  // isn't ragged for strict CSV parsers.
+  const noteRow = `"# ${METHOD_NOTE.replace(/"/g, '""')}"`;
+  return [noteRow, columns.join(","), ...dataLines].join("\n");
 }
 
 /** JSON dataset with an embedded method block + one object per topic. */

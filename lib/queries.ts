@@ -20,6 +20,7 @@ import {
   courseModule,
 } from "@/lib/course-scope";
 import { distribution, type CoverageDist } from "@/lib/coverage";
+import { type CoverageExportRow } from "@/lib/coverage-export";
 import { passesSimilarity, resolveMinSimilarity } from "@/lib/retrieval-config";
 
 export async function getCourseWithDocuments(courseId: number) {
@@ -295,7 +296,6 @@ export async function getCourseSummary(courseId: number) {
       )
       .map((g) => g.gap_summary),
     recentAlignments,
-    coveredDomains: usmleCovered,
   };
 }
 
@@ -489,7 +489,7 @@ export async function getCoverageExportRows() {
     WHERE ud.parent_stable_id IS NOT NULL
     UNION ALL
     SELECT 'AAMC' AS framework, ac.domain_name AS system,
-           ac.sub_id || ': ' || ac.description AS topic,
+           COALESCE(ac.sub_id, ac.stable_id) || ': ' || ac.description AS topic,
            COALESCE(cov.docs, 0)::int AS docs, COALESCE(cov.courses, 0)::int AS courses
     FROM aamc_competencies ac
     LEFT JOIN (
@@ -499,9 +499,7 @@ export async function getCoverageExportRows() {
     ) cov ON cov.framework_id = ac.stable_id
     ORDER BY framework, system, topic
   `);
-  return res.rows as {
-    framework: string; system: string; topic: string; docs: number; courses: number;
-  }[];
+  return res.rows as CoverageExportRow[];
 }
 
 export async function getMapData(courseId: number) {
