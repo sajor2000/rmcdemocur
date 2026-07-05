@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { suggestedGapAction } from "@/lib/gap-analyzer";
 import { getCourseSummary } from "@/lib/queries";
 import { levelLabel, levelOf } from "@/lib/coverage";
@@ -194,39 +195,28 @@ export default async function GapsPage({
         </CardHeader>
         <CardContent className="max-h-[32rem] overflow-y-auto">
           {/* Below sm: the 3-column table genuinely overflows the viewport
-              (verified: 401px table in a 292px container) — a stacked list
-              instead, no horizontal scroll needed (found in the U11
-              screenshot audit). */}
-          <ul className="space-y-2 sm:hidden">
-            {decoratedTableRows.map((row, i) => (
-              <li key={i} className={`rounded-md border-b p-2 text-sm ${row.rowClass}`}>
+              (verified: 401px table in a 292px container) — ResponsiveTable
+              renders a stacked list instead, no horizontal scroll needed
+              (found in the U11 screenshot audit). */}
+          <ResponsiveTable
+            rows={decoratedTableRows}
+            rowKey={(row) => `${row.framework}-${row.system}-${row.topic}`}
+            stickyHeader
+            rowClassName={(row) => row.rowClass}
+            columns={[
+              { header: "Topic", cell: (row) => row.cleanTopic },
+              { header: "Level", cell: (row) => row.levelText },
+              { header: "Documents", className: "font-mono", cell: (row) => row.docs },
+            ]}
+            renderMobileCard={(row) => (
+              <div className={`rounded-md border-b p-2 text-sm ${row.rowClass}`}>
                 <p>{row.cleanTopic}</p>
                 <p className="mt-1 text-xs text-rush-medium">
                   {row.levelText} · {row.docs} doc{row.docs === 1 ? "" : "s"}
                 </p>
-              </li>
-            ))}
-          </ul>
-          <div className="hidden overflow-x-auto sm:block">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-white">
-                <tr className="border-b text-left">
-                  <th className="pb-2">Topic</th>
-                  <th className="pb-2">Level</th>
-                  <th className="pb-2">Documents</th>
-                </tr>
-              </thead>
-              <tbody>
-                {decoratedTableRows.map((row, i) => (
-                  <tr key={i} className={`border-b ${row.rowClass}`}>
-                    <td className="py-2">{row.cleanTopic}</td>
-                    <td className="py-2">{row.levelText}</td>
-                    <td className="py-2 font-mono">{row.docs}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            )}
+          />
         </CardContent>
       </Card>
     </div>
