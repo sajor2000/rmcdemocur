@@ -23,6 +23,9 @@ export function Header() {
             <Link href="/courses/1" className="hover:text-rush-yellow">
               Demo
             </Link>
+            <Link href="/program" className="hover:text-rush-yellow">
+              Program
+            </Link>
             <Link href="/about" className="hover:text-rush-yellow">
               About
             </Link>

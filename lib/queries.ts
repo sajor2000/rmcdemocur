@@ -14,7 +14,12 @@ import {
   usmleDomains,
 } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
-import { courseTargetSystems, systemOfLabel } from "@/lib/course-scope";
+import {
+  courseTargetSystems,
+  systemOfLabel,
+  courseModule,
+} from "@/lib/course-scope";
+import { distribution, type CoverageDist } from "@/lib/coverage";
 import { passesSimilarity, resolveMinSimilarity } from "@/lib/retrieval-config";
 
 export async function getCourseWithDocuments(courseId: number) {
@@ -228,10 +233,40 @@ export async function getCourseSummary(courseId: number) {
     ? Math.max(0, usmleTotal - usmleCovered)
     : gaps.filter((g) => g.gap_summary.coverageStatus === "gap").length;
 
+  // Intensity spectrum for the course via the canonical engine — organ-scoped
+  // USMLE (matching usmleTotal), all AAMC (cross-cutting).
+  const usmleDocRows = await db.execute(sql`
+    SELECT COUNT(DISTINCT c.document_id)::int AS docs
+    FROM alignments a
+    JOIN chunks c ON c.id = a.chunk_id
+    JOIN documents d ON d.id = c.document_id
+    WHERE d.course_id = ${courseId} AND a.framework = 'USMLE'
+      ${targetSystems ? sql`AND split_part(a.framework_label, ' — ', 1) IN (${sql.join(targetSystems.map((s) => sql`${s}`), sql`, `)})` : sql``}
+    GROUP BY a.framework_id
+  `);
+  const usmleSpectrum = distribution(
+    (usmleDocRows.rows as { docs: number }[]).map((r) => r.docs),
+    usmleTotal || 1,
+  );
+  const aamcDocRows = await db.execute(sql`
+    SELECT COUNT(DISTINCT c.document_id)::int AS docs
+    FROM alignments a
+    JOIN chunks c ON c.id = a.chunk_id
+    JOIN documents d ON d.id = c.document_id
+    WHERE d.course_id = ${courseId} AND a.framework IN ('AAMC_PCRS','AAMC_EPA')
+    GROUP BY a.framework_id
+  `);
+  const aamcSpectrum = distribution(
+    (aamcDocRows.rows as { docs: number }[]).map((r) => r.docs),
+    aamcTotal.length || 1,
+  );
+
   return {
     course,
     documents: docs,
     targetSystems,
+    usmleSpectrum,
+    aamcSpectrum,
     metrics: {
       aamcCoveragePercent: aamcPct,
       usmleGaps: scopedUsmleGaps,
@@ -279,6 +314,168 @@ export function groupKeywordsByChunk(
     byChunk[row.chunkId] = list;
   }
   return byChunk;
+}
+
+/**
+ * Program-wide ("full curriculum") coverage across ALL courses, measured against
+ * the WHOLE framework — the inverse of getCourseSummary's organ scoping. Here the
+ * full USMLE content outline (every leaf domain / all 15 systems) and all AAMC
+ * competencies are the denominator, because collectively the curriculum should
+ * cover everything, so an uncovered domain is a real program gap. Coverage is the
+ * union across courses (a domain is covered if ANY course covers it).
+ */
+export async function getProgramSummary() {
+  const db = getDb();
+
+  const courseRows = await db
+    .select({ id: courses.id, code: courses.code, title: courses.title })
+    .from(courses)
+    .orderBy(courses.id);
+  const courseList = courseRows.map((c) => ({ ...c, module: courseModule(c.code) }));
+  const moduleByCourse = new Map(courseList.map((c) => [c.id, c.module]));
+  const modules = Array.from(new Set(courseList.map((c) => c.module))).sort();
+
+  const counts = await db.execute(sql`
+    SELECT
+      (SELECT COUNT(*)::int FROM documents) AS documents,
+      (SELECT COUNT(*)::int FROM usmle_domains WHERE parent_stable_id IS NOT NULL) AS usmle_total,
+      (SELECT COUNT(*)::int FROM aamc_competencies) AS aamc_total
+  `);
+  const c0 = counts.rows[0] as {
+    documents: number; usmle_total: number; aamc_total: number;
+  };
+
+  // Per (framework, topic, course): distinct DOCUMENTS (the "places" for the
+  // Introduced -> Reinforced -> Mastered model) + chunks. Rolling up by course
+  // lets us report coverage program-wide AND per module, for BOTH frameworks.
+  const rows = (
+    await db.execute(sql`
+      SELECT
+        CASE WHEN a.framework = 'USMLE' THEN 'usmle' ELSE 'aamc' END AS fw,
+        a.framework_id AS id,
+        MIN(a.framework_label) AS label,
+        split_part(MIN(a.framework_label), ' — ', 1) AS system,
+        d.course_id AS course_id,
+        COUNT(DISTINCT c.document_id)::int AS docs,
+        COUNT(DISTINCT a.chunk_id)::int AS chunks
+      FROM alignments a
+      JOIN chunks c ON c.id = a.chunk_id
+      JOIN documents d ON d.id = c.document_id
+      WHERE a.framework IN ('USMLE','AAMC_PCRS','AAMC_EPA')
+      GROUP BY fw, a.framework_id, d.course_id
+    `)
+  ).rows as {
+    fw: "usmle" | "aamc"; id: string; label: string; system: string;
+    course_id: number; docs: number; chunks: number;
+  }[];
+
+  type Topic = { docs: number; chunks: number; courses: Set<number>; label: string; system: string };
+
+  // Roll the per-(topic,course) rows up to per-topic totals within a course scope
+  // (all courses, or one module's courses), for one framework.
+  function topicsInScope(fw: "usmle" | "aamc", inScope: (courseId: number) => boolean) {
+    const map = new Map<string, Topic>();
+    for (const r of rows) {
+      if (r.fw !== fw || !inScope(r.course_id)) continue;
+      const e = map.get(r.id) ?? { docs: 0, chunks: 0, courses: new Set<number>(), label: r.label, system: r.system };
+      e.docs += r.docs;
+      e.chunks += r.chunks;
+      e.courses.add(r.course_id);
+      map.set(r.id, e);
+    }
+    return map;
+  }
+
+  // Distribution over a topic set via the canonical engine (lib/coverage) — the
+  // single source of level thresholds/definitions (R7).
+  const distFor = (topics: Map<string, Topic>, total: number): CoverageDist =>
+    distribution(
+      Array.from(topics.values()).map((t) => t.docs),
+      total,
+    );
+
+  // Scopes: entire curriculum, then each module (M1, M2, ...).
+  const scopeDefs: { key: string; inScope: (id: number) => boolean }[] = [
+    { key: "Entire curriculum", inScope: () => true },
+    ...modules.map((m) => ({ key: m, inScope: (id: number) => moduleByCourse.get(id) === m })),
+  ];
+
+  const byScope = (fw: "usmle" | "aamc", total: number): Record<string, CoverageDist> =>
+    Object.fromEntries(
+      scopeDefs.map((s) => [s.key, distFor(topicsInScope(fw, s.inScope), total)]),
+    );
+
+  // USMLE per-organ-system breakdown + redundancy, at the entire-curriculum scope.
+  const sysTotalsRes = await db.execute(sql`
+    SELECT domain AS system, COUNT(*)::int AS total
+    FROM usmle_domains WHERE parent_stable_id IS NOT NULL GROUP BY domain
+  `);
+  const totalBySystem = new Map<string, number>();
+  for (const r of sysTotalsRes.rows as { system: string; total: number }[]) {
+    totalBySystem.set(r.system, r.total);
+  }
+  const usmleTopics = topicsInScope("usmle", () => true);
+  const docsBySystem = new Map<string, number[]>();
+  for (const s of Array.from(totalBySystem.keys())) docsBySystem.set(s, []);
+  for (const e of Array.from(usmleTopics.values())) docsBySystem.get(e.system)?.push(e.docs);
+  // Each system carries a full CoverageDist (from the same engine).
+  const systems = Array.from(totalBySystem.keys())
+    .sort()
+    .map((system) => ({
+      system,
+      ...distribution(docsBySystem.get(system) ?? [], totalBySystem.get(system) ?? 0),
+    }));
+  const mostCovered = Array.from(usmleTopics.values())
+    .sort((a, b) => b.docs - a.docs || b.chunks - a.chunks)
+    .slice(0, 8)
+    .map((e) => ({ label: e.label, docs: e.docs, courses: e.courses.size, chunks: e.chunks }));
+
+  return {
+    scopes: scopeDefs.map((s) => s.key),
+    metrics: {
+      courses: courseList.length,
+      documents: c0.documents,
+    },
+    usmle: { total: c0.usmle_total, byScope: byScope("usmle", c0.usmle_total) },
+    aamc: { total: c0.aamc_total, byScope: byScope("aamc", c0.aamc_total) },
+    systems,
+    mostCovered,
+  };
+}
+
+/**
+ * Every framework topic (USMLE leaf domains + AAMC competencies) with the number
+ * of distinct documents/courses that address it — INCLUDING gaps (0 docs, via
+ * LEFT JOIN). The deterministic dataset behind the CSV/JSON export (R11).
+ */
+export async function getCoverageExportRows() {
+  const db = getDb();
+  const res = await db.execute(sql`
+    SELECT 'USMLE' AS framework, ud.domain AS system,
+           CASE WHEN ud.subdomain IS NOT NULL THEN ud.domain || ' — ' || ud.subdomain ELSE ud.domain END AS topic,
+           COALESCE(cov.docs, 0)::int AS docs, COALESCE(cov.courses, 0)::int AS courses
+    FROM usmle_domains ud
+    LEFT JOIN (
+      SELECT a.framework_id, COUNT(DISTINCT c.document_id) AS docs, COUNT(DISTINCT d.course_id) AS courses
+      FROM alignments a JOIN chunks c ON c.id = a.chunk_id JOIN documents d ON d.id = c.document_id
+      WHERE a.framework = 'USMLE' GROUP BY a.framework_id
+    ) cov ON cov.framework_id = ud.stable_id
+    WHERE ud.parent_stable_id IS NOT NULL
+    UNION ALL
+    SELECT 'AAMC' AS framework, ac.domain_name AS system,
+           ac.sub_id || ': ' || ac.description AS topic,
+           COALESCE(cov.docs, 0)::int AS docs, COALESCE(cov.courses, 0)::int AS courses
+    FROM aamc_competencies ac
+    LEFT JOIN (
+      SELECT a.framework_id, COUNT(DISTINCT c.document_id) AS docs, COUNT(DISTINCT d.course_id) AS courses
+      FROM alignments a JOIN chunks c ON c.id = a.chunk_id JOIN documents d ON d.id = c.document_id
+      WHERE a.framework IN ('AAMC_PCRS','AAMC_EPA') GROUP BY a.framework_id
+    ) cov ON cov.framework_id = ac.stable_id
+    ORDER BY framework, system, topic
+  `);
+  return res.rows as {
+    framework: string; system: string; topic: string; docs: number; courses: number;
+  }[];
 }
 
 export async function getMapData(courseId: number) {
