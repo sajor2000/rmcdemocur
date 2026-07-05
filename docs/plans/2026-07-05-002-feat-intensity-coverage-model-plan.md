@@ -101,11 +101,24 @@ Data flow: one SQL pass returns per-(framework, topic, course) distinct-document
 
 ---
 
-## Current State (starting point on `feat/intensity-coverage-model`)
-A prototype is already committed and green — `tsc` clean, 211 tests pass, and the AE1 numbers verify live (USMLE 245/597 addressed, 352 gaps, spectrum 105/80/42/18; AAMC 55/71). **Extend it; do not restart.**
-- **Done — verify + harden:** `lib/queries.ts getProgramSummary` computes the document-based intensity spectrum for USMLE + AAMC at entire + per-module scope, plus per-system breakdown + redundancy (most of **U2**). `lib/course-scope.ts courseModule` provides the M1/M2 map (**U3**). `app/program/page.tsx` is a first-pass view rendering both spectra + a plain-language method box + redundancy list (partial **U5**), and a `/program` nav link exists in `components/layout/Header.tsx`.
-- **To build:** **U1** (extract level definitions/thresholds into `lib/coverage.ts` as the single source, route all consumers through it), **U4** (shared `CoverageSpectrum` + `MethodExplainer`), full **U5** (scope selector + per-system table using the shared components), **U6** (course-dashboard retrofit), **U7** (gap-analysis retrofit), **U8** (AGENTS.md doctrine), **U9** (tests).
-- **Known duplication to resolve in U1:** the prototype defines the levels/thresholds inline in both `getProgramSummary` and `app/program/page.tsx`. U1 makes `lib/coverage.ts` canonical; the program query and page must then import from it (no inline redefinitions anywhere — this is the R7 consistency gate).
+## Current State (updated 2026-07-05 — merged to `main`)
+Ten of fourteen units are **shipped and merged to `main`** (PRs #20 + #21); `main` is green (`tsc` clean, 220 tests). AE1 verified live (USMLE 245/597, 352 gaps, 105/80/42/18; AAMC 55/71). **Pick up the remaining four from a fresh branch off `main`.**
+
+- **DONE (merged):**
+  - **U1** `lib/coverage.ts` — canonical engine (levels, thresholds, `distribution()`, `levelLabel()`, tooltips, `METHOD_NOTE`); single source, 6 unit tests. No inline level redefinitions anywhere (R7 holds).
+  - **U2** `getProgramSummary` routed through the engine. **U3** M1/M2 module map (`lib/course-scope.ts`).
+  - **U4** shared `components/coverage/{CoverageSpectrum,MethodExplainer}.tsx`. **U5** full `/program` view (scope selector, per-system table, redundancy).
+  - **U6** course-dashboard intensity spectrum (organ-scoped, `getCourseSummary.usmleSpectrum/aamcSpectrum`).
+  - **U8** AGENTS.md coverage doctrine. **U10** document objectives in the map drawer (`getMapData.objectivesByDocument`). **U11** CSV/JSON exports (`lib/coverage-export.ts`, `/api/program/export`).
+  - **U12** verified: the map is fully `courseId`-parameterized (no code change needed; cross-course single canvas stays deferred).
+
+- **REMAINING (build next, off `main`):**
+  - **U7** — gap-analysis page adopts the level vocabulary (Gap/Introduced/Reinforced/…); it already has amber/red severity from an earlier PR.
+  - **U13** — provenance drill-down + trust signals (a figure -> its documents/excerpts; AI-only vs faculty-validated). The per-topic doc rollup already exists in `getProgramSummary`/`getCoverageExportRows`.
+  - **U14** — learning-spiral view (a topic's Introduced->Reinforced sequence across documents/modules).
+  - **U9** — e2e coverage of the program journey (extend `e2e/journeys.spec.ts`).
+
+- **Reuse, do not reinvent:** all four import levels/labels/`distribution` from `lib/coverage.ts` and render via the shared coverage components; keep everything deterministic (no new LLM) per the north star.
 
 ---
 
