@@ -3,9 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CoverageSpectrum } from "@/components/coverage/CoverageSpectrum";
+import { CoverageSpectrum, IntensityBar } from "@/components/coverage/CoverageSpectrum";
 import { MethodExplainer } from "@/components/coverage/MethodExplainer";
-import { LEVELS, type CoverageDist } from "@/lib/coverage";
+import { type CoverageDist } from "@/lib/coverage";
 
 type System = { system: string } & CoverageDist;
 
@@ -23,22 +23,6 @@ export type ProgramData = {
     sessions: number[];
   }[];
 };
-
-function MiniBar({ dist }: { dist: CoverageDist }) {
-  const pct = (n: number) => (dist.total > 0 ? (n / dist.total) * 100 : 0);
-  return (
-    <div className="flex h-3 w-40 overflow-hidden rounded-sm">
-      {LEVELS.map((l) => (
-        <div
-          key={l.key}
-          className={l.colorClass}
-          style={{ width: `${pct(dist[l.key])}%` }}
-          title={`${l.label}: ${dist[l.key]}`}
-        />
-      ))}
-    </div>
-  );
-}
 
 export function ProgramView({ program }: { program: ProgramData }) {
   const [scope, setScope] = useState(program.scopes[0]);
@@ -130,7 +114,7 @@ export function ProgramView({ program }: { program: ProgramData }) {
                   </td>
                   <td className="py-2 pr-4 font-mono text-xs">{s.gap}</td>
                   <td className="py-2">
-                    <MiniBar dist={s} />
+                    <IntensityBar dist={s} className="h-3 w-40 rounded-sm" />
                   </td>
                 </tr>
               ))}
