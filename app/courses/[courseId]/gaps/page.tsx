@@ -29,6 +29,21 @@ export default async function GapsPage({
   const { gaps, metrics, targetSystems, usmleSpectrum, aamcSpectrum } = summary;
   const tableRows = await getGapExportRows(courseId).catch(() => []);
 
+  // Cards are for the truly actionable bucket (0 documents) — "Introduced"
+  // (1 document) topics are already counted in the intensity spectrum above
+  // and remain in the full Coverage Table below; rendering all ~100+ thin
+  // topics as individual cards made the page unusably long (found in the
+  // U11 screenshot audit).
+  const notAddressed = gaps.filter((g) => g.docs === 0);
+  const introducedCount = gaps.length - notAddressed.length;
+  // Cards are for scanning the highest-priority gaps at a glance, not for
+  // reproducing the whole catalog — the Coverage Table + CSV export already
+  // do that compactly. 12 cards keeps the page a reasonable length even when
+  // a course has 80+ uncovered topics (found in the U11 screenshot audit).
+  const CARD_LIMIT = 12;
+  const shownGaps = notAddressed.slice(0, CARD_LIMIT);
+  const hiddenGapCount = notAddressed.length - shownGaps.length;
+
   return (
     <div className="space-y-6">
       <div className="rounded-lg bg-white p-6 shadow-sm">
@@ -60,36 +75,35 @@ export default async function GapsPage({
       />
 
       <div>
-        <h2 className="font-heading text-lg font-semibold">Specific gaps</h2>
+        <h2 className="font-heading text-lg font-semibold">Not addressed</h2>
         <p className="text-sm text-rush-medium">
-          Individual framework topics not yet addressed, or addressed in only one document.
+          Framework topics with no curriculum document addressing them yet.
+          {introducedCount > 0 && (
+            <>
+              {" "}
+              {introducedCount} additional topic{introducedCount === 1 ? "" : "s"} are introduced
+              (addressed once, not yet reinforced) — see the Coverage Table below for the full list.
+            </>
+          )}
         </p>
       </div>
 
       <div className="grid gap-4">
-        {gaps.map((gap) => {
+        {shownGaps.map((gap) => {
           const label = cleanFrameworkLabel(gap.topic);
-          const isGap = gap.docs === 0;
-          const tone = isGap
-            ? { border: "border-gap-red", chip: "bg-red-100 text-red-800" }
-            : { border: "border-partial-yellow", chip: "bg-yellow-100 text-yellow-800" };
           return (
             <Card
               key={`${gap.framework}-${gap.system}-${label}`}
-              className={`border-l-4 ${tone.border}`}
+              className="border-l-4 border-gap-red"
             >
               <CardHeader className="flex flex-row items-start justify-between gap-3">
                 <CardTitle className="text-base font-semibold">{label}</CardTitle>
-                <span
-                  className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${tone.chip}`}
-                >
-                  {isGap ? "Not addressed" : levelLabel(gap.docs)}
+                <span className="shrink-0 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                  Not addressed
                 </span>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm text-rush-medium">
-                  {suggestedGapAction(label, isGap ? "gap" : "partial")}
-                </p>
+                <p className="text-sm text-rush-medium">{suggestedGapAction(label, "gap")}</p>
                 <Button asChild variant="outline" size="sm">
                   <Link
                     href={`/courses/${courseId}/search?q=${encodeURIComponent(label)}`}
@@ -102,6 +116,12 @@ export default async function GapsPage({
           );
         })}
       </div>
+      {hiddenGapCount > 0 && (
+        <p className="text-sm text-rush-medium">
+          {hiddenGapCount} more not-addressed topic{hiddenGapCount === 1 ? "" : "s"} — see the full
+          list in the Coverage Table below or the CSV export.
+        </p>
+      )}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -110,9 +130,9 @@ export default async function GapsPage({
             <a href={`/api/courses/${courseId}/export`}>Export Gap Report (CSV)</a>
           </Button>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent className="max-h-[32rem] overflow-y-auto overflow-x-auto">
           <table className="w-full text-sm">
-            <thead>
+            <thead className="sticky top-0 bg-white">
               <tr className="border-b text-left">
                 <th className="pb-2">Topic</th>
                 <th className="pb-2">Level</th>
