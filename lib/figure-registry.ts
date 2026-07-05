@@ -5,7 +5,7 @@ import {
   inferGuideKind,
 } from "@/lib/media-types";
 
-const ANSWER_IMAGE_RE =
+export const ANSWER_IMAGE_RE =
   /^Answer\s+(?:Image|Figure)\s*(?:\d+[A-Z]?)?\s*:?\s*(.*)$/i;
 // \d+(?:\.\d+)? allows decimal figure numbers ("Figure 8.2", "Figure 26.1") —
 // common in this corpus as textbook citations (e.g. "Figure 8.2, Devlin").
