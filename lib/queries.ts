@@ -376,9 +376,13 @@ export async function getMapData(courseId: number) {
 
   const keywordsByChunkId = groupKeywordsByChunk(keywordRows);
 
-  // Framework trees need only display columns — again, never the embeddings.
+  // Framework trees need display columns + stableId (the id alignments key on,
+  // so a node can be matched/highlighted against the alignments that hit it) —
+  // never the embeddings. usmle is restricted to leaf domains (the alignable
+  // level) to drop parent rows from the tree.
   const aamc = await db
     .select({
+      stableId: aamcCompetencies.stableId,
       subId: aamcCompetencies.subId,
       domainName: aamcCompetencies.domainName,
       description: aamcCompetencies.description,
@@ -386,10 +390,12 @@ export async function getMapData(courseId: number) {
     .from(aamcCompetencies);
   const usmle = await db
     .select({
+      stableId: usmleDomains.stableId,
       domain: usmleDomains.domain,
       subdomain: usmleDomains.subdomain,
     })
-    .from(usmleDomains);
+    .from(usmleDomains)
+    .where(sql`${usmleDomains.parentStableId} IS NOT NULL`);
 
   return { documents: docs, chunks: chunkRows, alignments: alignmentRows, mediaByChunkId, keywordsByChunkId, aamc, usmle };
 }

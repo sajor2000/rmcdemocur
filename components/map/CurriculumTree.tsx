@@ -7,6 +7,10 @@ type Props = {
   chunks: ChunkRow[];
   caseFilter: string;
   selectedChunkId: number | null;
+  /** Chunks linked to a selected framework node (reverse highlight). */
+  highlightChunkIds?: Set<number>;
+  /** A framework node is selected — mute non-linked chunks. */
+  dim?: boolean;
   onSelect: (id: number | null) => void;
 };
 
@@ -14,6 +18,8 @@ export function CurriculumTree({
   chunks,
   caseFilter,
   selectedChunkId,
+  highlightChunkIds,
+  dim = false,
   onSelect,
 }: Props) {
   const grouped = chunks.reduce<Record<string, ChunkRow[]>>((acc, row) => {
@@ -38,19 +44,26 @@ export function CurriculumTree({
                 new Map(rows.map((r) => [r.chunk.section ?? "Section", r])).entries(),
               ).map(([section, row]) => (
                 <li key={row.chunk.id}>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onSelect(selectedChunkId === row.chunk.id ? null : row.chunk.id)
-                    }
-                    className={`text-left hover:text-rush-green ${
-                      selectedChunkId === row.chunk.id
-                        ? "font-semibold text-rush-green"
-                        : ""
-                    }`}
-                  >
-                    {section}
-                  </button>
+                  {(() => {
+                    const selected = selectedChunkId === row.chunk.id;
+                    const linked = highlightChunkIds?.has(row.chunk.id) ?? false;
+                    const cls = selected
+                      ? "font-semibold text-rush-green"
+                      : linked
+                        ? "rounded bg-green-100 px-1 font-medium text-green-900"
+                        : dim
+                          ? "text-gray-300"
+                          : "hover:text-rush-green";
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => onSelect(selected ? null : row.chunk.id)}
+                        className={`text-left ${cls}`}
+                      >
+                        {section}
+                      </button>
+                    );
+                  })()}
                 </li>
               ))}
             </ul>

@@ -37,10 +37,11 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
       number,
       { keyword: string; definition: string | null }[]
     >;
-    aamc: { subId: string | null; domainName: string | null; description: string | null }[];
-    usmle: { domain: string | null; subdomain: string | null }[];
+    aamc: { stableId: string | null; subId: string | null; domainName: string | null; description: string | null }[];
+    usmle: { stableId: string | null; domain: string | null; subdomain: string | null }[];
   } | null>(null);
   const [selectedChunkId, setSelectedChunkId] = useState<number | null>(null);
+  const [selectedFrameworkId, setSelectedFrameworkId] = useState<string | null>(null);
   const [caseFilter, setCaseFilter] = useState<string>("all");
   const [frameworkFilter, setFrameworkFilter] = useState<string>("all");
   const [confidenceMin, setConfidenceMin] = useState(0.5);
@@ -53,20 +54,53 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
       .catch(() => setData(null));
   }, [params.courseId]);
 
-  const filteredAlignments =
+  // Alignments passing the filters (case/framework/confidence) — the pool the
+  // map reasons over, independent of the current selection.
+  const baseAlignments =
     data?.alignments.filter((a) => {
       const conf = Number(a.alignment.confidence ?? 0);
       if (conf < confidenceMin) return false;
       if (frameworkFilter === "AAMC" && !a.alignment.framework?.startsWith("AAMC"))
         return false;
       if (frameworkFilter === "USMLE" && a.alignment.framework !== "USMLE") return false;
-      if (selectedChunkId && a.chunkId !== selectedChunkId) return false;
       return true;
     }) ?? [];
 
-  const alignedFrameworkIds = new Set(
-    filteredAlignments.map((a) => a.alignment.frameworkId),
+  const selectionActive = selectedChunkId != null || selectedFrameworkId != null;
+
+  // Alignments the current selection links to: a chunk's alignments, a framework
+  // node's alignments, or (no selection) the whole aligned overview.
+  const linkedAlignments = selectedChunkId
+    ? baseAlignments.filter((a) => a.chunkId === selectedChunkId)
+    : selectedFrameworkId
+      ? baseAlignments.filter((a) => a.alignment.frameworkId === selectedFrameworkId)
+      : baseAlignments;
+
+  const linkedFrameworkIds = new Set(
+    linkedAlignments.map((a) => a.alignment.frameworkId),
   );
+  const linkedChunkIds = new Set(linkedAlignments.map((a) => a.chunkId));
+
+  // Framework nodes to highlight: everything aligned on no selection (overview),
+  // else only the selection's links.
+  const highlightFrameworkIds = selectionActive
+    ? linkedFrameworkIds
+    : new Set(baseAlignments.map((a) => a.alignment.frameworkId));
+
+  const selectChunk = (id: number | null) => {
+    setSelectedFrameworkId(null);
+    setSelectedChunkId(id);
+  };
+  const selectFramework = (id: string) => {
+    setSelectedChunkId(null);
+    setSelectedFrameworkId((prev) => (prev === id ? null : id));
+    const hit = baseAlignments.find((a) => a.alignment.frameworkId === id);
+    if (hit) setDrawerAlignment(hit.alignment);
+  };
+  const clearSelection = () => {
+    setSelectedChunkId(null);
+    setSelectedFrameworkId(null);
+  };
 
   const onApprove = useCallback(async (id: number, status: "approved" | "rejected") => {
     await fetch(`/api/alignments/${id}`, {
@@ -138,36 +172,58 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
         </div>
       </div>
 
+      {selectionActive ? (
+        <div className="flex items-center justify-between rounded-lg border border-rush-green/40 bg-green-50 px-4 py-2 text-sm">
+          <span className="text-rush-dark">
+            {selectedChunkId
+              ? `Highlighting the ${linkedFrameworkIds.size} framework node(s) this curriculum item aligns to.`
+              : `Highlighting the ${linkedChunkIds.size} curriculum item(s) aligned to this framework node.`}
+          </span>
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="font-medium text-rush-green hover:underline"
+          >
+            Clear selection
+          </button>
+        </div>
+      ) : (
+        <p className="text-sm text-rush-medium">
+          Select a curriculum item to see the AAMC/USMLE nodes it aligns to — or a
+          framework node to see the curriculum that covers it.
+        </p>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-3">
         <CurriculumTree
           chunks={data.chunks}
           caseFilter={caseFilter}
           selectedChunkId={selectedChunkId}
-          onSelect={setSelectedChunkId}
+          highlightChunkIds={selectedFrameworkId ? linkedChunkIds : undefined}
+          dim={selectedFrameworkId != null}
+          onSelect={selectChunk}
         />
         <FrameworkTree
           title="AAMC Standards"
           nodes={data.aamc.map((a) => ({
-            id: a.subId ?? "",
+            id: a.stableId ?? "",
             label: `${a.subId} — ${a.description?.slice(0, 40)}`,
           }))}
-          alignedIds={alignedFrameworkIds}
-          onSelectNode={(id) => {
-            const hit = filteredAlignments.find((a) => a.alignment.frameworkId === id);
-            if (hit) setDrawerAlignment(hit.alignment);
-          }}
+          highlightIds={highlightFrameworkIds}
+          selectedId={selectedFrameworkId}
+          dim={selectionActive}
+          onSelectNode={selectFramework}
         />
         <FrameworkTree
           title="USMLE 2025"
           nodes={data.usmle.map((u) => ({
-            id: u.domain ?? "",
+            id: u.stableId ?? "",
             label: u.subdomain ? `${u.domain} — ${u.subdomain}` : u.domain ?? "",
           }))}
-          alignedIds={alignedFrameworkIds}
-          onSelectNode={(id) => {
-            const hit = filteredAlignments.find((a) => a.alignment.frameworkId === id);
-            if (hit) setDrawerAlignment(hit.alignment);
-          }}
+          highlightIds={highlightFrameworkIds}
+          selectedId={selectedFrameworkId}
+          dim={selectionActive}
+          onSelectNode={selectFramework}
         />
       </div>
 
