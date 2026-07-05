@@ -17,12 +17,34 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: "list",
   // The curriculum map fetches a large client-side payload; give assertions room.
-  expect: { timeout: 15_000 },
+  expect: {
+    timeout: 15_000,
+    toHaveScreenshot: {
+      // Real DB-driven numbers can drift slightly between runs; a small
+      // pixel-ratio tolerance absorbs anti-aliasing noise without masking a
+      // real regression. Animations disabled by default (KTD7) so a
+      // transition mid-capture can't produce a flaky diff.
+      maxDiffPixelRatio: 0.02,
+      animations: "disabled",
+    },
+  },
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", testMatch: /journeys\.spec\.ts$/, use: { ...devices["Desktop Chrome"] } },
+    {
+      name: "Mobile",
+      testMatch: /visual\.spec\.ts$/,
+      use: { viewport: { width: 390, height: 844 } },
+    },
+    {
+      name: "Desktop",
+      testMatch: /visual\.spec\.ts$/,
+      use: { viewport: { width: 1440, height: 900 } },
+    },
+  ],
   webServer: {
     command: "npm run dev",
     url: "http://localhost:3000",
