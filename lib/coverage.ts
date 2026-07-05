@@ -32,7 +32,12 @@ export const LEVELS: Level[] = [
     key: "introduced",
     label: "Introduced",
     docRange: "1 doc",
-    colorClass: "bg-amber-200",
+    // bg-amber-200 was too pale against a white background — in the stacked
+    // IntensityBar (no gaps between flex segments) it visually blended into
+    // the page, making the bar look broken into disconnected pills instead
+    // of one continuous spectrum. amber-400 stays visually distinct from its
+    // gap/reinforced neighbors while actually being visible.
+    colorClass: "bg-amber-400",
     tooltip:
       "Addressed in a single course document (session) — introduced once, not yet reinforced.",
   },
@@ -47,7 +52,9 @@ export const LEVELS: Level[] = [
     key: "strong",
     label: "Strong",
     docRange: "4-7 docs",
-    colorClass: "bg-green-300",
+    // Same reasoning as amber-400 above — green-300 was too pale, green-400
+    // is visible while staying lighter than heavy's covered-green.
+    colorClass: "bg-green-400",
     tooltip: "Addressed across 4-7 documents — well reinforced.",
   },
   {

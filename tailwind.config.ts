@@ -6,6 +6,14 @@ const config: Config = {
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    // lib/coverage.ts's LEVELS array is the single source of colorClass
+    // strings (bg-amber-400, bg-green-400, ...) — without this, Tailwind's
+    // JIT scanner never sees those class names and silently generates no
+    // CSS for them (transparent), since it only scans the globs above. Two
+    // of the five LEVELS colors had been invisible this way undetected
+    // (found via a live screenshot: the intensity bar looked broken into
+    // disconnected pills instead of one continuous spectrum).
+    "./lib/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
