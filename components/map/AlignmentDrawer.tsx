@@ -152,9 +152,27 @@ export function AlignmentDrawer({
             >
               Confidence {formatConfidence(Number(alignment.confidence ?? 0))}
             </Badge>
-            <p className="text-xs capitalize text-rush-medium">
-              Status: {alignment.status}
-            </p>
+            {/* Trust signal: is this AI-generated or faculty-validated? (R13) */}
+            {(() => {
+              const s = alignment.status;
+              const trust =
+                s === "approved"
+                  ? { label: "Faculty-validated", cls: "bg-covered-green/20 text-green-800" }
+                  : s === "rejected"
+                    ? { label: "Faculty-rejected", cls: "bg-gap-red/20 text-red-800" }
+                    : {
+                        label: "AI-generated — pending faculty review",
+                        cls: "bg-amber-100 text-amber-800",
+                      };
+              return (
+                <p
+                  className={`inline-flex w-fit items-center rounded px-2 py-0.5 text-xs font-medium ${trust.cls}`}
+                  title="Every alignment is AI-generated and requires faculty review before it counts as validated."
+                >
+                  {trust.label}
+                </p>
+              );
+            })()}
             <div className="flex gap-2">
               <Button onClick={() => onApprove(alignment.id, "approved")}>
                 Approve
