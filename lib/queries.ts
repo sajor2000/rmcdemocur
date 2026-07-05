@@ -279,8 +279,14 @@ export function groupKeywordsByChunk(
 
 export async function getMapData(courseId: number) {
   const db = getDb();
+  // Only the columns the map renders — not sourcePath/filename (server-side
+  // locators the client shouldn't see, mirroring how storage_path is hidden).
   const docs = await db
-    .select()
+    .select({
+      id: documents.id,
+      caseNumber: documents.caseNumber,
+      caseTitle: documents.caseTitle,
+    })
     .from(documents)
     .where(eq(documents.courseId, courseId))
     .orderBy(documents.caseNumber);
