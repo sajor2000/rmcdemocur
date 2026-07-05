@@ -15,7 +15,13 @@ export type ProgramData = {
   usmle: { total: number; byScope: Record<string, CoverageDist> };
   aamc: { total: number; byScope: Record<string, CoverageDist> };
   systems: System[];
-  mostCovered: { label: string; docs: number; courses: number; chunks: number }[];
+  mostCovered: {
+    label: string;
+    docs: number;
+    courses: number;
+    chunks: number;
+    sessions: number[];
+  }[];
 };
 
 function MiniBar({ dist }: { dist: CoverageDist }) {
@@ -135,19 +141,30 @@ export function ProgramView({ program }: { program: ProgramData }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Most-addressed topics (redundancy candidates)</CardTitle>
+          <CardTitle>Most-addressed topics — learning spiral</CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="space-y-1 text-sm">
+          <p className="mb-3 text-sm text-rush-medium">
+            How the most-reinforced topics are introduced then revisited across sessions —
+            spiral reinforcement, or a consolidation candidate when spread thin.
+          </p>
+          <ul className="space-y-2 text-sm">
             {mostCovered.map((m) => (
-              <li key={m.label} className="flex items-center justify-between gap-4">
-                <span className="truncate">{m.label}</span>
-                <span
-                  className="shrink-0 cursor-help text-rush-medium"
-                  title={`Addressed in ${m.docs} documents across ${m.courses} course(s), ${m.chunks} passages. Reinforced across many places (spiral) — or a consolidation candidate.`}
-                >
-                  {m.docs} docs
-                </span>
+              <li key={m.label} className="space-y-0.5">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="truncate">{m.label}</span>
+                  <span
+                    className="shrink-0 cursor-help text-rush-medium"
+                    title={`Addressed in ${m.docs} documents across ${m.courses} course(s), ${m.chunks} passages.`}
+                  >
+                    {m.docs} docs
+                  </span>
+                </div>
+                {m.sessions.length > 0 && (
+                  <p className="text-xs text-rush-medium">
+                    Sessions {m.sessions.join(" → ")}
+                  </p>
+                )}
               </li>
             ))}
           </ul>

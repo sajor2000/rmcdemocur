@@ -425,10 +425,36 @@ export async function getProgramSummary() {
       system,
       ...distribution(docsBySystem.get(system) ?? [], totalBySystem.get(system) ?? 0),
     }));
-  const mostCovered = Array.from(usmleTopics.values())
-    .sort((a, b) => b.docs - a.docs || b.chunks - a.chunks)
-    .slice(0, 8)
-    .map((e) => ({ label: e.label, docs: e.docs, courses: e.courses.size, chunks: e.chunks }));
+  const topEntries = Array.from(usmleTopics.entries())
+    .sort(([, a], [, b]) => b.docs - a.docs || b.chunks - a.chunks)
+    .slice(0, 8);
+  // Learning spiral: the ordered sequence of sessions (cases) that address each
+  // top topic — how a topic is introduced then reinforced across the curriculum.
+  const spiralByTopic = new Map<string, number[]>();
+  if (topEntries.length > 0) {
+    const ids = sql.join(topEntries.map(([id]) => sql`${id}`), sql`, `);
+    const seqRes = await db.execute(sql`
+      SELECT a.framework_id AS id, d.case_number AS casenum
+      FROM alignments a
+      JOIN chunks c ON c.id = a.chunk_id
+      JOIN documents d ON d.id = c.document_id
+      WHERE a.framework = 'USMLE' AND a.framework_id IN (${ids}) AND d.case_number IS NOT NULL
+      GROUP BY a.framework_id, d.case_number
+      ORDER BY a.framework_id, d.case_number
+    `);
+    for (const r of seqRes.rows as { id: string; casenum: number }[]) {
+      const arr = spiralByTopic.get(r.id) ?? [];
+      arr.push(r.casenum);
+      spiralByTopic.set(r.id, arr);
+    }
+  }
+  const mostCovered = topEntries.map(([id, e]) => ({
+    label: e.label,
+    docs: e.docs,
+    courses: e.courses.size,
+    chunks: e.chunks,
+    sessions: spiralByTopic.get(id) ?? [],
+  }));
 
   return {
     scopes: scopeDefs.map((s) => s.key),

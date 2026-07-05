@@ -81,3 +81,36 @@ test.describe("responsive shell", () => {
     ).toBeVisible();
   });
 });
+
+test.describe("A4 — program coverage (intensity model)", () => {
+  test("program view shows both spectra, the method box, scope selector, and exports", async ({
+    page,
+  }) => {
+    await page.goto("/program");
+    await expect(
+      page.getByRole("heading", { name: /Program Curriculum Coverage/i }),
+    ).toBeVisible();
+    // R6 method transparency + both frameworks + scope + download.
+    await expect(page.getByText(/How coverage is measured/i)).toBeVisible();
+    await expect(page.getByText(/USMLE coverage/i).first()).toBeVisible();
+    await expect(page.getByText(/AAMC coverage/i).first()).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Entire curriculum" }),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: /CSV/i })).toBeVisible();
+  });
+
+  test("coverage dataset export is a CSV led by the method note", async ({ request }) => {
+    const res = await request.get("/api/program/export?format=csv");
+    expect(res.ok()).toBeTruthy();
+    const body = await res.text();
+    expect(body).toContain("framework,system,topic,level,documents,courses");
+    expect(body).toMatch(/faculty review/i);
+  });
+
+  test("course dashboard speaks the same intensity vocabulary", async ({ page }) => {
+    await page.goto(COURSE);
+    await expect(page.getByText(/Coverage intensity/i)).toBeVisible();
+    await expect(page.getByText(/How coverage is measured/i).first()).toBeVisible();
+  });
+});
