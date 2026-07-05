@@ -152,8 +152,10 @@ export function aamcTakeaway(data: { domain: string; percent: number }[]): strin
 }
 
 /** Deterministic takeaway naming how many session x system heatmap cells are
- * gaps (R11, KTD4). `data` is the set of non-gap cells actually returned by
- * the query — an absent (case, system) pair is implicitly a gap. */
+ * gaps (R11, KTD4). `data` is every returned (case, system) row — an absent
+ * pair is implicitly a gap too, and a returned row can itself carry an
+ * explicit "gap" status (e.g. a catalog join miss), so gap cells are counted
+ * by status, not inferred from array length alone. */
 export function heatmapTakeaway(
   cases: number[],
   systems: string[],
@@ -161,7 +163,8 @@ export function heatmapTakeaway(
 ): string {
   const totalCells = cases.length * systems.length;
   if (totalCells === 0) return "No sessions or systems to show yet.";
-  const gapCells = Math.max(0, totalCells - data.length);
+  const nonGapCells = data.filter((d) => d.status !== "gap").length;
+  const gapCells = Math.max(0, totalCells - nonGapCells);
   if (gapCells === 0) return "Every session touches every in-scope system.";
   return `${gapCells} of ${totalCells} session × system cells show no coverage yet.`;
 }

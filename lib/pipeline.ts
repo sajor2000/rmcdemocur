@@ -389,7 +389,10 @@ export async function runFullPipeline(options: {
       ? await loadChunkIdsWithKeywordTags(documentId)
       : new Set<number>();
 
-    await setStage("tagging", 90, "Tagging AAMC keywords...");
+    // 95, not 90: with the old "recomputing_gaps" stage removed (KTD2), this
+    // is the last stage before 100 — closer spacing keeps the progress bar
+    // from holding at 90% through the whole tagging loop then jumping 10pts.
+    await setStage("tagging", 95, "Tagging AAMC keywords...");
     for (const chunkId of insertedChunkIds) {
       if (taggedChunkIds.has(chunkId)) continue;
       const embedding = chunkEmbeddings.get(chunkId);

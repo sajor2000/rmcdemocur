@@ -191,6 +191,18 @@ export function AlignmentTable({
     status: string | null;
   }[];
 }) {
+  // Computed once per row and shared by both the mobile list and desktop
+  // table below — the CSS `sm:hidden`/`hidden sm:block` split only decides
+  // which markup is visible, not which is computed (ultrareview finding).
+  const decorated = rows.map((r) => {
+    const confidencePct = Number(r.confidence ?? 0);
+    return {
+      ...r,
+      confidenceClass: confidenceBadgeClass(confidencePct),
+      confidenceLabel: formatConfidence(confidencePct),
+    };
+  });
+
   return (
     <Card data-mask="dynamic">
       <CardHeader>
@@ -203,16 +215,14 @@ export function AlignmentTable({
             affordance (found in the U11 screenshot audit). Stacked cards
             instead — same data, no horizontal scroll needed. */}
         <ul className="space-y-3 sm:hidden">
-          {rows.map((r) => (
+          {decorated.map((r) => (
             <li key={r.id} className="rounded-md border border-gray-100 p-3 text-sm">
               <p className="text-rush-dark">{r.excerpt ?? "—"}</p>
               <p className="mt-1 text-xs text-rush-medium">
                 {r.framework} · {r.frameworkLabel}
               </p>
               <div className="mt-2 flex items-center gap-2">
-                <Badge className={confidenceBadgeClass(Number(r.confidence ?? 0))}>
-                  {formatConfidence(Number(r.confidence ?? 0))}
-                </Badge>
+                <Badge className={r.confidenceClass}>{r.confidenceLabel}</Badge>
                 <span className="text-xs capitalize text-rush-medium">{r.status}</span>
               </div>
             </li>
@@ -230,17 +240,13 @@ export function AlignmentTable({
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {decorated.map((r) => (
                 <tr key={r.id} className="border-b border-gray-100">
                   <td className="max-w-xs truncate py-2 pr-4">{r.excerpt ?? "—"}</td>
                   <td className="py-2 pr-4">{r.framework}</td>
                   <td className="py-2 pr-4">{r.frameworkLabel}</td>
                   <td className="py-2 pr-4">
-                    <Badge
-                      className={confidenceBadgeClass(Number(r.confidence ?? 0))}
-                    >
-                      {formatConfidence(Number(r.confidence ?? 0))}
-                    </Badge>
+                    <Badge className={r.confidenceClass}>{r.confidenceLabel}</Badge>
                   </td>
                   <td className="py-2 capitalize">{r.status}</td>
                 </tr>

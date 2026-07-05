@@ -17,6 +17,31 @@ const ROW_TINT: Record<string, string> = {
   heavy: "bg-green-50",
 };
 
+// Shared by the USMLE and AAMC "not addressed" sections — one gap-card shape
+// so an actionable CTA (suggestedGapAction + search link) isn't tied to a
+// single framework (ultrareview finding: AAMC gaps had silently lost this).
+function GapCard({ courseId, gap }: { courseId: number; gap: { framework: string; system: string; topic: string } }) {
+  const label = cleanFrameworkLabel(gap.topic);
+  return (
+    <Card key={`${gap.framework}-${gap.system}-${label}`} className="border-l-4 border-gap-red">
+      <CardHeader className="flex flex-row items-start justify-between gap-3">
+        <CardTitle className="text-base font-semibold">{label}</CardTitle>
+        <span className="shrink-0 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+          Not addressed
+        </span>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-rush-medium">{suggestedGapAction(label, "gap")}</p>
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/courses/${courseId}/search?q=${encodeURIComponent(label)}`}>
+            Find Related Content
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default async function GapsPage({
   params,
 }: {
@@ -41,7 +66,11 @@ export default async function GapsPage({
   // cards below are scoped to USMLE only so their count matches the headline
   // sentence's metrics.usmleGaps exactly (one number, one methodology — AE2).
   // AAMC gaps remain fully visible, framework-labeled, in the table/CSV below.
-  const gaps = topicRows.filter((r) => r.framework === "USMLE" && r.docs < 2);
+  // Bucketed via levelOf() (lib/coverage.ts) rather than raw doc-count
+  // comparisons — the single source of thresholds (AGENTS.md).
+  const gaps = topicRows.filter(
+    (r) => r.framework === "USMLE" && (levelOf(r.docs) === "gap" || levelOf(r.docs) === "introduced"),
+  );
   const tableRows = topicRows;
 
   // Cards are for the truly actionable bucket (0 documents) — "Introduced"
@@ -49,11 +78,27 @@ export default async function GapsPage({
   // remain in the full Coverage Table below, and rendering all ~100+ thin
   // topics as individual cards made the page unusably long, capped here at
   // CARD_LIMIT for the same reason (found in the U11 screenshot audit).
-  const notAddressed = gaps.filter((g) => g.docs === 0);
+  const notAddressed = gaps.filter((g) => levelOf(g.docs) === "gap");
   const introducedCount = gaps.length - notAddressed.length;
   const CARD_LIMIT = 12;
   const shownGaps = notAddressed.slice(0, CARD_LIMIT);
   const hiddenGapCount = notAddressed.length - shownGaps.length;
+
+  // AAMC is cross-cutting (never organ-scoped), so its own not-addressed
+  // count doesn't participate in the USMLE headline/section agreement above.
+  const aamcNotAddressed = topicRows.filter((r) => r.framework === "AAMC" && levelOf(r.docs) === "gap");
+  const shownAamcGaps = aamcNotAddressed.slice(0, CARD_LIMIT);
+  const hiddenAamcGapCount = aamcNotAddressed.length - shownAamcGaps.length;
+
+  // Computed once per row and shared by the mobile list and desktop table
+  // below (~230 catalog rows) — the CSS split only decides which markup is
+  // visible, not which is computed (ultrareview finding).
+  const decoratedTableRows = tableRows.map((row) => ({
+    ...row,
+    rowClass: ROW_TINT[levelOf(row.docs)],
+    levelText: row.docs === 0 ? "Not addressed" : levelLabel(row.docs),
+    cleanTopic: cleanFrameworkLabel(row.topic),
+  }));
 
   return (
     <div className="space-y-6">
@@ -102,38 +147,42 @@ export default async function GapsPage({
       </div>
 
       <div className="grid gap-4">
-        {shownGaps.map((gap) => {
-          const label = cleanFrameworkLabel(gap.topic);
-          return (
-            <Card
-              key={`${gap.framework}-${gap.system}-${label}`}
-              className="border-l-4 border-gap-red"
-            >
-              <CardHeader className="flex flex-row items-start justify-between gap-3">
-                <CardTitle className="text-base font-semibold">{label}</CardTitle>
-                <span className="shrink-0 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
-                  Not addressed
-                </span>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-rush-medium">{suggestedGapAction(label, "gap")}</p>
-                <Button asChild variant="outline" size="sm">
-                  <Link
-                    href={`/courses/${courseId}/search?q=${encodeURIComponent(label)}`}
-                  >
-                    Find Related Content
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          );
-        })}
+        {shownGaps.map((gap) => (
+          <GapCard key={`${gap.framework}-${gap.system}-${gap.topic}`} courseId={courseId} gap={gap} />
+        ))}
       </div>
       {hiddenGapCount > 0 && (
         <p className="text-sm text-rush-medium">
           {hiddenGapCount} more not-addressed topic{hiddenGapCount === 1 ? "" : "s"} — see the full
           list in the Coverage Table below or the CSV export.
         </p>
+      )}
+
+      {/* AAMC is cross-cutting, never organ-scoped (AGENTS.md) — its own
+          section with its own accurate count, so scoping the USMLE section
+          above didn't leave AAMC gaps without an actionable card (ultrareview
+          finding: they'd silently lost suggestedGapAction + the search CTA). */}
+      {aamcNotAddressed.length > 0 && (
+        <>
+          <div>
+            <h2 className="font-heading text-lg font-semibold">Not addressed (AAMC)</h2>
+            <p className="text-sm text-rush-medium">
+              AAMC PCRS/EPA competencies with no curriculum document addressing them yet —{" "}
+              {aamcNotAddressed.length} total, cross-cutting (not organ-scoped).
+            </p>
+          </div>
+          <div className="grid gap-4">
+            {shownAamcGaps.map((gap) => (
+              <GapCard key={`${gap.framework}-${gap.system}-${gap.topic}`} courseId={courseId} gap={gap} />
+            ))}
+          </div>
+          {hiddenAamcGapCount > 0 && (
+            <p className="text-sm text-rush-medium">
+              {hiddenAamcGapCount} more not-addressed AAMC topic{hiddenAamcGapCount === 1 ? "" : "s"} —
+              see the full list in the Coverage Table below or the CSV export.
+            </p>
+          )}
+        </>
       )}
 
       <Card>
@@ -149,18 +198,14 @@ export default async function GapsPage({
               instead, no horizontal scroll needed (found in the U11
               screenshot audit). */}
           <ul className="space-y-2 sm:hidden">
-            {tableRows.map((row, i) => {
-              const rowClass = ROW_TINT[levelOf(row.docs)];
-              return (
-                <li key={i} className={`rounded-md border-b p-2 text-sm ${rowClass}`}>
-                  <p>{cleanFrameworkLabel(row.topic)}</p>
-                  <p className="mt-1 text-xs text-rush-medium">
-                    {row.docs === 0 ? "Not addressed" : levelLabel(row.docs)} · {row.docs} doc
-                    {row.docs === 1 ? "" : "s"}
-                  </p>
-                </li>
-              );
-            })}
+            {decoratedTableRows.map((row, i) => (
+              <li key={i} className={`rounded-md border-b p-2 text-sm ${row.rowClass}`}>
+                <p>{row.cleanTopic}</p>
+                <p className="mt-1 text-xs text-rush-medium">
+                  {row.levelText} · {row.docs} doc{row.docs === 1 ? "" : "s"}
+                </p>
+              </li>
+            ))}
           </ul>
           <div className="hidden overflow-x-auto sm:block">
             <table className="w-full text-sm">
@@ -172,19 +217,13 @@ export default async function GapsPage({
                 </tr>
               </thead>
               <tbody>
-                {tableRows.map((row, i) => {
-                  // Row tint derives from the canonical level (lib/coverage.ts's
-                  // levelOf) rather than redefining the doc-count thresholds here
-                  // (AGENTS.md: "Single source ... no inline redefinitions").
-                  const rowClass = ROW_TINT[levelOf(row.docs)];
-                  return (
-                    <tr key={i} className={`border-b ${rowClass}`}>
-                      <td className="py-2">{cleanFrameworkLabel(row.topic)}</td>
-                      <td className="py-2">{row.docs === 0 ? "Not addressed" : levelLabel(row.docs)}</td>
-                      <td className="py-2 font-mono">{row.docs}</td>
-                    </tr>
-                  );
-                })}
+                {decoratedTableRows.map((row, i) => (
+                  <tr key={i} className={`border-b ${row.rowClass}`}>
+                    <td className="py-2">{row.cleanTopic}</td>
+                    <td className="py-2">{row.levelText}</td>
+                    <td className="py-2 font-mono">{row.docs}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

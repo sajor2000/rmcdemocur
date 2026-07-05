@@ -114,6 +114,16 @@ describe("heatmapTakeaway (deterministic annotation — KTD4, R11, R15)", () => 
   it("handles no sessions or systems", () => {
     expect(heatmapTakeaway([], [], [])).toBe("No sessions or systems to show yet.");
   });
+
+  it("counts an explicit gap-status row as a gap, not as touched data (ultrareview finding)", () => {
+    // A returned row can itself carry status "gap" (e.g. a catalog join miss
+    // in heatmapCellStatus) — data.length alone would undercount gapCells and
+    // could print "every session touches every system" over a visible gap.
+    const data = [{ status: "covered" }, { status: "gap" }];
+    expect(heatmapTakeaway([1], ["A", "B"], data)).toBe(
+      "1 of 2 session × system cells show no coverage yet.",
+    );
+  });
 });
 
 describe("heatmapCellStatus (per-session, per-system breadth — KTD1)", () => {
