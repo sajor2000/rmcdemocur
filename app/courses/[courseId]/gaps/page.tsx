@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { suggestedGapAction } from "@/lib/gap-analyzer";
 import { getCourseSummary, getGapExportRows } from "@/lib/queries";
 import { cleanFrameworkLabel } from "@/lib/utils";
+import { CoverageSpectrum } from "@/components/coverage/CoverageSpectrum";
+import { MethodExplainer } from "@/components/coverage/MethodExplainer";
 
 export default async function GapsPage({
   params,
@@ -24,7 +26,7 @@ export default async function GapsPage({
     );
   }
 
-  const { gaps, metrics, targetSystems } = summary;
+  const { gaps, metrics, targetSystems, usmleSpectrum, aamcSpectrum } = summary;
   const tableRows = await getGapExportRows(courseId).catch(() => []);
 
   // Some gap rows exist twice (clean + doubled label) for one framework leaf —
@@ -58,6 +60,27 @@ export default async function GapsPage({
           </p>
         )}
       </div>
+
+      {/* Coverage by level — the same intensity vocabulary as the dashboard/program
+          view. "Not addressed" and "Introduced" are the actionable (thin) buckets. */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Coverage by level{targetSystems ? " (in-scope)" : ""}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <MethodExplainer />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div>
+              <p className="mb-2 text-sm font-medium">USMLE</p>
+              <CoverageSpectrum dist={usmleSpectrum} />
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium">AAMC</p>
+              <CoverageSpectrum dist={aamcSpectrum} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4">
         {gapCards.map((gap) => {
