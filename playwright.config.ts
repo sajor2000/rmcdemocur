@@ -20,11 +20,13 @@ export default defineConfig({
   expect: {
     timeout: 15_000,
     toHaveScreenshot: {
-      // Real DB-driven numbers can drift slightly between runs; a small
-      // pixel-ratio tolerance absorbs anti-aliasing noise without masking a
-      // real regression. Animations disabled by default (KTD7) so a
-      // transition mid-capture can't produce a flaky diff.
-      maxDiffPixelRatio: 0.02,
+      // Tight enough to catch a real content/layout regression (verified: a
+      // changed heading passes at 0.02 on a full-page shot, since one string
+      // is a tiny fraction of total pixels) while still absorbing per-pixel
+      // anti-aliasing/font-rendering noise between runs. Animations disabled
+      // by default (KTD7) so a transition mid-capture can't produce a flaky
+      // diff.
+      maxDiffPixelRatio: 0.0005,
       animations: "disabled",
     },
   },

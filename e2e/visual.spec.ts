@@ -30,6 +30,13 @@ for (const route of ROUTES) {
 
     await page.goto(route.path);
     await page.waitForLoadState("networkidle");
-    await expect(page).toHaveScreenshot(`${route.name}.png`, { fullPage: true });
+    await expect(page).toHaveScreenshot(`${route.name}.png`, {
+      fullPage: true,
+      // Recharts' SVG bars re-render with tiny sub-pixel anti-aliasing jitter
+      // between identical draws (verified: only source of diff on an
+      // unmodified page) — mask it rather than loosen the tolerance that
+      // catches real text/layout regressions everywhere else (KTD7).
+      mask: [page.locator(".recharts-wrapper")],
+    });
   });
 }
