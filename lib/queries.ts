@@ -308,12 +308,11 @@ export async function getProgramSummary() {
   const counts = await db.execute(sql`
     SELECT
       (SELECT COUNT(*)::int FROM documents) AS documents,
-      (SELECT COUNT(*)::int FROM alignments) AS alignments,
       (SELECT COUNT(*)::int FROM usmle_domains WHERE parent_stable_id IS NOT NULL) AS usmle_total,
       (SELECT COUNT(*)::int FROM aamc_competencies) AS aamc_total
   `);
   const c0 = counts.rows[0] as {
-    documents: number; alignments: number; usmle_total: number; aamc_total: number;
+    documents: number; usmle_total: number; aamc_total: number;
   };
 
   // Per (framework, topic, course): distinct DOCUMENTS (the "places" for the
@@ -399,16 +398,13 @@ export async function getProgramSummary() {
   const mostCovered = Array.from(usmleTopics.values())
     .sort((a, b) => b.docs - a.docs || b.chunks - a.chunks)
     .slice(0, 8)
-    .map((e) => ({ label: e.label, system: e.system, docs: e.docs, courses: e.courses.size, chunks: e.chunks }));
+    .map((e) => ({ label: e.label, docs: e.docs, courses: e.courses.size, chunks: e.chunks }));
 
   return {
-    courses: courseList,
-    modules,
     scopes: scopeDefs.map((s) => s.key),
     metrics: {
       courses: courseList.length,
       documents: c0.documents,
-      alignments: c0.alignments,
     },
     usmle: { total: c0.usmle_total, byScope: byScope("usmle", c0.usmle_total) },
     aamc: { total: c0.aamc_total, byScope: byScope("aamc", c0.aamc_total) },

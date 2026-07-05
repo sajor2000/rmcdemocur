@@ -60,10 +60,6 @@ export const LEVELS: Level[] = [
   },
 ];
 
-export const LEVEL_BY_KEY: Record<LevelKey, Level> = Object.fromEntries(
-  LEVELS.map((l) => [l.key, l]),
-) as Record<LevelKey, Level>;
-
 /**
  * Level thresholds (distinct documents), tunable in one place. 0 -> gap,
  * 1 -> introduced, 2-3 -> reinforced, 4-7 -> strong, 8+ -> heavy.

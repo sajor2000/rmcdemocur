@@ -10,14 +10,12 @@ import { LEVELS, type CoverageDist } from "@/lib/coverage";
 type System = { system: string } & CoverageDist;
 
 export type ProgramData = {
-  courses: { id: number; code: string; title: string; module: string }[];
-  modules: string[];
   scopes: string[];
-  metrics: { courses: number; documents: number; alignments: number };
+  metrics: { courses: number; documents: number };
   usmle: { total: number; byScope: Record<string, CoverageDist> };
   aamc: { total: number; byScope: Record<string, CoverageDist> };
   systems: System[];
-  mostCovered: { label: string; system: string; docs: number; courses: number; chunks: number }[];
+  mostCovered: { label: string; docs: number; courses: number; chunks: number }[];
 };
 
 function MiniBar({ dist }: { dist: CoverageDist }) {
