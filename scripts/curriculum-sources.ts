@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 
-export const F2F_DIR = "2026 Curriculum Inventory Project F2F materials";
+const F2F_DIR = "2026 Curriculum Inventory Project F2F materials";
 
 export type CurriculumFileMapping = {
   source: string;

@@ -1,4 +1,4 @@
-export function parseCsvLine(line: string): string[] {
+function parseCsvLine(line: string): string[] {
   const cells: string[] = [];
   let current = "";
   let inQuotes = false;

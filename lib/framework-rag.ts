@@ -12,7 +12,7 @@ function withinDistanceFloor<T extends { distance?: unknown }>(rows: T[]): T[] {
   return rows.filter((r) => passesDistance(Number(r.distance), maxDistance));
 }
 
-export async function retrieveUsmleCandidates(
+async function retrieveUsmleCandidates(
   chunkEmbedding: number[],
   k = DEFAULT_K,
 ): Promise<FrameworkCandidate[]> {
@@ -37,7 +37,7 @@ export async function retrieveUsmleCandidates(
   }));
 }
 
-export async function retrieveAamcCandidates(
+async function retrieveAamcCandidates(
   chunkEmbedding: number[],
   k = DEFAULT_K,
 ): Promise<FrameworkCandidate[]> {
@@ -85,7 +85,7 @@ export async function retrieveKeywordCandidates(
 }
 
 /** Text overlap fallback when framework embeddings are unavailable. */
-export async function listUsmleCatalogCandidates(
+async function listUsmleCatalogCandidates(
   chunkText: string,
   k = DEFAULT_K,
 ): Promise<FrameworkCandidate[]> {
@@ -129,7 +129,7 @@ export async function listUsmleCatalogCandidates(
   return mapUsmleRows(fallback.rows as Record<string, unknown>[]);
 }
 
-export async function listAamcCatalogCandidates(
+async function listAamcCatalogCandidates(
   chunkText: string,
   k = DEFAULT_K,
 ): Promise<FrameworkCandidate[]> {

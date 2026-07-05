@@ -26,7 +26,7 @@ export function validateCleanedObjectives(
   });
 }
 
-export async function cleanupObjectivesWithLlm(options: {
+async function cleanupObjectivesWithLlm(options: {
   sourceExcerpt: string;
   regexCandidates: ExtractedObjective[];
   reason: "missing" | "messy";

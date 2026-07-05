@@ -69,7 +69,7 @@ function isHeadingLine(line: string): boolean {
  * later in the body (e.g. lab values) survive. */
 const TOC_MAX_GAP = 2;
 
-export function stripTableOfContents(lines: string[]): string[] {
+function stripTableOfContents(lines: string[]): string[] {
   const limit = Math.min(lines.length, TOC_SCAN_LINES);
   const cluster: number[] = [];
   for (let i = 0; i < limit; i++) {

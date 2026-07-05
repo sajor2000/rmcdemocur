@@ -50,14 +50,3 @@ export function linkChunksToMedia(
 
   return links;
 }
-
-export function mergeRegistryWithStorage<
-  T extends FigureRegistryEntry & { storagePath?: string | null },
->(entries: T[], storageByIndex: Map<number, string>): T[] {
-  return entries.map((entry) => {
-    if (entry.sourceIndex == null) return entry;
-    const storagePath = storageByIndex.get(entry.sourceIndex);
-    if (!storagePath) return entry;
-    return { ...entry, storagePath };
-  });
-}

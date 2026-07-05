@@ -1,11 +1,11 @@
 import fs from "fs/promises";
 import path from "path";
 
-export const MEDIA_ROOT = process.env.MEDIA_ROOT
+const MEDIA_ROOT = process.env.MEDIA_ROOT
   ? path.resolve(process.env.MEDIA_ROOT)
   : path.join(process.cwd(), "data/curriculum/media");
 
-export function documentBasename(filename: string): string {
+function documentBasename(filename: string): string {
   return path.basename(filename, path.extname(filename));
 }
 

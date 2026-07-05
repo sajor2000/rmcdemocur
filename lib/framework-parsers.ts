@@ -34,7 +34,7 @@ export type ParsedAamcCompetencyRow = {
   sourceDoc: string;
 };
 
-export const USMLE_SYSTEMS = [
+const USMLE_SYSTEMS = [
   "Human Development",
   "Immune System",
   "Blood & Lymphoreticular System",
@@ -233,7 +233,7 @@ export function parseUsmleOutlineText(
   return rows;
 }
 
-export async function parseUsmleOutlinePdf(
+async function parseUsmleOutlinePdf(
   pdfPath: string,
 ): Promise<ParsedUsmleRow[]> {
   const buffer = await fs.readFile(pdfPath);
@@ -273,7 +273,7 @@ export function parseAamcKeywordsSheet(
   return result;
 }
 
-export async function parseAamcKeywordsXlsx(
+async function parseAamcKeywordsXlsx(
   xlsxPath: string,
 ): Promise<ParsedAamcKeywordRow[]> {
   const wb = XLSX.readFile(xlsxPath);
@@ -348,7 +348,7 @@ export function loadAamcPcrsCatalog(frameworksDir: string): ParsedAamcCompetency
   return rows;
 }
 
-export async function parseAamcGuidebookPdf(
+async function parseAamcGuidebookPdf(
   pdfPath: string,
 ): Promise<ParsedAamcCompetencyRow[]> {
   // The guidebook PDF is methodological (its PCRS appendix is title-only). The

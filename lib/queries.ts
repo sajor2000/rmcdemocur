@@ -705,7 +705,7 @@ export async function getGapExportRows(courseId: number) {
     .where(eq(documents.courseId, courseId));
 }
 
-export async function getCourseObjectives(courseId: number) {
+async function getCourseObjectives(courseId: number) {
   const db = getDb();
   return db
     .select({
