@@ -188,8 +188,9 @@ export async function getCourseSummary(courseId: number) {
       FROM alignments a
       JOIN chunks c ON c.id = a.chunk_id
       JOIN documents d ON d.id = c.document_id
+      JOIN usmle_domains ud ON ud.stable_id = a.framework_id
       WHERE d.course_id = ${courseId} AND a.framework = 'USMLE'
-        AND split_part(a.framework_label, ' — ', 1) IN (${sysList})
+        AND ud.domain IN (${sysList})
     `);
     usmleCovered = Number((cov.rows[0] as { cnt: number })?.cnt ?? 0);
   }
@@ -241,8 +242,9 @@ export async function getCourseSummary(courseId: number) {
     FROM alignments a
     JOIN chunks c ON c.id = a.chunk_id
     JOIN documents d ON d.id = c.document_id
+    ${targetSystems ? sql`JOIN usmle_domains ud ON ud.stable_id = a.framework_id` : sql``}
     WHERE d.course_id = ${courseId} AND a.framework = 'USMLE'
-      ${targetSystems ? sql`AND split_part(a.framework_label, ' — ', 1) IN (${sql.join(targetSystems.map((s) => sql`${s}`), sql`, `)})` : sql``}
+      ${targetSystems ? sql`AND ud.domain IN (${sql.join(targetSystems.map((s) => sql`${s}`), sql`, `)})` : sql``}
     GROUP BY a.framework_id
   `);
   const usmleSpectrum = distribution(
@@ -354,13 +356,17 @@ export async function getProgramSummary() {
         CASE WHEN a.framework = 'USMLE' THEN 'usmle' ELSE 'aamc' END AS fw,
         a.framework_id AS id,
         MIN(a.framework_label) AS label,
-        split_part(MIN(a.framework_label), ' — ', 1) AS system,
+        -- Canonical system from the catalog (usmle_domains) for USMLE; fall back to
+        -- the label prefix only for AAMC, which has no organ system. Never key a
+        -- rollup on the LLM-written label (deterministic-first doctrine).
+        COALESCE(MIN(ud.domain), split_part(MIN(a.framework_label), ' — ', 1)) AS system,
         d.course_id AS course_id,
         COUNT(DISTINCT c.document_id)::int AS docs,
         COUNT(DISTINCT a.chunk_id)::int AS chunks
       FROM alignments a
       JOIN chunks c ON c.id = a.chunk_id
       JOIN documents d ON d.id = c.document_id
+      LEFT JOIN usmle_domains ud ON ud.stable_id = a.framework_id
       WHERE a.framework IN ('USMLE','AAMC_PCRS','AAMC_EPA')
       GROUP BY fw, a.framework_id, d.course_id
     `)
