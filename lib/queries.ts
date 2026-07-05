@@ -21,6 +21,25 @@ import { distribution, heatmapCellStatus, type CoverageDist } from "@/lib/covera
 import { type CoverageExportRow } from "@/lib/coverage-export";
 import { passesSimilarity, resolveMinSimilarity } from "@/lib/retrieval-config";
 
+/**
+ * Map raw (case, system, domains_touched) rows to heatmap cells via
+ * heatmapCellStatus (KTD1). Pure and exported for testing — this is the seam
+ * that guards AE1 (no PR #8 all-red regression): a `system` string from the
+ * query that doesn't match a key in `domainsTotalBySystem` (e.g. a catalog
+ * join miss) resolves to a 0 total, and heatmapCellStatus always returns
+ * "gap" for a 0 total regardless of how many domains were actually touched.
+ */
+export function buildCourseHeatmap(
+  rows: { case_number: number; system: string; domains_touched: number }[],
+  domainsTotalBySystem: Map<string, number>,
+): { caseNumber: number; system: string; status: ReturnType<typeof heatmapCellStatus> }[] {
+  return rows.map((r) => ({
+    caseNumber: Number(r.case_number),
+    system: r.system,
+    status: heatmapCellStatus(r.domains_touched, domainsTotalBySystem.get(r.system) ?? 0),
+  }));
+}
+
 export async function getCourseWithDocuments(courseId: number) {
   const db = getDb();
   const [course] = await db
@@ -181,13 +200,10 @@ export async function getCourseSummary(courseId: number) {
 
   // Bucket each (case, system) cell deterministically (KTD1) — the distinct-
   // domain rollup itself already happened in SQL above.
-  const heatmapData = (
-    heatmapTouched.rows as { case_number: number; system: string; domains_touched: number }[]
-  ).map((r) => ({
-    caseNumber: Number(r.case_number),
-    system: r.system,
-    status: heatmapCellStatus(r.domains_touched, domainsTotalBySystem.get(r.system) ?? 0),
-  }));
+  const heatmapData = buildCourseHeatmap(
+    heatmapTouched.rows as { case_number: number; system: string; domains_touched: number }[],
+    domainsTotalBySystem,
+  );
   const allSystems = Array.from(new Set(heatmapData.map((h) => h.system))).sort();
   // Scope the heatmap rows + axis to the course's target systems (all if none).
   const scopedHeatmap = heatmapData.filter((h) => inScope(h.system));
@@ -688,11 +704,15 @@ export async function getGapExportRows(
     courses: r.docs > 0 ? 1 : 0,
   }));
   const aamc: CoverageExportRow[] = (
-    aamcRows.rows as { id: string; sub_id: string; system: string; description: string; docs: number }[]
+    aamcRows.rows as { id: string; sub_id: string | null; system: string; description: string; docs: number }[]
   ).map((r) => ({
     framework: "AAMC",
     system: r.system,
-    topic: `${r.sub_id}: ${r.system} — ${r.description}`,
+    // Same shape as the program export's AAMC topic (KTD3/R3): "<sub_id or
+    // stable_id>: <description>", no embedded system name. sub_id is a
+    // nullable column — fall back to the stable id rather than a literal
+    // "null:" prefix.
+    topic: `${r.sub_id ?? r.id}: ${r.description}`,
     docs: r.docs,
     courses: r.docs > 0 ? 1 : 0,
   }));

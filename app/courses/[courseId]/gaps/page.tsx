@@ -3,9 +3,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { suggestedGapAction } from "@/lib/gap-analyzer";
 import { getCourseSummary } from "@/lib/queries";
-import { levelLabel } from "@/lib/coverage";
+import { levelLabel, levelOf } from "@/lib/coverage";
 import { cleanFrameworkLabel } from "@/lib/utils";
 import { CoverageIntensityCard } from "@/components/coverage/CoverageIntensityCard";
+
+// Light row tint per canonical level (lib/coverage.ts's LEVELS), not a
+// re-derived doc-count threshold — keys must cover every LevelKey.
+const ROW_TINT: Record<string, string> = {
+  gap: "bg-red-50",
+  introduced: "bg-yellow-50",
+  reinforced: "bg-yellow-50",
+  strong: "bg-green-50",
+  heavy: "bg-green-50",
+};
 
 export default async function GapsPage({
   params,
@@ -140,12 +150,10 @@ export default async function GapsPage({
             </thead>
             <tbody>
               {tableRows.map((row, i) => {
-                const rowClass =
-                  row.docs === 0
-                    ? "bg-red-50"
-                    : row.docs <= 3
-                      ? "bg-yellow-50"
-                      : "bg-green-50";
+                // Row tint derives from the canonical level (lib/coverage.ts's
+                // levelOf) rather than redefining the doc-count thresholds here
+                // (AGENTS.md: "Single source ... no inline redefinitions").
+                const rowClass = ROW_TINT[levelOf(row.docs)];
                 return (
                   <tr key={i} className={`border-b ${rowClass}`}>
                     <td className="py-2">{cleanFrameworkLabel(row.topic)}</td>
