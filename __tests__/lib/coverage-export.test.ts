@@ -9,7 +9,9 @@ const rows = [
 describe("coverage export", () => {
   it("CSV leads with the method note, then a header, then leveled rows", () => {
     const lines = coverageRowsToCsv(rows).split("\n");
-    expect(lines[0]).toMatch(/^# .*faculty review/i);
+    // The note row is quoted as a single cell (it contains commas), so it starts
+    // with `"# ` — see coverageRowsToCsv.
+    expect(lines[0]).toMatch(/^"# .*faculty review/i);
     expect(lines[1]).toBe("framework,system,topic,level,documents,courses");
     expect(lines[2]).toContain("Strong"); // 5 docs
     expect(lines[3]).toContain("Not addressed"); // 0-doc gap
