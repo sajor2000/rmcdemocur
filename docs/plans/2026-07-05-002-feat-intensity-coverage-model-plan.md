@@ -84,6 +84,14 @@ Data flow: one SQL pass returns per-(framework, topic, course) distinct-document
 
 ---
 
+## Current State (starting point on `feat/intensity-coverage-model`)
+A prototype is already committed and green — `tsc` clean, 211 tests pass, and the AE1 numbers verify live (USMLE 245/597 addressed, 352 gaps, spectrum 105/80/42/18; AAMC 55/71). **Extend it; do not restart.**
+- **Done — verify + harden:** `lib/queries.ts getProgramSummary` computes the document-based intensity spectrum for USMLE + AAMC at entire + per-module scope, plus per-system breakdown + redundancy (most of **U2**). `lib/course-scope.ts courseModule` provides the M1/M2 map (**U3**). `app/program/page.tsx` is a first-pass view rendering both spectra + a plain-language method box + redundancy list (partial **U5**), and a `/program` nav link exists in `components/layout/Header.tsx`.
+- **To build:** **U1** (extract level definitions/thresholds into `lib/coverage.ts` as the single source, route all consumers through it), **U4** (shared `CoverageSpectrum` + `MethodExplainer`), full **U5** (scope selector + per-system table using the shared components), **U6** (course-dashboard retrofit), **U7** (gap-analysis retrofit), **U8** (AGENTS.md doctrine), **U9** (tests).
+- **Known duplication to resolve in U1:** the prototype defines the levels/thresholds inline in both `getProgramSummary` and `app/program/page.tsx`. U1 makes `lib/coverage.ts` canonical; the program query and page must then import from it (no inline redefinitions anywhere — this is the R7 consistency gate).
+
+---
+
 ## Implementation Units
 
 ### U1. Shared coverage engine (`lib/coverage.ts`)
