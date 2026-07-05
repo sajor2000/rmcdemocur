@@ -279,16 +279,31 @@ export function groupKeywordsByChunk(
 
 export async function getMapData(courseId: number) {
   const db = getDb();
+  // Only the columns the map renders — not sourcePath/filename (server-side
+  // locators the client shouldn't see, mirroring how storage_path is hidden).
   const docs = await db
-    .select()
+    .select({
+      id: documents.id,
+      caseNumber: documents.caseNumber,
+      caseTitle: documents.caseTitle,
+    })
     .from(documents)
     .where(eq(documents.courseId, courseId))
     .orderBy(documents.caseNumber);
 
+  // Select only the columns the map/drawer render — never the 1536-float
+  // embedding vector (it dwarfs everything and the client never uses it).
   const chunkRows = await db
     .select({
-      chunk: chunks,
-      document: documents,
+      chunk: {
+        id: chunks.id,
+        section: chunks.section,
+        content: chunks.content,
+      },
+      document: {
+        caseNumber: documents.caseNumber,
+        caseTitle: documents.caseTitle,
+      },
     })
     .from(chunks)
     .innerJoin(documents, eq(documents.id, chunks.documentId))
@@ -361,8 +376,20 @@ export async function getMapData(courseId: number) {
 
   const keywordsByChunkId = groupKeywordsByChunk(keywordRows);
 
-  const aamc = await db.select().from(aamcCompetencies);
-  const usmle = await db.select().from(usmleDomains);
+  // Framework trees need only display columns — again, never the embeddings.
+  const aamc = await db
+    .select({
+      subId: aamcCompetencies.subId,
+      domainName: aamcCompetencies.domainName,
+      description: aamcCompetencies.description,
+    })
+    .from(aamcCompetencies);
+  const usmle = await db
+    .select({
+      domain: usmleDomains.domain,
+      subdomain: usmleDomains.subdomain,
+    })
+    .from(usmleDomains);
 
   return { documents: docs, chunks: chunkRows, alignments: alignmentRows, mediaByChunkId, keywordsByChunkId, aamc, usmle };
 }
