@@ -9,6 +9,7 @@ import {
   buildDocumentFigureMeta,
   buildFigureRegistry,
 } from "../lib/figure-registry";
+import { extractLabeledFigureImages } from "../lib/docx-figure-images";
 import {
   blobConfigured,
   mediaDirForDocument,
@@ -79,10 +80,41 @@ export async function extractDocxMedia(options?: {
       continue;
     }
 
-    const mediaEntries = await listDocxMediaEntries(filePath);
     const outDir = mediaDirForDocument(mapping.caseNumber, filename);
     await fs.mkdir(outDir, { recursive: true });
 
+    const isSelfStudy = SELF_STUDY_GUIDES.some((f) => f.dest === filename);
+    if (isSelfStudy) {
+      // Full phase (U8): only the labeled figures are worth extracting — most
+      // self-study images are unlabeled slide screenshots with no registry
+      // row and nowhere to display them (docs/plans/2026-07-03-009-*, U8).
+      // Labeled-figure position doesn't reliably match the docx zip's raw
+      // media-entry order (verified: 384/391 mismatched in a real guide), so
+      // this correlates by document position via mammoth instead of the raw
+      // zip loop below, which stays faculty-only and unchanged.
+      //
+      // Blob upload is deliberately NOT attempted for self-study yet — a
+      // separate storage-cost decision, not a bug: only ~120 of thousands of
+      // self-study images are ever displayable, and Blob upload should wait
+      // until self-study figures are confirmed needed in the live demo.
+      const buffer = await fs.readFile(filePath);
+      const images = await extractLabeledFigureImages(buffer);
+      let extractedCount = 0;
+      for (const img of images) {
+        const destPath = mediaFilePath(mapping.caseNumber, filename, img.figureOrdinal, img.ext);
+        const existingStat = await fs.stat(destPath).catch(() => null);
+        if (existingStat && existingStat.size === img.bytes.length) {
+          extractedCount += 1;
+          continue;
+        }
+        await fs.writeFile(destPath, img.bytes);
+        extractedCount += 1;
+      }
+      reports.push({ filename, extractedCount, outputDir: outDir });
+      continue;
+    }
+
+    const mediaEntries = await listDocxMediaEntries(filePath);
     let extractedCount = 0;
     const blobUploadErrors: { sourceIndex: number; error: string }[] = [];
     const uploadToBlob = blobConfigured();
