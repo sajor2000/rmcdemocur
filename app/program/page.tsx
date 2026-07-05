@@ -22,7 +22,7 @@ function Spectrum({
   dist,
 }: {
   title: string;
-  dist: { total: number; addressed: number; gaps: number; introduced: number; reinforced: number; strong: number; heavy: number };
+  dist: { total: number; addressed: number; gap: number; introduced: number; reinforced: number; strong: number; heavy: number };
 }) {
   const seg = (n: number) => (n / dist.total) * 100;
   return (
@@ -33,9 +33,9 @@ function Spectrum({
       <CardContent className="space-y-3">
         <p className="text-sm text-rush-medium">
           <strong className="text-rush-dark">{dist.addressed}</strong> of {dist.total} topics
-          addressed · <strong className="text-rush-dark">{dist.gaps}</strong> gaps
+          addressed · <strong className="text-rush-dark">{dist.gap}</strong> gaps
         </p>
-        <div className="flex h-4 w-full overflow-hidden rounded-full bg-gap-red" title={`${dist.gaps} not addressed (gap)`}>
+        <div className="flex h-4 w-full overflow-hidden rounded-full bg-gap-red" title={`${dist.gap} not addressed (gap)`}>
           {LEVELS.map((l) => (
             <div
               key={l.key}
@@ -47,7 +47,7 @@ function Spectrum({
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-rush-medium">
           <span className="flex items-center gap-1" title="No curriculum document addresses this topic.">
-            <span className="h-3 w-3 rounded-sm bg-gap-red" /> Gap {dist.gaps}
+            <span className="h-3 w-3 rounded-sm bg-gap-red" /> Gap {dist.gap}
           </span>
           {LEVELS.map((l) => (
             <span key={l.key} className="flex items-center gap-1" title={`${l.docs}: ${l.tip}`}>

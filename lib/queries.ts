@@ -19,6 +19,7 @@ import {
   systemOfLabel,
   courseModule,
 } from "@/lib/course-scope";
+import { distribution, type CoverageDist } from "@/lib/coverage";
 import { passesSimilarity, resolveMinSimilarity } from "@/lib/retrieval-config";
 
 export async function getCourseWithDocuments(courseId: number) {
@@ -293,17 +294,6 @@ export function groupKeywordsByChunk(
  * cover everything, so an uncovered domain is a real program gap. Coverage is the
  * union across courses (a domain is covered if ANY course covers it).
  */
-export type CoverageDist = {
-  total: number;
-  addressed: number; // topics touched by >= 1 alignment
-  substantive: number; // >= 2 documents (reinforced+)
-  gaps: number; // total - addressed
-  introduced: number; // 1 document
-  reinforced: number; // 2-3
-  strong: number; // 4-7
-  heavy: number; // 8+
-};
-
 export async function getProgramSummary() {
   const db = getDb();
 
@@ -350,9 +340,6 @@ export async function getProgramSummary() {
     course_id: number; docs: number; chunks: number;
   }[];
 
-  const levelOf = (docs: number): "introduced" | "reinforced" | "strong" | "heavy" =>
-    docs >= 8 ? "heavy" : docs >= 4 ? "strong" : docs >= 2 ? "reinforced" : "introduced";
-
   type Topic = { docs: number; chunks: number; courses: Set<number>; label: string; system: string };
 
   // Roll the per-(topic,course) rows up to per-topic totals within a course scope
@@ -370,18 +357,13 @@ export async function getProgramSummary() {
     return map;
   }
 
-  function distribution(topics: Map<string, Topic>, total: number): CoverageDist {
-    const d = { introduced: 0, reinforced: 0, strong: 0, heavy: 0 };
-    for (const e of Array.from(topics.values())) d[levelOf(e.docs)]++;
-    const addressed = topics.size;
-    return {
+  // Distribution over a topic set via the canonical engine (lib/coverage) — the
+  // single source of level thresholds/definitions (R7).
+  const distFor = (topics: Map<string, Topic>, total: number): CoverageDist =>
+    distribution(
+      Array.from(topics.values()).map((t) => t.docs),
       total,
-      addressed,
-      substantive: d.reinforced + d.strong + d.heavy,
-      gaps: Math.max(0, total - addressed),
-      ...d,
-    };
-  }
+    );
 
   // Scopes: entire curriculum, then each module (M1, M2, ...).
   const scopeDefs: { key: string; inScope: (id: number) => boolean }[] = [
@@ -391,7 +373,7 @@ export async function getProgramSummary() {
 
   const byScope = (fw: "usmle" | "aamc", total: number): Record<string, CoverageDist> =>
     Object.fromEntries(
-      scopeDefs.map((s) => [s.key, distribution(topicsInScope(fw, s.inScope), total)]),
+      scopeDefs.map((s) => [s.key, distFor(topicsInScope(fw, s.inScope), total)]),
     );
 
   // USMLE per-organ-system breakdown + redundancy, at the entire-curriculum scope.
@@ -404,19 +386,16 @@ export async function getProgramSummary() {
     totalBySystem.set(r.system, r.total);
   }
   const usmleTopics = topicsInScope("usmle", () => true);
-  const perSystem = new Map<string, { introduced: number; reinforced: number; strong: number; heavy: number; addressed: number }>();
-  for (const s of Array.from(totalBySystem.keys())) perSystem.set(s, { introduced: 0, reinforced: 0, strong: 0, heavy: 0, addressed: 0 });
-  for (const e of Array.from(usmleTopics.values())) {
-    const ps = perSystem.get(e.system);
-    if (!ps) continue;
-    ps[levelOf(e.docs)]++;
-    ps.addressed++;
-  }
-  const systems = Array.from(totalBySystem.keys()).sort().map((system) => {
-    const total = totalBySystem.get(system) ?? 0;
-    const ps = perSystem.get(system)!;
-    return { system, total, gaps: total - ps.addressed, ...ps };
-  });
+  const docsBySystem = new Map<string, number[]>();
+  for (const s of Array.from(totalBySystem.keys())) docsBySystem.set(s, []);
+  for (const e of Array.from(usmleTopics.values())) docsBySystem.get(e.system)?.push(e.docs);
+  // Each system carries a full CoverageDist (from the same engine).
+  const systems = Array.from(totalBySystem.keys())
+    .sort()
+    .map((system) => ({
+      system,
+      ...distribution(docsBySystem.get(system) ?? [], totalBySystem.get(system) ?? 0),
+    }));
   const mostCovered = Array.from(usmleTopics.values())
     .sort((a, b) => b.docs - a.docs || b.chunks - a.chunks)
     .slice(0, 8)
