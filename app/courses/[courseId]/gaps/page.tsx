@@ -24,7 +24,7 @@ export default async function GapsPage({
     );
   }
 
-  const { gaps, metrics } = summary;
+  const { gaps, metrics, targetSystems } = summary;
   const tableRows = await getGapExportRows(courseId).catch(() => []);
 
   // Some gap rows exist twice (clean + doubled label) for one framework leaf —
@@ -44,9 +44,19 @@ export default async function GapsPage({
           {summary.course.code} covers{" "}
           <strong>{metrics.aamcCoveragePercent}%</strong> of AAMC PCRS
           competencies and <strong>{metrics.usmleDomainsCovered}</strong> of{" "}
-          {metrics.usmleDomainsTotal} USMLE domains.{" "}
+          {metrics.usmleDomainsTotal}{" "}
+          {targetSystems ? "in-scope" : ""} USMLE domains.{" "}
           <strong>{metrics.usmleGaps}</strong> gaps require attention.
         </p>
+        {targetSystems && (
+          <p className="mt-2 text-sm text-rush-medium">
+            Scoped to this course&apos;s organ systems:{" "}
+            <span className="font-medium text-rush-dark">
+              {targetSystems.join(" · ")}
+            </span>
+            .
+          </p>
+        )}
       </div>
 
       <div className="grid gap-4">
