@@ -5,7 +5,7 @@ import {
   inferGuideKind,
 } from "@/lib/media-types";
 
-const ANSWER_IMAGE_RE =
+export const ANSWER_IMAGE_RE =
   /^Answer\s+(?:Image|Figure)\s*(?:\d+[A-Z]?)?\s*:?\s*(.*)$/i;
 const FIGURE_LABEL_RE = /^(?:FIGURE|Figure)\s+(\d+[A-Z]?)\s*:?\s*(.*)$/i;
 const PROVIDED_IMAGE_RE = /^Provided image\s*:?\s*(.*)$/i;
