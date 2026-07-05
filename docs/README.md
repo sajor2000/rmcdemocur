@@ -3,7 +3,7 @@
 Central index for architecture, schema, plans, and bootstrap.
 
 **Production branch:** `main`  
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-05 (post-PR #35/#37)
 
 ---
 
@@ -40,8 +40,9 @@ Central index for architecture, schema, plans, and bootstrap.
 | [2026-07-04-003 — Page-journey audit](plans/2026-07-04-003-feat-page-journey-audit-plan.md) | Done | Manual QA pass (PR #13) → fixes landed in #14, #15, #16 |
 | [2026-07-05-001 — Program view + map UX](plans/2026-07-05-001-feat-program-view-and-map-ux-plan.md) | Done | Program view, selection-linked map, P3 polish — PR #17, #19–#21 |
 | [2026-07-05-002 — Intensity coverage model](plans/2026-07-05-002-feat-intensity-coverage-model-plan.md) | Done | Introduced→Reinforced→Mastered model, program+course+gaps — PR #20, #21, #23–#26 |
-| [2026-07-05-003 — Demo-readiness coverage/visual audit](plans/2026-07-05-003-fix-demo-readiness-coverage-visual-audit-plan.md) | Partial | PR #27 distinguishes the two coverage methodologies; gap_summary retirement, editorial visual redesign, and visual-regression baselines in progress |
+| [2026-07-05-003 — Demo-readiness coverage/visual audit](plans/2026-07-05-003-fix-demo-readiness-coverage-visual-audit-plan.md) | Done | gap_summary retired everywhere, editorial visual redesign, mobile-first heatmap, committed visual-regression baselines — PR #27, #35 |
 | Objectives + upload hardening | Done | Merged via PR #2 |
+| Post-merge dead-code cleanup | Done | knip-verified removal/privatization of 29 unused `lib`/`scripts` exports — PR #37 |
 
 ---
 
