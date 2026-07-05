@@ -8,6 +8,7 @@ artifact_readiness: implementation-ready
 product_contract_source: ce-brainstorm
 execution: code
 target_branch: fix/demo-readiness-coverage-visual-audit (off main)
+deepened: 2026-07-05
 ---
 
 # Demo-Ready Coverage Contract and Visual Audit - Plan
@@ -96,6 +97,7 @@ flowchart TB
 - A wider viewport matrix (tablet, additional desktop widths).
 - Re-verifying data fidelity or journey correctness — already covered by the 2026-07-04 page-journey audit.
 - Replacing the underlying chart library (Recharts) or introducing a new design-token/theming system beyond extending the existing Tailwind config.
+- Consolidating the duplicated per-(framework, topic, course) rollup query across `getProgramSummary`, `getCourseSummary`, and `getGapExportRows` into a shared helper (KTD8) — real debt, not worth the extra surface area this close to the demo.
 - The remaining unrelated units in `docs/plans/2026-07-05-002-feat-intensity-coverage-model-plan.md` (provenance drill-down, learning-spiral view) — untouched by this work, still open in that plan.
 
 ---
@@ -110,6 +112,7 @@ flowchart TB
 - **KTD5 — Design tokens extend the existing Tailwind config; no new design-system dependency.** The type scale and the semantic-only color palette (the 5 existing coverage-level colors, `bg-gap-red`/`bg-partial-yellow`/`bg-covered-green` etc. already defined, plus a grayscale scale for chrome) are added to `tailwind.config.ts` as named tokens, not a new CSS-in-JS or theming library. Components consume the tokens; no chart library swap.
 - **KTD6 — Visual-regression baselines run in CI via the pinned official Playwright Docker image.** Local macOS and CI Linux render fonts differently, which is the documented cause of spurious `toHaveScreenshot` diffs across contributor machines. Generating and comparing baselines only inside the pinned `mcr.microsoft.com/playwright` image (one consistent environment) avoids that flakiness class entirely; baseline updates remain a manual `--update-snapshots` step reviewed and committed alongside the change that caused them.
 - **KTD7 — Screenshot capture masks volatile, DB-driven content and disables animations.** Every page renders real database-derived numbers (alignment counts, coverage percentages) that can shift between runs as the corpus changes, plus any CSS transitions. Captures use `toHaveScreenshot`'s `mask` option on DB-driven number regions and `animations: 'disabled'`, and wait for the page's data-loaded signal before capturing — otherwise the baselines themselves become the flaky thing this work is trying to prevent.
+- **KTD8 — Accept, don't extract, the query-duplication across `getProgramSummary`/`getCourseSummary`/`getGapExportRows`.** All three now hand-roll a similar per-(framework, topic, course) alignments/chunks/documents rollup with slightly different scoping (whole program vs. one course vs. export rows). A shared query-builder helper would remove the duplication, but extracting one now is an architectural change with its own risk, this close to a demo, for code that isn't changing behavior. Accepted as explicit debt — see Deferred to Follow-Up Work — rather than scope creep on a demo-critical plan.
 
 ### High-Level Technical Design
 
@@ -148,13 +151,13 @@ Phase A lands first because it fixes the trust-critical split-brain independent 
 **Verification:** the page's old "per-document snapshot" caption is gone; CSV and on-screen figures agree for a sampled topic.
 
 ### U3. Retire pipeline-side `gap_summary` population
-**Goal:** Nothing in the app writes to `gap_summary` anymore.
+**Goal:** Nothing in the app writes to `gap_summary` anymore, and no dead code or stale documentation references the retired path.
 **Requirements:** R5.
-**Dependencies:** U1, U2 (confirm nothing reads the table before removing what writes it).
-**Files:** `lib/pipeline.ts` (remove `recomputeGapSummary` and its call site), `lib/gap-analyzer.ts` (remove `recomputeCourseFrameworkGaps` and `deriveCoverageStatus` if now unused), `scripts/realign.ts` (remove its calls to both).
-**Approach:** Delete the functions and call sites rather than leaving them dead in place (R5's "no orphaned pipeline stage"). Leave the `gap_summary` table and its Drizzle schema definition untouched (KTD2) — this unit is code-only.
-**Test scenarios:** running the pipeline against a document no longer inserts `gap_summary` rows; `scripts/realign.ts` still completes its realignment work without the removed calls; existing pipeline tests continue to pass with the `gap_summary` assertions removed.
-**Verification:** `grep` for `gapSummary`/`gap_summary` across `lib/` and `scripts/` returns only the (untouched) table definition in `drizzle/schema.ts` and `scripts/db-init.ts`.
+**Dependencies:** U1, U2 (confirm nothing reads the table before removing what writes it). Land U1-U3 together as one atomic, single-revertible change (see Risks & Dependencies) rather than merging U3 separately.
+**Files:** `lib/pipeline.ts` (remove `recomputeGapSummary`, its call site, **and** the separate `db.delete(gapSummary)` call inside `clearDocumentArtifacts`), `lib/gap-analyzer.ts` (remove `recomputeCourseFrameworkGaps` and `deriveCoverageStatus`), `scripts/realign.ts` (remove its calls to both), `__tests__/lib/gap-analyzer.test.ts` (delete — it unit-tests `deriveCoverageStatus` directly and won't compile once the function is gone), `__tests__/lib/pipeline-{caption-resume,embedding,resume}.test.ts` (remove the now-dead mocks of `recomputeCourseFrameworkGaps`/`recomputeGapSummary`/`deriveCoverageStatus`), `docs/ARCHITECTURE.md` and `docs/SCHEMA.md` (update the pipeline-stage description and the sentence/ERD referencing `gap_summary` as the aggregation source for gaps/heatmaps).
+**Approach:** Delete the functions and call sites rather than leaving them dead in place (R5's "no orphaned pipeline stage"). Leave the `gap_summary` table and its Drizzle schema definition untouched (KTD2) — this unit is code-only. `scripts/seed.ts`'s `db.delete(gapSummary)` during reseed is an accepted exception, not something to remove: it becomes a permanent zero-row no-op once nothing writes the table, and is harmless (correct FK ordering already), so leave it with a short comment marking it as such rather than touching seed.ts's behavior. Removing the `"recomputing_gaps"` pipeline stage may leave a cosmetic gap in the upload page's progress percentage sequence (e.g., a jump instead of a smooth step) — adjust the preceding stage's literal progress value so it still reads as a smooth sequence.
+**Test scenarios:** running the pipeline against a document no longer inserts `gap_summary` rows; `scripts/realign.ts` still completes its realignment work without the removed calls; existing pipeline tests continue to pass with the dead mocks removed; the upload page's progress sequence still reads smoothly with one fewer stage.
+**Verification:** `grep` for `gapSummary`/`gap_summary` across `lib/` and `scripts/` returns only the untouched table definition (`drizzle/schema.ts`, `scripts/db-init.ts`) and the accepted `scripts/seed.ts` exception; `docs/ARCHITECTURE.md`/`docs/SCHEMA.md` no longer describe `gap_summary` as the live aggregation source.
 
 ### U4. Track A verification
 **Goal:** Confirm the data-contract migration holds against live data and doesn't regress the dashboard.
@@ -246,11 +249,27 @@ Phase A lands first because it fixes the trust-critical split-brain independent 
 
 ---
 
+## System-Wide Impact
+
+- **Additional `gap_summary` touchpoints beyond the original scope** (folded into U3 above): `lib/pipeline.ts`'s `clearDocumentArtifacts` has its own separate `gapSummary` delete call, independent of `recomputeGapSummary`'s; `__tests__/lib/gap-analyzer.test.ts` directly unit-tests `deriveCoverageStatus` and won't compile once it's removed; three pipeline test files mock the retired functions and need their mocks dropped; `docs/ARCHITECTURE.md` and `docs/SCHEMA.md` both describe `gap_summary` as the live aggregation source for gaps/heatmaps and go stale otherwise.
+- **Pipeline stage list and upload UI:** no UI hardcodes stage names or derives progress from `PIPELINE_STAGES`'s length — `app/upload/page.tsx` renders server-sent stage/progress/message strings verbatim. Removing the `"recomputing_gaps"` stage is safe for users; only a cosmetic progress-percentage jump needs adjusting (handled in U3).
+- **Query-layer duplication, not a circular dependency.** `lib/coverage.ts` has zero imports and is a one-directional dependency of `lib/queries.ts` — no architectural violation. But `getProgramSummary`, and now `getCourseSummary`'s heatmap query and `getGapExportRows`, each hand-roll a similar per-(framework, topic, course) rollup independently. Accepted as explicit debt rather than extracted now — see KTD8 and Deferred to Follow-Up Work.
+- **Existing e2e coverage:** `e2e/journeys.spec.ts`'s gap-analysis assertion (currently checking amber/red severity language) is already targeted for updating by U4 — no additional test surface was found beyond what the plan already accounts for.
+
+## Risks & Dependencies
+
+- **Land U1-U3 as one atomic, revertible change.** U3 (removing the pipeline's write path) depends on U1/U2 (the new read path) landing first. If a bug surfaces in the new query logic after U3 has already merged separately, reverting only U1/U2 would restore reads against a table nothing has written to since cutover — silently worse than the original bug. *Mitigation:* merge U1-U3 together in a single PR and rehearse the full revert before demo day.
+- **The new heatmap can look like a regression on identical data, even when it isn't one.** KTD1's per-session, per-system breadth rule answers a different question than the old chunk-count-and-confidence rule, so cells are expected to flip color with no underlying data change. *Mitigation:* pair the cutover with the elevated `MethodExplainer` (U7) making the methodology change visible, and calibrate KTD1's bucket cutoffs against real course-1 data so the result doesn't recreate the PR #8 all-red look.
+- **CI wiring for the visual-regression suite is genuinely first-time infrastructure.** No existing CI workflow runs Playwright, Docker, or provisions a database; e2e specs already self-skip without `DATABASE_URL`, so a rushed CI job risks going silently green (skipped) rather than red. *Mitigation:* treat CI wiring (part of U12) as descopable from the demo-critical path if time runs short — verify manually that the suite fails red on a real diff before trusting it, demo-critical or not.
+- **`scripts/seed.ts`'s `gap_summary` delete becomes a permanent no-op, not a lingering dependency.** Once nothing writes the table, this delete always removes 0 rows — harmless, and already sequenced correctly relative to other table deletes. *Mitigation:* a short comment marking it as an intentional no-op (per U3) so it isn't later mistaken for a live dependency.
+
+---
+
 ## Verification Contract
 | Gate | Method | Expect |
 |------|--------|--------|
 | Coverage data contract | `npm test` + live query against course 1 | AE1 (varying heatmap) and AE2 (on-screen/CSV/program export agree) hold |
-| No orphaned pipeline code | `grep` for `gapSummary`/`gap_summary` in `lib/`, `scripts/` | Only the untouched table definition remains |
+| No orphaned pipeline code | `grep` for `gapSummary`/`gap_summary` in `lib/`, `scripts/` | Only the untouched table definition and the accepted `scripts/seed.ts` no-op exception remain |
 | Deterministic-safety | Manual check: every new annotation traces to an existing `CoverageDist`/export-row value | No annotation states a number not already computed elsewhere on the page |
 | Method transparency | Manual check: rendered `MethodExplainer` text vs. `lib/coverage.ts`'s `METHOD_NOTE` | Byte-identical |
 | Visual/responsive audit | Screenshot capture of all 8 pages × 2 breakpoints | No open layout breakage, overflow, or illegible-text findings |
