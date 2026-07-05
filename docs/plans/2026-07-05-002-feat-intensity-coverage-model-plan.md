@@ -12,7 +12,7 @@ target_branch: feat/intensity-coverage-model (off main)
 # feat: Intensity-based curriculum coverage model
 
 ## Summary
-Replace the misleading binary "% covered" with an **intensity** coverage model grounded in curriculum-mapping practice (Introduced -> Reinforced -> Mastered). A framework topic's coverage is the number of distinct **documents (sessions)** that address it: **Gap (0), Introduced (1), Reinforced (2-3), Strong (4-7), Heavily covered (8+)**. Present **both** the broad "addressed" count and the intensity spectrum. Apply the one model consistently across the **program** view (full framework), the **course** dashboard (organ-scoped), and **gap analysis** — for **both AAMC and USMLE**, at **entire-curriculum and per-module (M1/M2)** levels — with **educator-legible tooltips + a method explainer** so a curriculum committee trusts it. Capture the model as permanent doctrine in AGENTS.md.
+Replace the misleading binary "% covered" with an **intensity** coverage model grounded in curriculum-mapping practice (Introduced -> Reinforced -> Mastered). A framework topic's coverage is the number of distinct **documents (sessions)** that address it: **Gap (0), Introduced (1), Reinforced (2-3), Strong (4-7), Heavily covered (8+)**. Present **both** the broad "addressed" count and the intensity spectrum. Apply the one model consistently across the **program** view (full framework), the **course** dashboard (organ-scoped), and **gap analysis** — for **both AAMC and USMLE**, at **entire-curriculum and per-module (M1/M2)** levels — with **educator-legible tooltips + a method explainer** so a curriculum committee trusts it. Surface each document's **extracted learning objectives** in the interactive curriculum map (regex-first extraction, LLM only as a secondary fallback — the shipped extractor), for every course and rolled up for the full curriculum. Everything is **downloadable as CSV/JSON datasets** (per-course and full-curriculum) for the education team, and the **interactive map works for every course** (and links from the program view). Capture the model as permanent doctrine in AGENTS.md.
 
 **Why:** A single GI course was reading as "covering 245/597 USMLE domains" (incl. schizophrenia off one chunk). Binary coverage conflates "touched once" with "taught." The intensity model surfaces the real signals a committee needs: **gaps** (0 places), **redundancy** (many places / across courses = spiral reinforcement or waste), and everything between.
 
@@ -38,6 +38,10 @@ Replace the misleading binary "% covered" with an **intensity** coverage model g
 - **R7** One model applied consistently across the **program** view (full framework), **course** dashboard (organ-scoped), and **gap-analysis** page.
 - **R8** The coverage-model doctrine is captured in `AGENTS.md` so every future change honors it.
 - **R9** Two-level IA preserved: course = organ-scoped (`lib/course-scope.ts`); program = full framework.
+- **R10** **Document learning objectives in the map.** The extracted per-document learning objectives (`course_objectives`; EO-####/TO-#### codes) are surfaced in the interactive curriculum map and drawer — a curriculum item's objectives shown alongside its framework alignments — for **every** course and rolled up for the **full curriculum**. Extraction stays regex-first with LLM only as a secondary fallback (the shipped `extractObjectivesFromText` + cleanup path); no new LLM dependence.
+- **R11** **Exportable datasets & files for the education team.** Every coverage view is downloadable as data — CSV (spreadsheet) and JSON — for both **per-course** and **full-curriculum** scope: the intensity spectrum per topic, the gap list, the redundancy list, and the topic->document/course provenance. Files are self-describing (headers + a method note) so a committee can use them outside the app.
+- **R12** **Deterministic-first, LLM-secondary doctrine.** Extraction and matching prefer deterministic/structural (regex, keys, framework IDs) signals; the LLM/embedding path is a secondary fallback only, mirroring the shipped objectives extractor (regex-first, LLM cleanup only on miss). New logic (objectives surfacing/join, export generation) follows this; it is also the direction for reducing alignment over-matching.
+- **R13** **Interactive curriculum map works for every course and for the full curriculum.** The selection-linked map is per-course today (`/courses/[courseId]/map`); it must work for all courses (not just course 1), and a full-curriculum map view spans courses/modules.
 
 ### Acceptance Examples
 - **AE1** For RMD 563 (one GI/M1 course), the program view shows USMLE **245 addressed of 597**, spectrum **105 introduced / 80 reinforced / 42 strong / 18 heavy**, **352 gaps**; AAMC **55/71 addressed**. Not a single "% covered".
@@ -55,6 +59,8 @@ Replace the misleading binary "% covered" with an **intensity** coverage model g
 - **KTD4 — Module = curated `course -> module` map** in `lib/course-scope.ts` now (RMD 563 -> M1); a real `courses.module` DB column is deferred (Scope Boundaries).
 - **KTD5 — Never render a single "% covered."** Always "X addressed of Y" + spectrum. AAMC may show an addressed % as a secondary figure but always beside the spectrum.
 - **KTD6 — Framework scoping asymmetry:** USMLE is organ-scoped at the course level (course-scope) and full-framework at program level; AAMC is cross-cutting (never organ-scoped) at both.
+- **KTD7 — Deterministic-first, LLM-secondary (R12).** Course metadata (module), objectives surfacing (join the already-extracted `course_objectives`; extraction itself is regex-first with LLM only on miss), and export serialization are deterministic — no new LLM in the loop. The LLM/embedding path stays confined to the existing alignment + objectives-cleanup engines; new logic must not add LLM dependence.
+- **KTD8 — Exports are a pure serializer over the same engine data** (`lib/coverage-export.ts`), not a second query path — the CSV/JSON and the on-screen numbers come from one source so they never diverge. Files self-describe (method note in-file) to satisfy R6 outside the app.
 
 ---
 
@@ -170,6 +176,33 @@ A prototype is already committed and green — `tsc` clean, 211 tests pass, and 
 **Test scenarios:** engine boundaries; program/course numbers; e2e asserts spectrum + method box + scope switch + no lone "% covered".
 **Verification:** `npm test` + `npm run test:e2e` green; `tsc` clean.
 
+### U10. Surface document learning objectives in the map
+**Goal:** Show each document's extracted objectives (EO-####/TO-#### + text) in the curriculum map / drawer, for every course, and expose them per-course + full-curriculum. Reuse the shipped regex-first extractor; no new LLM.
+**Requirements:** R10, R12.
+**Dependencies:** none (builds on shipped objectives + map).
+**Files:** `lib/queries.ts` (`getMapData` — add objectives per document/chunk; a program/full-curriculum objectives rollup), `components/map/AlignmentDrawer.tsx` + `components/map/CurriculumTree.tsx` (show objectives for the selected item), `app/courses/[courseId]/objectives/page.tsx` (link into the map), `__tests__/lib/queries-map-objectives.test.ts`.
+**Approach:** Join `course_objectives` by document; attach the document's objectives to its chunks/sections in the map payload; render them in the drawer next to alignments/keywords. Full-curriculum rollup lists objectives across courses. Deterministic join — no LLM.
+**Test scenarios:** a selected curriculum item shows its document's objectives (EO/TO codes); a document with objectives exposes them; a full-curriculum objectives list spans courses; works for a non-course-1 course. `Covers R10`.
+**Verification:** the map drawer shows the item's learning objectives; objectives visible per course and program-wide.
+
+### U11. Exportable datasets & files (`app/api/program/export`, extend course export)
+**Goal:** Downloadable CSV + JSON of the coverage data for per-course and full-curriculum scope: per-topic level + document/course provenance, gaps, redundancy. Self-describing (headers + method note).
+**Requirements:** R11, R2, R6 (exports also carry the method note).
+**Dependencies:** U1, U2, U6.
+**Files:** `app/api/program/export/route.ts` (new; `?format=csv|json&scope=...`), `app/api/courses/[courseId]/export/route.ts` (extend to the intensity model), `lib/coverage-export.ts` (new, pure serializer), `__tests__/lib/coverage-export.test.ts`, download buttons on the program + course pages.
+**Approach:** Pure serializer builds rows (topic, framework, system, level, docs, courses, provenance) from the same engine data; CSV first row(s) carry a `# method:` comment/header; JSON includes a `method` block. Deterministic (no LLM).
+**Test scenarios:** CSV parses with expected columns + method header; JSON shape stable; per-course vs full-curriculum scope differ; gaps and redundancy exportable; `Covers R11`.
+**Verification:** downloaded CSV opens in a spreadsheet with legible columns + method note; JSON is valid and complete.
+
+### U12. Interactive map for every course + full-curriculum map
+**Goal:** Ensure the selection-linked map works for all courses (not just course 1); add a full-curriculum map entry.
+**Requirements:** R13.
+**Dependencies:** none (builds on shipped map).
+**Files:** `app/courses/[courseId]/map/page.tsx` (verify course-agnostic), `components/layout/Sidebar.tsx` / course list, `app/program/page.tsx` (link to a cross-course map or reuse per-course with a course switcher).
+**Approach:** Confirm the map is fully parameterized by courseId (no course-1 assumptions); add navigation to each course's map; provide a program-level path into the map. A true cross-course single map canvas is optional (note if deferred).
+**Test scenarios:** map loads for a second course id; selection-linking works per course; program view links into the map.
+**Verification:** every course's map is reachable and functional; no course-1 hardcoding.
+
 ---
 
 ## Scope Boundaries
@@ -198,8 +231,11 @@ A prototype is already committed and green — `tsc` clean, 211 tests pass, and 
 - [ ] Shared engine is the single source of level definitions; all three surfaces consume it
 - [ ] Program view: both frameworks, scope selector, gaps + redundancy, tooltips + method box
 - [ ] Course dashboard + gap-analysis retrofit to the spectrum (organ-scoped where applicable)
-- [ ] AGENTS.md coverage doctrine committed
-- [ ] AE1-AE5 verified; suites green
+- [ ] AGENTS.md coverage doctrine committed (incl. the deterministic-first, R6-transparency, and export rules)
+- [ ] Document learning objectives surfaced in the map (per course + full curriculum), regex-first extraction reused
+- [ ] Exportable CSV + JSON for per-course AND full-curriculum (spectrum, gaps, redundancy, provenance), self-describing with the method note
+- [ ] Interactive map works for every course (no course-1 hardcoding); reachable from the program view
+- [ ] AE1-AE5 verified; `npm test` + `npm run test:e2e` + `tsc` green
 
 ---
 
