@@ -107,7 +107,7 @@ export async function getCourseSummary(courseId: number) {
            COUNT(DISTINCT ac.stable_id) FILTER (WHERE a.id IS NOT NULL)::int as covered
     FROM aamc_competencies ac
     LEFT JOIN alignments a ON (
-      (a.framework_id = ac.stable_id OR a.framework_id = ac.sub_id)
+      a.framework_id = ac.stable_id
       AND a.framework IN ('AAMC_PCRS','AAMC_EPA')
       AND EXISTS (
         SELECT 1 FROM chunks c
@@ -159,46 +159,38 @@ export async function getCourseSummary(courseId: number) {
   const totalUsmleLeafCount = Number(
     (totalUsmleLeaf.rows[0] as { cnt: number })?.cnt ?? 0,
   );
-  const alignedUsmle = await db.execute(sql`
-    SELECT COUNT(DISTINCT a.framework_id)::int as cnt
+  // Distinct documents per addressed USMLE domain (organ-scoped when curated).
+  // Drives BOTH the covered count and the intensity spectrum — computed once, so
+  // the covered count is just the number of addressed domains (rows).
+  const usmleDocRows = await db.execute(sql`
+    SELECT COUNT(DISTINCT c.document_id)::int AS docs
     FROM alignments a
     JOIN chunks c ON c.id = a.chunk_id
     JOIN documents d ON d.id = c.document_id
+    ${targetSystems ? sql`JOIN usmle_domains ud ON ud.stable_id = a.framework_id` : sql``}
     WHERE d.course_id = ${courseId} AND a.framework = 'USMLE'
+      ${targetSystems ? sql`AND ud.domain IN (${sql.join(targetSystems.map((s) => sql`${s}`), sql`, `)})` : sql``}
+    GROUP BY a.framework_id
   `);
-  const usmleAlignedCount = Number(
-    (alignedUsmle.rows[0] as { cnt: number })?.cnt ?? 0,
-  );
+  const usmleCoveredDocs = (usmleDocRows.rows as { docs: number }[]).map((r) => r.docs);
+  const usmleCovered = usmleCoveredDocs.length;
 
-  // Scope the "X of Y USMLE domains" totals to the target systems when curated.
+  // Scope the "X of Y USMLE domains" denominator to the target systems when
+  // curated (the covered count already respects scope via usmleDocRows above).
   let usmleTotal = totalUsmleLeafCount;
-  let usmleCovered = usmleAlignedCount;
   if (targetSystems) {
-    const sysList = sql.join(
-      targetSystems.map((s) => sql`${s}`),
-      sql`, `,
-    );
+    const sysList = sql.join(targetSystems.map((s) => sql`${s}`), sql`, `);
     const t = await db.execute(sql`
       SELECT COUNT(*)::int AS cnt FROM usmle_domains
       WHERE parent_stable_id IS NOT NULL AND domain IN (${sysList})
     `);
     usmleTotal = Number((t.rows[0] as { cnt: number })?.cnt ?? 0);
-    const cov = await db.execute(sql`
-      SELECT COUNT(DISTINCT a.framework_id)::int AS cnt
-      FROM alignments a
-      JOIN chunks c ON c.id = a.chunk_id
-      JOIN documents d ON d.id = c.document_id
-      JOIN usmle_domains ud ON ud.stable_id = a.framework_id
-      WHERE d.course_id = ${courseId} AND a.framework = 'USMLE'
-        AND ud.domain IN (${sysList})
-    `);
-    usmleCovered = Number((cov.rows[0] as { cnt: number })?.cnt ?? 0);
   }
 
   const aamcAligned = await db.execute(sql`
     SELECT COUNT(DISTINCT ac.stable_id)::int as cnt
     FROM aamc_competencies ac
-    INNER JOIN alignments a ON a.framework_id = ac.stable_id OR a.framework_id = ac.sub_id
+    INNER JOIN alignments a ON a.framework_id = ac.stable_id
     INNER JOIN chunks c ON c.id = a.chunk_id
     INNER JOIN documents d ON d.id = c.document_id
     WHERE d.course_id = ${courseId}
@@ -235,22 +227,9 @@ export async function getCourseSummary(courseId: number) {
     ? Math.max(0, usmleTotal - usmleCovered)
     : gaps.filter((g) => g.gap_summary.coverageStatus === "gap").length;
 
-  // Intensity spectrum for the course via the canonical engine — organ-scoped
-  // USMLE (matching usmleTotal), all AAMC (cross-cutting).
-  const usmleDocRows = await db.execute(sql`
-    SELECT COUNT(DISTINCT c.document_id)::int AS docs
-    FROM alignments a
-    JOIN chunks c ON c.id = a.chunk_id
-    JOIN documents d ON d.id = c.document_id
-    ${targetSystems ? sql`JOIN usmle_domains ud ON ud.stable_id = a.framework_id` : sql``}
-    WHERE d.course_id = ${courseId} AND a.framework = 'USMLE'
-      ${targetSystems ? sql`AND ud.domain IN (${sql.join(targetSystems.map((s) => sql`${s}`), sql`, `)})` : sql``}
-    GROUP BY a.framework_id
-  `);
-  const usmleSpectrum = distribution(
-    (usmleDocRows.rows as { docs: number }[]).map((r) => r.docs),
-    usmleTotal || 1,
-  );
+  // Intensity spectrum from the same per-domain doc counts (organ-scoped USMLE,
+  // computed once above), plus all-AAMC (cross-cutting).
+  const usmleSpectrum = distribution(usmleCoveredDocs, usmleTotal || 1);
   const aamcDocRows = await db.execute(sql`
     SELECT COUNT(DISTINCT c.document_id)::int AS docs
     FROM alignments a
