@@ -46,6 +46,7 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
   const [caseFilter, setCaseFilter] = useState<string>("all");
   const [frameworkFilter, setFrameworkFilter] = useState<string>("all");
   const [confidenceMin, setConfidenceMin] = useState(0.5);
+  const [keywordFilter, setKeywordFilter] = useState<string>("all");
   const [drawerAlignment, setDrawerAlignment] = useState<Alignment | null>(null);
 
   useEffect(() => {
@@ -81,6 +82,25 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
     linkedAlignments.map((a) => a.alignment.frameworkId),
   );
   const linkedChunkIds = new Set(linkedAlignments.map((a) => a.chunkId));
+
+  // Distinct keywords across the course, sorted for the filter dropdown.
+  const keywordOptions = Array.from(
+    new Set(
+      Object.values(data?.keywordsByChunkId ?? {}).flatMap((tags) =>
+        tags.map((t) => t.keyword),
+      ),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+
+  // Chunks tagged with the selected keyword — undefined (no filter) shows all.
+  const keywordChunkIds =
+    keywordFilter === "all"
+      ? undefined
+      : new Set(
+          Object.entries(data?.keywordsByChunkId ?? {})
+            .filter(([, tags]) => tags.some((t) => t.keyword === keywordFilter))
+            .map(([chunkId]) => Number(chunkId)),
+        );
 
   // Framework nodes to highlight: everything aligned on no selection (overview),
   // else only the selection's links.
@@ -171,6 +191,23 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
             onValueChange={([v]) => setConfidenceMin(v)}
           />
         </div>
+        {keywordOptions.length > 0 && (
+          <label className="text-sm">
+            Keyword{" "}
+            <select
+              className="ml-2 rounded border px-2 py-1"
+              value={keywordFilter}
+              onChange={(e) => setKeywordFilter(e.target.value)}
+            >
+              <option value="all">All</option>
+              {keywordOptions.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
       {selectionActive ? (
@@ -201,6 +238,7 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
           caseFilter={caseFilter}
           selectedChunkId={selectedChunkId}
           highlightChunkIds={selectedFrameworkId ? linkedChunkIds : undefined}
+          keywordChunkIds={keywordChunkIds}
           dim={selectedFrameworkId != null}
           onSelect={selectChunk}
         />
