@@ -155,7 +155,23 @@ export function CoverageHeatmap({
         </div>
       </CardHeader>
       <CardContent className="overflow-x-auto">
-        <div className="grid gap-1" style={{ gridTemplateColumns: `8rem repeat(${cases.length}, 1fr)` }}>
+        {/* Mobile (<640px): a per-system summary strip, not a shrunk grid — a
+            dense case×system matrix doesn't reflow to a narrow screen without
+            becoming illegible (R14, KTD source: small-multiples convention). */}
+        <div className="space-y-2 sm:hidden">
+          {systems.map((system) => (
+            <div
+              key={system}
+              className="flex items-center justify-between gap-3 rounded-md border border-gray-200 p-2"
+            >
+              <span className="truncate text-xs font-medium">{system}</span>
+              <div className="flex shrink-0 gap-1">
+                {cases.map((c) => cell(c, system))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden gap-1 sm:grid" style={{ gridTemplateColumns: `8rem repeat(${cases.length}, 1fr)` }}>
           <div />
           {cases.map((c) => (
             <div key={c} className="text-center text-xs font-medium">
