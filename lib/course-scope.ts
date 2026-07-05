@@ -21,6 +21,22 @@ export const COURSE_TARGET_SYSTEMS: Record<string, string[]> = {
   ],
 };
 
+/**
+ * Which curricular module a course belongs to (M1, M2, …). The curriculum
+ * hierarchy is chunk -> document/session -> course -> module -> program, and
+ * coverage is reported at the program level AND per module. Curated by course
+ * code; unmapped courses fall into "Unassigned". RMD 563 "Food to Fuel" is a
+ * first-year (M1) organ-system block.
+ */
+export const COURSE_MODULE: Record<string, string> = {
+  "RMD 563": "M1",
+};
+
+export function courseModule(courseCode: string | null | undefined): string {
+  if (!courseCode) return "Unassigned";
+  return COURSE_MODULE[courseCode] ?? "Unassigned";
+}
+
 /** Target USMLE systems for a course, or null when none are curated (= all). */
 export function courseTargetSystems(
   courseCode: string | null | undefined,

@@ -14,7 +14,11 @@ import {
   usmleDomains,
 } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
-import { courseTargetSystems, systemOfLabel } from "@/lib/course-scope";
+import {
+  courseTargetSystems,
+  systemOfLabel,
+  courseModule,
+} from "@/lib/course-scope";
 import { passesSimilarity, resolveMinSimilarity } from "@/lib/retrieval-config";
 
 export async function getCourseWithDocuments(courseId: number) {
@@ -279,6 +283,159 @@ export function groupKeywordsByChunk(
     byChunk[row.chunkId] = list;
   }
   return byChunk;
+}
+
+/**
+ * Program-wide ("full curriculum") coverage across ALL courses, measured against
+ * the WHOLE framework — the inverse of getCourseSummary's organ scoping. Here the
+ * full USMLE content outline (every leaf domain / all 15 systems) and all AAMC
+ * competencies are the denominator, because collectively the curriculum should
+ * cover everything, so an uncovered domain is a real program gap. Coverage is the
+ * union across courses (a domain is covered if ANY course covers it).
+ */
+export type CoverageDist = {
+  total: number;
+  addressed: number; // topics touched by >= 1 alignment
+  substantive: number; // >= 2 documents (reinforced+)
+  gaps: number; // total - addressed
+  introduced: number; // 1 document
+  reinforced: number; // 2-3
+  strong: number; // 4-7
+  heavy: number; // 8+
+};
+
+export async function getProgramSummary() {
+  const db = getDb();
+
+  const courseRows = await db
+    .select({ id: courses.id, code: courses.code, title: courses.title })
+    .from(courses)
+    .orderBy(courses.id);
+  const courseList = courseRows.map((c) => ({ ...c, module: courseModule(c.code) }));
+  const moduleByCourse = new Map(courseList.map((c) => [c.id, c.module]));
+  const modules = Array.from(new Set(courseList.map((c) => c.module))).sort();
+
+  const counts = await db.execute(sql`
+    SELECT
+      (SELECT COUNT(*)::int FROM documents) AS documents,
+      (SELECT COUNT(*)::int FROM alignments) AS alignments,
+      (SELECT COUNT(*)::int FROM usmle_domains WHERE parent_stable_id IS NOT NULL) AS usmle_total,
+      (SELECT COUNT(*)::int FROM aamc_competencies) AS aamc_total
+  `);
+  const c0 = counts.rows[0] as {
+    documents: number; alignments: number; usmle_total: number; aamc_total: number;
+  };
+
+  // Per (framework, topic, course): distinct DOCUMENTS (the "places" for the
+  // Introduced -> Reinforced -> Mastered model) + chunks. Rolling up by course
+  // lets us report coverage program-wide AND per module, for BOTH frameworks.
+  const rows = (
+    await db.execute(sql`
+      SELECT
+        CASE WHEN a.framework = 'USMLE' THEN 'usmle' ELSE 'aamc' END AS fw,
+        a.framework_id AS id,
+        MIN(a.framework_label) AS label,
+        split_part(MIN(a.framework_label), ' — ', 1) AS system,
+        d.course_id AS course_id,
+        COUNT(DISTINCT c.document_id)::int AS docs,
+        COUNT(DISTINCT a.chunk_id)::int AS chunks
+      FROM alignments a
+      JOIN chunks c ON c.id = a.chunk_id
+      JOIN documents d ON d.id = c.document_id
+      WHERE a.framework IN ('USMLE','AAMC_PCRS','AAMC_EPA')
+      GROUP BY fw, a.framework_id, d.course_id
+    `)
+  ).rows as {
+    fw: "usmle" | "aamc"; id: string; label: string; system: string;
+    course_id: number; docs: number; chunks: number;
+  }[];
+
+  const levelOf = (docs: number): "introduced" | "reinforced" | "strong" | "heavy" =>
+    docs >= 8 ? "heavy" : docs >= 4 ? "strong" : docs >= 2 ? "reinforced" : "introduced";
+
+  type Topic = { docs: number; chunks: number; courses: Set<number>; label: string; system: string };
+
+  // Roll the per-(topic,course) rows up to per-topic totals within a course scope
+  // (all courses, or one module's courses), for one framework.
+  function topicsInScope(fw: "usmle" | "aamc", inScope: (courseId: number) => boolean) {
+    const map = new Map<string, Topic>();
+    for (const r of rows) {
+      if (r.fw !== fw || !inScope(r.course_id)) continue;
+      const e = map.get(r.id) ?? { docs: 0, chunks: 0, courses: new Set<number>(), label: r.label, system: r.system };
+      e.docs += r.docs;
+      e.chunks += r.chunks;
+      e.courses.add(r.course_id);
+      map.set(r.id, e);
+    }
+    return map;
+  }
+
+  function distribution(topics: Map<string, Topic>, total: number): CoverageDist {
+    const d = { introduced: 0, reinforced: 0, strong: 0, heavy: 0 };
+    for (const e of Array.from(topics.values())) d[levelOf(e.docs)]++;
+    const addressed = topics.size;
+    return {
+      total,
+      addressed,
+      substantive: d.reinforced + d.strong + d.heavy,
+      gaps: Math.max(0, total - addressed),
+      ...d,
+    };
+  }
+
+  // Scopes: entire curriculum, then each module (M1, M2, ...).
+  const scopeDefs: { key: string; inScope: (id: number) => boolean }[] = [
+    { key: "Entire curriculum", inScope: () => true },
+    ...modules.map((m) => ({ key: m, inScope: (id: number) => moduleByCourse.get(id) === m })),
+  ];
+
+  const byScope = (fw: "usmle" | "aamc", total: number): Record<string, CoverageDist> =>
+    Object.fromEntries(
+      scopeDefs.map((s) => [s.key, distribution(topicsInScope(fw, s.inScope), total)]),
+    );
+
+  // USMLE per-organ-system breakdown + redundancy, at the entire-curriculum scope.
+  const sysTotalsRes = await db.execute(sql`
+    SELECT domain AS system, COUNT(*)::int AS total
+    FROM usmle_domains WHERE parent_stable_id IS NOT NULL GROUP BY domain
+  `);
+  const totalBySystem = new Map<string, number>();
+  for (const r of sysTotalsRes.rows as { system: string; total: number }[]) {
+    totalBySystem.set(r.system, r.total);
+  }
+  const usmleTopics = topicsInScope("usmle", () => true);
+  const perSystem = new Map<string, { introduced: number; reinforced: number; strong: number; heavy: number; addressed: number }>();
+  for (const s of Array.from(totalBySystem.keys())) perSystem.set(s, { introduced: 0, reinforced: 0, strong: 0, heavy: 0, addressed: 0 });
+  for (const e of Array.from(usmleTopics.values())) {
+    const ps = perSystem.get(e.system);
+    if (!ps) continue;
+    ps[levelOf(e.docs)]++;
+    ps.addressed++;
+  }
+  const systems = Array.from(totalBySystem.keys()).sort().map((system) => {
+    const total = totalBySystem.get(system) ?? 0;
+    const ps = perSystem.get(system)!;
+    return { system, total, gaps: total - ps.addressed, ...ps };
+  });
+  const mostCovered = Array.from(usmleTopics.values())
+    .sort((a, b) => b.docs - a.docs || b.chunks - a.chunks)
+    .slice(0, 8)
+    .map((e) => ({ label: e.label, system: e.system, docs: e.docs, courses: e.courses.size, chunks: e.chunks }));
+
+  return {
+    courses: courseList,
+    modules,
+    scopes: scopeDefs.map((s) => s.key),
+    metrics: {
+      courses: courseList.length,
+      documents: c0.documents,
+      alignments: c0.alignments,
+    },
+    usmle: { total: c0.usmle_total, byScope: byScope("usmle", c0.usmle_total) },
+    aamc: { total: c0.aamc_total, byScope: byScope("aamc", c0.aamc_total) },
+    systems,
+    mostCovered,
+  };
 }
 
 export async function getMapData(courseId: number) {
