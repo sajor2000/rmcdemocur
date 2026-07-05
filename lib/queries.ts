@@ -1,4 +1,4 @@
-import { sql, eq, desc, and } from "drizzle-orm";
+import { sql, eq, desc, and, inArray } from "drizzle-orm";
 import {
   alignments,
   aamcCompetencies,
@@ -8,6 +8,7 @@ import {
   courseObjectives,
   courses,
   documents,
+  figureCaptions,
   keywordTags,
   mediaAssets,
   usmleDomains,
@@ -274,6 +275,24 @@ export async function getCourseSummary(courseId: number) {
     topicRows,
     recentAlignments,
   };
+}
+
+/** Key a figure_captions or media_assets row by (filename, label) — the same
+ * key scripts/import-figure-captions.ts upserts on. Pure + exported for testing. */
+export function captionKey(filename: string, label: string): string {
+  return `${filename}::${label}`;
+}
+
+/** Build a filename+label → official caption text lookup from figure_captions
+ * rows. Pure + exported for testing. */
+export function buildCaptionByKey(
+  rows: { filename: string; label: string; textForEmbed: string }[],
+): Map<string, string> {
+  const byKey = new Map<string, string>();
+  for (const row of rows) {
+    byKey.set(captionKey(row.filename, row.label), row.textForEmbed);
+  }
+  return byKey;
 }
 
 /** Group per-chunk keyword-tag rows into a chunkId → tags map, dropping empty
@@ -549,6 +568,7 @@ export async function getMapData(courseId: number) {
     .select({
       chunkId: chunkMedia.chunkId,
       mediaAssetId: chunkMedia.mediaAssetId,
+      filename: documents.filename,
       asset: mediaAssets,
     })
     .from(chunkMedia)
@@ -556,6 +576,21 @@ export async function getMapData(courseId: number) {
     .innerJoin(chunks, eq(chunks.id, chunkMedia.chunkId))
     .innerJoin(documents, eq(documents.id, chunks.documentId))
     .where(eq(documents.courseId, courseId));
+
+  // Official figure_captions text (keyed filename+label, see
+  // scripts/import-figure-captions.ts) takes precedence over the mined
+  // media_assets.text_for_embed shown below — a caption imported after the
+  // document's last pipeline run reaches the map immediately instead of
+  // waiting for the next reprocess/re-embed cycle.
+  let captionByKey = new Map<string, string>();
+  if (mediaLinkRows.length > 0) {
+    const filenames = Array.from(new Set(mediaLinkRows.map((row) => row.filename)));
+    const captionRows = await db
+      .select({ filename: figureCaptions.filename, label: figureCaptions.label, textForEmbed: figureCaptions.textForEmbed })
+      .from(figureCaptions)
+      .where(inArray(figureCaptions.filename, filenames));
+    captionByKey = buildCaptionByKey(captionRows);
+  }
 
   const mediaByChunkId: Record<
     number,
@@ -571,10 +606,11 @@ export async function getMapData(courseId: number) {
 
   for (const row of mediaLinkRows) {
     const list = mediaByChunkId[row.chunkId] ?? [];
+    const officialCaption = captionByKey.get(captionKey(row.filename, row.asset.label));
     list.push({
       id: row.asset.id,
       label: row.asset.label,
-      textForEmbed: row.asset.textForEmbed,
+      textForEmbed: officialCaption ?? row.asset.textForEmbed,
       // Never expose the raw storage_path — it's a filesystem/Blob locator
       // key, not client-facing data; the client only ever needs to know
       // whether /api/media/{id} will actually return bytes.

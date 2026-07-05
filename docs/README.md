@@ -3,7 +3,7 @@
 Central index for architecture, schema, plans, and bootstrap.
 
 **Production branch:** `main`  
-**Last updated:** 2026-07-03
+**Last updated:** 2026-07-05
 
 ---
 
@@ -29,11 +29,18 @@ Central index for architecture, schema, plans, and bootstrap.
 | [002 — Framework ingestion](plans/2026-07-03-002-feat-real-document-framework-ingestion-plan.md) | Done | USMLE + AAMC parsers |
 | [003 — Quality-tier models](plans/2026-07-03-003-feat-quality-tier-azure-models-plan.md) | Done | gpt-4.1 + embedding-3-large |
 | [004 — Full demo seed](plans/2026-07-03-004-feat-full-demo-seed-bootstrap-plan.md) | Done | 14 documents, setup script |
-| [005 — USMLE parser fix](plans/2026-07-03-005-fix-usmle-parser-rebootstrap-plan.md) | Partial | Parser merged; full process needs Azure/VPN |
-| [006 — Concept Bridge map](plans/2026-07-03-006-feat-concept-bridge-curriculum-map-plan.md) | Planned | Graph + spreadsheet on `/map` |
-| [007 — Chunking + goal accuracy](plans/2026-07-03-007-feat-worldclass-chunking-and-goal-accuracy-plan.md) | Planned | Semantic chunking, auth/docs hardening |
+| [005 — USMLE parser fix](plans/2026-07-03-005-fix-usmle-parser-rebootstrap-plan.md) | Done | Full 14-doc corpus processed (2,906 chunks, ~8,900 alignments) — PR #7 |
+| [006 — Concept Bridge map](plans/2026-07-03-006-feat-concept-bridge-curriculum-map-plan.md) | Superseded | Original graph+spreadsheet+CSV scope not built; replaced by lighter selection-linked map highlighting — PR #19, scoped by plan 2026-07-05-001 U2 |
+| [007 — Chunking + goal accuracy](plans/2026-07-03-007-feat-worldclass-chunking-and-goal-accuracy-plan.md) | Done | Semantic chunking, embed breadcrumbs — PR #4 (with #5–#7 merged in first) |
 | [008 — Bootstrap review fixes](plans/2026-07-03-008-fix-bootstrap-review-findings-plan.md) | Done | P1–P3 from ce-code-review; commits `a2970a5`, `959e861` |
-| [009 — Curriculum image ingestion](plans/2026-07-03-009-feat-curriculum-image-ingestion-plan.md) | Done (MVP) | Faculty DOCX extract, map previews; Full phase (U8–U10) deferred |
+| [009 — Curriculum image ingestion](plans/2026-07-03-009-feat-curriculum-image-ingestion-plan.md) | Done | Faculty DOCX extract + map previews (MVP), then self-study extraction, PDF answer-images, and vision-OCR fallback (Full phase U8–U10) — PR #32, #33, #34 |
+| [010 — Deployment-readiness hardening](plans/2026-07-03-010-feat-deployment-readiness-hardening-plan.md) | Done | Media locator keys, caption durability, Vercel Blob driver — commits `8338baf`..`a7f23d3` |
+| [2026-07-04-001 — Objectives extraction coverage](plans/2026-07-04-001-fix-objectives-extraction-coverage-plan.md) | Done | Fixed TO-#### topic-objective parsing (Case 3 was 0) — PR #9 |
+| [2026-07-04-002 — Surface keyword/figure data](plans/2026-07-04-002-feat-surface-keyword-figure-data-plan.md) | Done | Keyword chips + definitions (PR #10), then figure_captions merge + map keyword filter — PR #31 |
+| [2026-07-04-003 — Page-journey audit](plans/2026-07-04-003-feat-page-journey-audit-plan.md) | Done | Manual QA pass (PR #13) → fixes landed in #14, #15, #16 |
+| [2026-07-05-001 — Program view + map UX](plans/2026-07-05-001-feat-program-view-and-map-ux-plan.md) | Done | Program view, selection-linked map, P3 polish — PR #17, #19–#21 |
+| [2026-07-05-002 — Intensity coverage model](plans/2026-07-05-002-feat-intensity-coverage-model-plan.md) | Done | Introduced→Reinforced→Mastered model, program+course+gaps — PR #20, #21, #23–#26 |
+| [2026-07-05-003 — Demo-readiness coverage/visual audit](plans/2026-07-05-003-fix-demo-readiness-coverage-visual-audit-plan.md) | Partial | PR #27 distinguishes the two coverage methodologies; gap_summary retirement, editorial visual redesign, and visual-regression baselines in progress |
 | Objectives + upload hardening | Done | Merged via PR #2 |
 
 ---

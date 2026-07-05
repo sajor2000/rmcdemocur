@@ -9,6 +9,8 @@ type Props = {
   selectedChunkId: number | null;
   /** Chunks linked to a selected framework node (reverse highlight). */
   highlightChunkIds?: Set<number>;
+  /** When set, only chunks tagged with the selected keyword are shown. */
+  keywordChunkIds?: Set<number>;
   /** A framework node is selected — mute non-linked chunks. */
   dim?: boolean;
   onSelect: (id: number | null) => void;
@@ -19,12 +21,14 @@ export function CurriculumTree({
   caseFilter,
   selectedChunkId,
   highlightChunkIds,
+  keywordChunkIds,
   dim = false,
   onSelect,
 }: Props) {
   const grouped = chunks.reduce<Record<string, ChunkRow[]>>((acc, row) => {
     const caseNum = row.document.caseNumber ?? 0;
     if (caseFilter !== "all" && String(caseNum) !== caseFilter) return acc;
+    if (keywordChunkIds && !keywordChunkIds.has(row.chunk.id)) return acc;
     const key = `Case ${caseNum}: ${row.document.caseTitle ?? "Unknown"}`;
     acc[key] = acc[key] ?? [];
     acc[key].push(row);

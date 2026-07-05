@@ -5,9 +5,14 @@ import {
   inferGuideKind,
 } from "@/lib/media-types";
 
-const ANSWER_IMAGE_RE =
+export const ANSWER_IMAGE_RE =
   /^Answer\s+(?:Image|Figure)\s*(?:\d+[A-Z]?)?\s*:?\s*(.*)$/i;
-const FIGURE_LABEL_RE = /^(?:FIGURE|Figure)\s+(\d+[A-Z]?)\s*:?\s*(.*)$/i;
+// \d+(?:\.\d+)? allows decimal figure numbers ("Figure 8.2", "Figure 26.1") —
+// common in this corpus as textbook citations (e.g. "Figure 8.2, Devlin").
+// Without the optional decimal group, "Figure 8.2" truncates to label
+// "Figure 8", colliding with any other "Figure 8" (or "Figure 8.3") elsewhere
+// in the same document.
+export const FIGURE_LABEL_RE = /^(?:FIGURE|Figure)\s+(\d+(?:\.\d+)?[A-Z]?)\s*:?\s*(.*)$/i;
 const PROVIDED_IMAGE_RE = /^Provided image\s*:?\s*(.*)$/i;
 const YOUTUBE_RE =
   /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/i;
@@ -87,6 +92,16 @@ export function buildFigureRegistry(
   const extractionScope = inferExtractionScope(meta);
   const entries: FigureRegistryEntry[] = [];
   let answerImageOrdinal = 0;
+  // Content figures ("Figure N") are often mentioned several times in
+  // surrounding prose ("as Figure 8.2 shows...") in addition to their actual
+  // caption. Every mention still becomes its own registry entry (each one's
+  // own hasCaptionInText/textForEmbed is captured independently), but all
+  // occurrences of the same label share one stable, non-null sourceIndex
+  // (assigned in first-occurrence order) — this is what lets an extraction
+  // step correlate a specific label to a specific embedded image, since a
+  // shared null sourceIndex carries no positional information at all.
+  const figureOrdinalByLabel = new Map<string, number>();
+  let nextFigureOrdinal = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -136,20 +151,25 @@ export function buildFigureRegistry(
 
     const figureMatch = line.match(FIGURE_LABEL_RE);
     if (figureMatch) {
+      const label = `Figure ${figureMatch[1]}`;
+      if (!figureOrdinalByLabel.has(label)) {
+        nextFigureOrdinal += 1;
+        figureOrdinalByLabel.set(label, nextFigureOrdinal);
+      }
       const { hasCaption, textForEmbed } = extractCaptionFromContext(
         lines,
         i,
         figureMatch[2] ?? "",
       );
       entries.push({
-        label: `Figure ${figureMatch[1]}`,
+        label,
         referenceKind: "figure",
         section,
         lineIndex: i,
         hasCaptionInText: hasCaption,
         textForEmbed,
         extractionScope,
-        sourceIndex: null,
+        sourceIndex: figureOrdinalByLabel.get(label)!,
         type: "figure",
       });
       continue;

@@ -107,6 +107,18 @@ export async function upsertDocumentMediaAssets(options: {
   const captionByKey = new Map(
     captionRows.map((row) => [captionKey(row.label, row.sourceIndex), row.textForEmbed]),
   );
+  // storage_index is documented optional in the CSV (scripts/import-figure-captions.ts)
+  // -- a curriculum SME correcting a caption has no reason to know a figure's
+  // internal sourceIndex. A caption row with no sourceIndex is treated as
+  // applying to the label regardless of which sourceIndex the registry
+  // assigns it internally (e.g. self-study figure ordinals from
+  // lib/docx-figure-images.ts), rather than only matching when the registry
+  // entry also happens to have a null sourceIndex.
+  const captionByLabelOnly = new Map(
+    captionRows
+      .filter((row) => row.sourceIndex == null)
+      .map((row) => [row.label, row.textForEmbed]),
+  );
 
   const existingRows = await db
     .select({
@@ -140,7 +152,9 @@ export async function upsertDocumentMediaAssets(options: {
       storagePath = storageByIndex.get(entry.sourceIndex) ?? null;
     }
 
-    const captionOverride = captionByKey.get(captionKey(entry.label, entry.sourceIndex));
+    const captionOverride =
+      captionByKey.get(captionKey(entry.label, entry.sourceIndex)) ??
+      captionByLabelOnly.get(entry.label);
     const textForEmbed = captionOverride ?? entry.textForEmbed;
     const hasCaptionInText = captionOverride != null ? true : entry.hasCaptionInText;
     const captionSource: CaptionSource = captionOverride != null ? "csv" : "text";
