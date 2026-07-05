@@ -1,31 +1,24 @@
 import { NextResponse } from "next/server";
 import { getGapExportRows } from "@/lib/queries";
+import { coverageRowsToCsv, coverageRowsToJson } from "@/lib/coverage-export";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: { courseId: string } },
 ) {
+  const format = new URL(request.url).searchParams.get("format") === "json" ? "json" : "csv";
   try {
     const rows = await getGapExportRows(Number(params.courseId));
-    const header =
-      "framework,framework_id,label,coverage_status,chunk_count,avg_confidence,case_title";
-    const body = rows
-      .map((r) =>
-        [
-          r.framework,
-          r.frameworkId,
-          `"${(r.frameworkLabel ?? "").replace(/"/g, '""')}"`,
-          r.coverageStatus,
-          r.chunkCount,
-          r.avgConfidence,
-          `"${(r.caseTitle ?? "").replace(/"/g, '""')}"`,
-        ].join(","),
-      )
-      .join("\n");
-
-    return new NextResponse(`${header}\n${body}`, {
+    if (format === "json") {
+      return NextResponse.json(coverageRowsToJson(rows, `Course ${params.courseId}`), {
+        headers: {
+          "Content-Disposition": `attachment; filename="gap-report-course-${params.courseId}.json"`,
+        },
+      });
+    }
+    return new NextResponse(coverageRowsToCsv(rows), {
       headers: {
-        "Content-Type": "text/csv",
+        "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `attachment; filename="gap-report-course-${params.courseId}.csv"`,
       },
     });

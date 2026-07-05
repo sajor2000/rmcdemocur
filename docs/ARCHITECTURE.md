@@ -68,8 +68,9 @@ Defined in [`lib/pipeline.ts`](../lib/pipeline.ts):
 | `embedding` | 40–65% | Azure embeddings for each chunk's breadcrumbed text |
 | `aligning` | 70–85% | RAG top-K framework candidates (optional cosine-distance floor via `RETRIEVAL_MAX_DISTANCE`) → constrained LLM JSON ([`lib/azure-ai.ts`](../lib/azure-ai.ts), [`lib/framework-rag.ts`](../lib/framework-rag.ts)) |
 | `tagging` | 90% | AAMC keyword tags via vector similarity (same optional distance floor) |
-| `recomputing_gaps` | 95% | Roll up `gap_summary` per document + course ([`lib/gap-analyzer.ts`](../lib/gap-analyzer.ts)) |
 | `complete` | 100% | Job status finalized |
+
+Coverage (gaps, heatmaps, the intensity spectrum) is no longer a pipeline stage — it's computed live from `alignments`/`chunks`/`documents` by the shared engine ([`lib/coverage.ts`](../lib/coverage.ts), [`lib/queries.ts`](../lib/queries.ts)) whenever a coverage surface is read, not rolled up and persisted during processing.
 
 Upload flow uses **Server-Sent Events** on `GET /api/upload/{jobId}/stream` while the client polls job rows from `processing_jobs`.
 

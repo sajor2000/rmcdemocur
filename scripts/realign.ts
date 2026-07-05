@@ -2,9 +2,7 @@ import "./load-env";
 import { eq } from "drizzle-orm";
 import { alignments, chunks, documents } from "../drizzle/schema";
 import { alignToFramework } from "../lib/azure-ai";
-import { recomputeCourseFrameworkGaps } from "../lib/gap-analyzer";
 import { getDb } from "../lib/db";
-import { recomputeGapSummary } from "../lib/pipeline";
 
 async function realignDocument(documentId: number) {
   const db = getDb();
@@ -47,15 +45,6 @@ async function realignDocument(documentId: number) {
         rationale: u.rationale,
       });
     }
-  }
-
-  await recomputeGapSummary(documentId);
-  const [doc] = await db
-    .select({ courseId: documents.courseId })
-    .from(documents)
-    .where(eq(documents.id, documentId));
-  if (doc?.courseId) {
-    await recomputeCourseFrameworkGaps(doc.courseId);
   }
 }
 

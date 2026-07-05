@@ -14,11 +14,6 @@ vi.mock("@/lib/azure-ai", () => ({ generateEmbedding, alignToFramework }));
 vi.mock("@/lib/document-parser", () => ({ parseDocument }));
 vi.mock("@/lib/objective-cleanup", () => ({ extractAndCleanObjectives }));
 vi.mock("@/lib/framework-rag", () => ({ retrieveKeywordCandidates }));
-vi.mock("@/lib/gap-analyzer", () => ({
-  recomputeCourseFrameworkGaps: vi.fn(),
-  recomputeGapSummary: vi.fn(),
-  deriveCoverageStatus: vi.fn(() => "covered"),
-}));
 vi.mock("@/lib/media-pipeline", () => ({
   clearDocumentMedia: vi.fn().mockResolvedValue(undefined),
   upsertDocumentMediaAssets: vi.fn().mockResolvedValue([]),
@@ -130,11 +125,10 @@ describe("runFullPipeline resume", () => {
   });
 
   it("reuses matching chunks and skips embedding + alignment already done", async () => {
-    // select() order on resume: docMeta → resume-probe → courseId → alignCount
+    // select() order on resume: docMeta → resume-probe → alignCount
     dbMocks.setSelectQueue([
       [{ caseTitle: "Marie Hernandez", filename: "f.docx", caseNumber: 3 }],
       existingRows,
-      [{ courseId: 1 }],
       [{ count: built.length }],
     ]);
     // execute() order on resume: countObjectives → tagged set → gaps. The aligned

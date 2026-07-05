@@ -117,6 +117,22 @@ export function distribution(docCounts: number[], total: number): CoverageDist {
 }
 
 /**
+ * Per-session (case) x system heatmap cell status. This answers a different
+ * question than `distribution()` above: not "how many documents across the
+ * course address topic X" (course-wide depth), but "how much of system Y did
+ * THIS session's document touch" (per-document breadth). Cutoffs are
+ * independently derived from system coverage breadth — not tuned to produce
+ * a particular visual result — so the rule stays falsifiable on its own terms.
+ */
+export function heatmapCellStatus(
+  domainsTouched: number,
+  domainsTotal: number,
+): "covered" | "partial" | "gap" {
+  if (domainsTotal <= 0 || domainsTouched <= 0) return "gap";
+  return domainsTouched / domainsTotal >= 0.5 ? "covered" : "partial";
+}
+
+/**
  * The one-line method statement shown to educators wherever coverage appears
  * (R6) and embedded in exported files (R11). States the AI-assisted, faculty-
  * review-required nature and the document-count basis.

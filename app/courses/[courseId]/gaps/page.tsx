@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { suggestedGapAction } from "@/lib/gap-analyzer";
 import { getCourseSummary, getGapExportRows } from "@/lib/queries";
+import { levelLabel } from "@/lib/coverage";
 import { cleanFrameworkLabel } from "@/lib/utils";
 import { CoverageIntensityCard } from "@/components/coverage/CoverageIntensityCard";
 
@@ -28,16 +29,6 @@ export default async function GapsPage({
   const { gaps, metrics, targetSystems, usmleSpectrum, aamcSpectrum } = summary;
   const tableRows = await getGapExportRows(courseId).catch(() => []);
 
-  // Some gap rows exist twice (clean + doubled label) for one framework leaf —
-  // collapse to one card per framework so the list isn't duplicated.
-  const gapCards = Array.from(
-    new Map(
-      gaps
-        .filter((g) => g.coverageStatus === "gap" || g.coverageStatus === "partial")
-        .map((g) => [`${g.framework}-${g.frameworkId}`, g]),
-    ).values(),
-  );
-
   return (
     <div className="space-y-6">
       <div className="rounded-lg bg-white p-6 shadow-sm">
@@ -48,11 +39,6 @@ export default async function GapsPage({
           {metrics.usmleDomainsTotal}{" "}
           {targetSystems ? "in-scope" : ""} USMLE domains.{" "}
           <strong>{metrics.usmleGaps}</strong> gaps require attention.
-        </p>
-        <p className="mt-2 text-sm text-rush-medium">
-          These headline counts and the gap list below are a <strong>per-document snapshot</strong>.
-          The authoritative coverage picture — how many documents address each topic — is the
-          intensity distribution immediately below.
         </p>
         {targetSystems && (
           <p className="mt-2 text-sm text-rush-medium">
@@ -66,7 +52,7 @@ export default async function GapsPage({
       </div>
 
       {/* Coverage by level — the same intensity vocabulary as the dashboard/program
-          view. "Not addressed" and "Introduced" are the actionable (thin) buckets. */}
+          view, and the same numbers as the table and CSV below (one engine, KTD3). */}
       <CoverageIntensityCard
         title={`Coverage by level${targetSystems ? " (in-scope)" : ""}`}
         usmleSpectrum={usmleSpectrum}
@@ -74,25 +60,22 @@ export default async function GapsPage({
       />
 
       <div>
-        <h2 className="font-heading text-lg font-semibold">
-          Specific gaps — per-document snapshot
-        </h2>
+        <h2 className="font-heading text-lg font-semibold">Specific gaps</h2>
         <p className="text-sm text-rush-medium">
-          Individual framework topics flagged as not or partially covered in this course&apos;s
-          documents — a complement to the coverage distribution above, not a second measure of it.
+          Individual framework topics not yet addressed, or addressed in only one document.
         </p>
       </div>
 
       <div className="grid gap-4">
-        {gapCards.map((gap) => {
-          const label = cleanFrameworkLabel(gap.frameworkLabel);
-          const isGap = gap.coverageStatus === "gap";
+        {gaps.map((gap) => {
+          const label = cleanFrameworkLabel(gap.topic);
+          const isGap = gap.docs === 0;
           const tone = isGap
             ? { border: "border-gap-red", chip: "bg-red-100 text-red-800" }
             : { border: "border-partial-yellow", chip: "bg-yellow-100 text-yellow-800" };
           return (
             <Card
-              key={`${gap.framework}-${gap.frameworkId}`}
+              key={`${gap.framework}-${gap.system}-${label}`}
               className={`border-l-4 ${tone.border}`}
             >
               <CardHeader className="flex flex-row items-start justify-between gap-3">
@@ -100,15 +83,12 @@ export default async function GapsPage({
                 <span
                   className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${tone.chip}`}
                 >
-                  {isGap ? "Not covered" : "Partially covered"}
+                  {isGap ? "Not addressed" : levelLabel(gap.docs)}
                 </span>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-rush-medium">
-                  {suggestedGapAction(
-                    label,
-                    gap.coverageStatus as "gap" | "partial" | "covered",
-                  )}
+                  {suggestedGapAction(label, isGap ? "gap" : "partial")}
                 </p>
                 <Button asChild variant="outline" size="sm">
                   <Link
@@ -134,27 +114,24 @@ export default async function GapsPage({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left">
-                <th className="pb-2">Domain</th>
-                <th className="pb-2">Status</th>
-                <th className="pb-2">Chunks</th>
-                <th className="pb-2">Avg Confidence</th>
+                <th className="pb-2">Topic</th>
+                <th className="pb-2">Level</th>
+                <th className="pb-2">Documents</th>
               </tr>
             </thead>
             <tbody>
               {tableRows.map((row, i) => {
-                const pct = Number(row.avgConfidence ?? 0) * 100;
                 const rowClass =
-                  pct >= 80
-                    ? "bg-green-50"
-                    : pct >= 50
+                  row.docs === 0
+                    ? "bg-red-50"
+                    : row.docs <= 3
                       ? "bg-yellow-50"
-                      : "bg-red-50";
+                      : "bg-green-50";
                 return (
                   <tr key={i} className={`border-b ${rowClass}`}>
-                    <td className="py-2">{row.frameworkLabel}</td>
-                    <td className="py-2 capitalize">{row.coverageStatus}</td>
-                    <td className="py-2">{row.chunkCount}</td>
-                    <td className="py-2 font-mono">{row.avgConfidence}</td>
+                    <td className="py-2">{cleanFrameworkLabel(row.topic)}</td>
+                    <td className="py-2">{row.docs === 0 ? "Not addressed" : levelLabel(row.docs)}</td>
+                    <td className="py-2 font-mono">{row.docs}</td>
                   </tr>
                 );
               })}

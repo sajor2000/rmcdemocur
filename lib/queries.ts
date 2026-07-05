@@ -8,7 +8,6 @@ import {
   courseObjectives,
   courses,
   documents,
-  gapSummary,
   keywordTags,
   mediaAssets,
   usmleDomains,
@@ -16,10 +15,9 @@ import {
 import { getDb } from "@/lib/db";
 import {
   courseTargetSystems,
-  systemOfLabel,
   courseModule,
 } from "@/lib/course-scope";
-import { distribution, type CoverageDist } from "@/lib/coverage";
+import { distribution, heatmapCellStatus, type CoverageDist } from "@/lib/coverage";
 import { type CoverageExportRow } from "@/lib/coverage-export";
 import { passesSimilarity, resolveMinSimilarity } from "@/lib/retrieval-config";
 
@@ -37,32 +35,6 @@ export async function getCourseWithDocuments(courseId: number) {
   return { course, documents: docs };
 }
 
-/**
- * Roll a set of per-subdomain USMLE coverage statuses up to a single
- * system-level status for the heatmap. Fully covered → covered; no coverage at
- * all → gap; anything in between → partial. Pure + exported for testing.
- */
-export function rollUpCoverageStatus(
-  covered: number,
-  partial: number,
-  total: number,
-): "covered" | "partial" | "gap" {
-  if (total <= 0) return "gap";
-  if (covered >= total) return "covered";
-  if (covered === 0 && partial === 0) return "gap";
-  return "partial";
-}
-
-/** Human-readable USMLE system name from a gap-summary label ("System — sub")
- * with a slug fallback ("cardiovascular-system" → "Cardiovascular System"). */
-export function deriveUsmleSystem(sampleLabel: string, slug: string): string {
-  const fromLabel = (sampleLabel || "").split(" — ")[0]?.trim();
-  if (fromLabel) return fromLabel;
-  return (slug || "Other")
-    .replace(/-/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 export async function getCourseSummary(courseId: number) {
   const db = getDb();
   const { course, documents: docs } = await getCourseWithDocuments(courseId);
@@ -73,18 +45,6 @@ export async function getCourseSummary(courseId: number) {
   // against those — everything else is "not in scope", not a gap. null = all.
   const targetSystems = courseTargetSystems(course.code);
   const inScope = (system: string) => !targetSystems || targetSystems.includes(system);
-
-  const gapRows = await db
-    .select()
-    .from(gapSummary)
-    .innerJoin(documents, eq(documents.id, gapSummary.documentId))
-    .where(eq(documents.courseId, courseId));
-
-  const gaps = gapRows.filter(
-    (g) =>
-      g.gap_summary.coverageStatus === "gap" ||
-      g.gap_summary.coverageStatus === "partial",
-  );
 
   const alignmentStats = await db.execute(sql`
     SELECT AVG(a.confidence::numeric) as avg_confidence,
@@ -118,20 +78,29 @@ export async function getCourseSummary(courseId: number) {
     GROUP BY ac.domain_name
   `);
 
-  // Roll granular USMLE subdomain gap rows up to their organ system, per case,
-  // so the heatmap axis is the real systems present in the curriculum.
-  const heatmap = await db.execute(sql`
+  // Per-(case, system) breadth: how many distinct USMLE leaf domains in each
+  // system did each session's document touch. A different question than the
+  // course-wide, per-topic document-count engine below — heatmapCellStatus
+  // (KTD1) buckets it independently, not tuned to any particular visual result.
+  const heatmapTouched = await db.execute(sql`
     SELECT d.case_number,
-           split_part(gs.framework_id, ':', 2) AS system_slug,
-           MIN(gs.framework_label) AS sample_label,
-           COUNT(*) FILTER (WHERE gs.coverage_status = 'covered')::int AS covered,
-           COUNT(*) FILTER (WHERE gs.coverage_status = 'partial')::int AS partial_ct,
-           COUNT(*)::int AS total
-    FROM gap_summary gs
-    JOIN documents d ON d.id = gs.document_id
-    WHERE d.course_id = ${courseId} AND gs.framework = 'USMLE'
-    GROUP BY d.case_number, split_part(gs.framework_id, ':', 2)
+           a.framework_id AS id,
+           COALESCE(MIN(ud.domain), split_part(MIN(a.framework_label), ' — ', 1)) AS system
+    FROM alignments a
+    JOIN chunks c ON c.id = a.chunk_id
+    JOIN documents d ON d.id = c.document_id
+    LEFT JOIN usmle_domains ud ON ud.stable_id = a.framework_id
+    WHERE d.course_id = ${courseId} AND a.framework = 'USMLE' AND d.case_number IS NOT NULL
+    GROUP BY d.case_number, a.framework_id
   `);
+  const systemTotalsRes = await db.execute(sql`
+    SELECT domain AS system, COUNT(*)::int AS total
+    FROM usmle_domains WHERE parent_stable_id IS NOT NULL GROUP BY domain
+  `);
+  const domainsTotalBySystem = new Map<string, number>();
+  for (const r of systemTotalsRes.rows as { system: string; total: number }[]) {
+    domainsTotalBySystem.set(r.system, r.total);
+  }
 
   const recentAlignments = await db
     .select({
@@ -204,15 +173,27 @@ export async function getCourseSummary(courseId: number) {
       ? Math.round((aamcAlignedCount / aamcTotal.length) * 100)
       : 0;
 
-  const heatmapData = (heatmap.rows as Record<string, unknown>[]).map((r) => ({
-    caseNumber: Number(r.case_number),
-    system: deriveUsmleSystem(String(r.sample_label ?? ""), String(r.system_slug ?? "")),
-    status: rollUpCoverageStatus(
-      Number(r.covered ?? 0),
-      Number(r.partial_ct ?? 0),
-      Number(r.total ?? 0),
-    ),
-  }));
+  // Roll the per-(case, framework_id) rows up to distinct-domains-touched per
+  // (case, system), then bucket each cell deterministically (KTD1).
+  const touchedByCase = new Map<number, Map<string, Set<string>>>();
+  for (const r of heatmapTouched.rows as { case_number: number; id: string; system: string }[]) {
+    const caseNum = Number(r.case_number);
+    const bySystem = touchedByCase.get(caseNum) ?? new Map<string, Set<string>>();
+    const set = bySystem.get(r.system) ?? new Set<string>();
+    set.add(r.id);
+    bySystem.set(r.system, set);
+    touchedByCase.set(caseNum, bySystem);
+  }
+  const heatmapData: { caseNumber: number; system: string; status: ReturnType<typeof heatmapCellStatus> }[] = [];
+  touchedByCase.forEach((bySystem, caseNum) => {
+    bySystem.forEach((touched, system) => {
+      heatmapData.push({
+        caseNumber: caseNum,
+        system,
+        status: heatmapCellStatus(touched.size, domainsTotalBySystem.get(system) ?? 0),
+      });
+    });
+  });
   const allSystems = Array.from(new Set(heatmapData.map((h) => h.system))).sort();
   // Scope the heatmap rows + axis to the course's target systems (all if none).
   const scopedHeatmap = heatmapData.filter((h) => inScope(h.system));
@@ -220,12 +201,10 @@ export async function getCourseSummary(courseId: number) {
     ? targetSystems.filter((s) => allSystems.includes(s))
     : allSystems;
 
-  // In-scope gaps = target-system leaf domains with no alignment. Derived from
-  // the leaf totals (not the capped gap_summary snapshot, which undercounts).
-  // Unscoped courses keep the original gap_summary-based count.
-  const scopedUsmleGaps = targetSystems
-    ? Math.max(0, usmleTotal - usmleCovered)
-    : gaps.filter((g) => g.gap_summary.coverageStatus === "gap").length;
+  // usmleTotal/usmleCovered already come from the document-count engine above
+  // (no gap_summary dependence), so this formula holds for curated and
+  // uncurated courses alike — no separate fallback branch needed.
+  const scopedUsmleGaps = Math.max(0, usmleTotal - usmleCovered);
 
   // Intensity spectrum from the same per-domain doc counts (organ-scoped USMLE,
   // computed once above), plus all-AAMC (cross-cutting).
@@ -242,6 +221,11 @@ export async function getCourseSummary(courseId: number) {
     (aamcDocRows.rows as { docs: number }[]).map((r) => r.docs),
     aamcTotal.length || 1,
   );
+
+  // Same per-topic rows the course CSV export serializes (KTD3) — one source,
+  // no second query path to diverge from it. "Gap" cards show the thin end
+  // (0-1 documents); the intensity spectrum above is the authoritative summary.
+  const topicRows = await getGapExportRows(courseId);
 
   return {
     course,
@@ -268,14 +252,7 @@ export async function getCourseSummary(courseId: number) {
     ),
     heatmap: scopedHeatmap,
     usmleSystems,
-    // Out-of-scope USMLE systems aren't gaps for this course; keep all AAMC rows.
-    gaps: gaps
-      .filter(
-        (g) =>
-          g.gap_summary.framework !== "USMLE" ||
-          inScope(systemOfLabel(g.gap_summary.frameworkLabel)),
-      )
-      .map((g) => g.gap_summary),
+    gaps: topicRows.filter((r) => r.docs < 2),
     recentAlignments,
   };
 }
@@ -652,21 +629,68 @@ export async function searchChunks(courseId: number, queryEmbedding: number[], l
   return passing.length ? passing : rows.slice(0, 1);
 }
 
-export async function getGapExportRows(courseId: number) {
+/**
+ * Every catalog topic (USMLE leaf domains, organ-scoped when curated; all AAMC
+ * competencies) for one course, each carrying its live distinct-document
+ * count — 0 for topics with no alignment at all. The single source for the
+ * gaps page's cards, its CSV export (KTD3), and getCourseSummary's "gaps"
+ * list: one query, so none of them can diverge from each other.
+ */
+export async function getGapExportRows(courseId: number): Promise<CoverageExportRow[]> {
   const db = getDb();
-  return db
-    .select({
-      framework: gapSummary.framework,
-      frameworkId: gapSummary.frameworkId,
-      frameworkLabel: gapSummary.frameworkLabel,
-      coverageStatus: gapSummary.coverageStatus,
-      chunkCount: gapSummary.chunkCount,
-      avgConfidence: gapSummary.avgConfidence,
-      caseTitle: documents.caseTitle,
-    })
-    .from(gapSummary)
-    .innerJoin(documents, eq(documents.id, gapSummary.documentId))
-    .where(eq(documents.courseId, courseId));
+  const { course } = await getCourseWithDocuments(courseId);
+  const targetSystems = courseTargetSystems(course?.code);
+
+  const usmleRows = await db.execute(sql`
+    SELECT ud.stable_id AS id, ud.domain AS system, ud.subdomain AS subdomain,
+           COALESCE(doc.docs, 0)::int AS docs
+    FROM usmle_domains ud
+    LEFT JOIN (
+      SELECT a.framework_id AS id, COUNT(DISTINCT c.document_id)::int AS docs
+      FROM alignments a
+      JOIN chunks c ON c.id = a.chunk_id
+      JOIN documents d ON d.id = c.document_id
+      WHERE d.course_id = ${courseId} AND a.framework = 'USMLE'
+      GROUP BY a.framework_id
+    ) doc ON doc.id = ud.stable_id
+    WHERE ud.parent_stable_id IS NOT NULL
+      ${targetSystems ? sql`AND ud.domain IN (${sql.join(targetSystems.map((s) => sql`${s}`), sql`, `)})` : sql``}
+  `);
+
+  const aamcRows = await db.execute(sql`
+    SELECT ac.stable_id AS id, ac.sub_id AS sub_id, ac.domain_name AS system,
+           ac.description AS description, COALESCE(doc.docs, 0)::int AS docs
+    FROM aamc_competencies ac
+    LEFT JOIN (
+      SELECT a.framework_id AS id, COUNT(DISTINCT c.document_id)::int AS docs
+      FROM alignments a
+      JOIN chunks c ON c.id = a.chunk_id
+      JOIN documents d ON d.id = c.document_id
+      WHERE d.course_id = ${courseId} AND a.framework IN ('AAMC_PCRS','AAMC_EPA')
+      GROUP BY a.framework_id
+    ) doc ON doc.id = ac.stable_id
+    WHERE ac.stable_id IS NOT NULL
+  `);
+
+  const usmle: CoverageExportRow[] = (
+    usmleRows.rows as { id: string; system: string; subdomain: string | null; docs: number }[]
+  ).map((r) => ({
+    framework: "USMLE",
+    system: r.system,
+    topic: r.subdomain ? `${r.system} — ${r.subdomain}` : r.system,
+    docs: r.docs,
+    courses: r.docs > 0 ? 1 : 0,
+  }));
+  const aamc: CoverageExportRow[] = (
+    aamcRows.rows as { id: string; sub_id: string; system: string; description: string; docs: number }[]
+  ).map((r) => ({
+    framework: "AAMC",
+    system: r.system,
+    topic: `${r.sub_id}: ${r.system} — ${r.description}`,
+    docs: r.docs,
+    courses: r.docs > 0 ? 1 : 0,
+  }));
+  return [...usmle, ...aamc];
 }
 
 export async function getCourseObjectives(courseId: number) {

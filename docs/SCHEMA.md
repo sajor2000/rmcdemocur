@@ -13,7 +13,6 @@ erDiagram
   courses ||--o{ documents : has
   documents ||--o{ chunks : contains
   documents ||--o{ course_objectives : extracts
-  documents ||--o{ gap_summary : rolls_up
   documents ||--o{ processing_jobs : tracks
   chunks ||--o{ alignments : maps_to
   chunks ||--o{ keyword_tags : tagged_with
@@ -55,13 +54,6 @@ erDiagram
     text framework_id
     numeric confidence
     varchar status
-  }
-
-  gap_summary {
-    serial id PK
-    int document_id FK
-    varchar framework
-    varchar coverage_status
   }
 
   aamc_competencies {
@@ -125,7 +117,7 @@ All three catalog tables include optional `embedding` vectors for RAG retrieval 
 |-------|---------|-------------|
 | `alignments` | LLM mapping from chunk → framework node | `chunk_id`, `framework` (`AAMC_PCRS`, `AAMC_EPA`, `USMLE`), `framework_id`, `confidence`, `status` (`pending` / `approved` / `rejected`) |
 | `keyword_tags` | Vector-retrieved AAMC keywords per chunk | `chunk_id`, `keyword`, `category` |
-| `gap_summary` | Per-document rollup of framework coverage | `document_id`, `framework_id`, `coverage_status` (`covered` / `partial` / `gap`), `chunk_count`, `avg_confidence` |
+| `gap_summary` | **Unused legacy table.** Nothing reads or writes it — coverage is computed live from `alignments`/`chunks`/`documents` instead. Left in place (not dropped) as low-risk cleanup for later | `document_id`, `framework_id`, `coverage_status`, `chunk_count`, `avg_confidence` |
 
 ---
 
@@ -137,7 +129,7 @@ All three catalog tables include optional `embedding` vectors for RAG retrieval 
 | `AAMC_EPA` | EPA-related stable IDs (detected when ID contains `epa`) |
 | `USMLE` | `usmle_domains.stable_id` |
 
-Gap analysis and heatmaps aggregate from `gap_summary` and `alignments` grouped by course via `documents.course_id`.
+Gap analysis and heatmaps aggregate live from `alignments`/`chunks`/`documents` grouped by course via `documents.course_id` (`lib/queries.ts`, `lib/coverage.ts`) — `gap_summary` is not read.
 
 ---
 
@@ -159,8 +151,7 @@ When a document is reprocessed (`runFullPipeline`), `clearDocumentArtifacts` rem
 1. `alignments` and `keyword_tags` for all chunks of the document
 2. `chunk_media` and `media_assets` for the document
 3. `chunks`
-4. `gap_summary`
-5. `course_objectives`
+4. `course_objectives`
 
 Framework catalog tables are **not** wiped on document reprocess — only on `db:seed-frameworks`.
 

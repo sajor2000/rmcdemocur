@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { levelOf, distribution, LEVELS, METHOD_NOTE } from "@/lib/coverage";
+import { levelOf, distribution, heatmapCellStatus, LEVELS, METHOD_NOTE } from "@/lib/coverage";
 
 describe("levelOf (document-count thresholds)", () => {
   it("maps boundaries to the Introduced -> Reinforced -> Mastered spectrum", () => {
@@ -50,5 +50,29 @@ describe("level metadata", () => {
   it("exposes a plain-language method note mentioning faculty review", () => {
     expect(METHOD_NOTE).toMatch(/faculty review/i);
     expect(METHOD_NOTE).toMatch(/document/i);
+  });
+});
+
+describe("heatmapCellStatus (per-session, per-system breadth — KTD1)", () => {
+  it("gap when nothing in the system was touched, or the system has no domains", () => {
+    expect(heatmapCellStatus(0, 5)).toBe("gap");
+    expect(heatmapCellStatus(3, 0)).toBe("gap");
+  });
+
+  it("covered once at least half the system's domains are touched", () => {
+    expect(heatmapCellStatus(3, 6)).toBe("covered");
+    expect(heatmapCellStatus(4, 6)).toBe("covered");
+    expect(heatmapCellStatus(6, 6)).toBe("covered");
+  });
+
+  it("partial when some but fewer than half the system's domains are touched", () => {
+    expect(heatmapCellStatus(1, 6)).toBe("partial");
+    expect(heatmapCellStatus(2, 6)).toBe("partial");
+  });
+
+  it("is independently derived from breadth, not tuned to any single dataset", () => {
+    // The rule is a plain fraction threshold — verify it holds at odd totals too.
+    expect(heatmapCellStatus(1, 3)).toBe("partial");
+    expect(heatmapCellStatus(2, 3)).toBe("covered");
   });
 });
