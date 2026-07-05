@@ -18,6 +18,24 @@ Entry point for AI agents and new contributors. **Canonical** for project goal, 
 
 ---
 
+## Curriculum coverage & knowledge model (CANONICAL — do not violate)
+
+The product's value to the Rush curriculum committee is **auditable, verifiable knowledge they can defend to an accreditor** — not AI opinions. Three rules govern every feature, in priority order:
+
+1. **Deterministic where possible.** Counts, structural extraction (regex objective codes EO-####/TO-####, framework IDs, document/course joins), and set operations are reproducible — use them for every metric and rollup. **Never add LLM/embedding dependence to metadata, counts, extraction, or exports.** The LLM path is confined to the existing semantic *alignment* (passage → framework topic) and objectives *cleanup* (regex-first, LLM only on miss) engines.
+2. **LLM only as a flagged backup.** Every LLM-derived claim (alignment) is labeled AI-generated and carries confidence + rationale + source excerpt, gated behind faculty review. Surface **AI-only vs faculty-validated** wherever coverage appears.
+3. **Everything traces to source.** Every figure a user sees drills down (in ≤1 interaction) to the exact document/section/excerpt that produced it.
+
+**Coverage is INTENSITY, not binary.** A framework topic's level = the number of **distinct documents (sessions)** that address it: **Gap (0) · Introduced (1) · Reinforced (2–3) · Strong (4–7) · Heavily covered (8+)** — the Introduced→Reinforced→Mastered model. Always present **both** the broad "addressed" count and the spectrum; **never render a lone "% covered."**
+
+- **Single source:** `lib/coverage.ts` owns level definitions, thresholds, labels, tooltips, `distribution()`, and the method note. Program, course, gaps, and exports all import from it — no inline redefinitions.
+- **Two-level IA:** course pages are organ-scoped (`lib/course-scope.ts` target systems); the program view (`/program`) is full-framework. AAMC is cross-cutting (never organ-scoped).
+- **Method transparency (R6):** every number is explained in-place (tooltip) plus a persistent `MethodExplainer` box, in plain language for non-AI educators.
+
+Full spec: `docs/plans/2026-07-05-002-feat-intensity-coverage-model-plan.md`.
+
+---
+
 ## Current state (feature branch)
 
 Active branch: `feat/worldclass-chunking-goal-accuracy` (PR → `main`). Recent shipped work on this branch:
