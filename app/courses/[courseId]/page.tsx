@@ -32,7 +32,8 @@ export default async function CourseDashboardPage({
     );
   }
 
-  const { metrics, aamcDomainCoverage, heatmap, usmleSystems, recentAlignments } = summary;
+  const { metrics, aamcDomainCoverage, heatmap, usmleSystems, recentAlignments, targetSystems } =
+    summary;
   const aamcData = aamcDomainCoverage.map((d) => ({
     domain: d.domain.replace("Interpersonal & Communication Skills", "ICS").slice(0, 18),
     percent: d.percent,
@@ -53,6 +54,15 @@ export default async function CourseDashboardPage({
         <p className="text-rush-medium">
           Alignment health for {summary.course.code}
         </p>
+        {targetSystems && (
+          <p className="mt-1 text-sm text-rush-medium">
+            USMLE coverage is scoped to this course&apos;s organ systems:{" "}
+            <span className="font-medium text-rush-dark">
+              {targetSystems.join(" · ")}
+            </span>
+            . Other systems are out of scope, not gaps.
+          </p>
+        )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -62,7 +72,7 @@ export default async function CourseDashboardPage({
           variant="green"
         />
         <MetricCard
-          label="USMLE Gaps Detected"
+          label={targetSystems ? "In-Scope USMLE Gaps" : "USMLE Gaps Detected"}
           value={String(metrics.usmleGaps)}
           variant="yellow"
         />

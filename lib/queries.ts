@@ -14,6 +14,7 @@ import {
   usmleDomains,
 } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
+import { courseTargetSystems, systemOfLabel } from "@/lib/course-scope";
 import { passesSimilarity, resolveMinSimilarity } from "@/lib/retrieval-config";
 
 export async function getCourseWithDocuments(courseId: number) {
@@ -60,6 +61,12 @@ export async function getCourseSummary(courseId: number) {
   const db = getDb();
   const { course, documents: docs } = await getCourseWithDocuments(courseId);
   if (!course) return null;
+
+  // Organ-system scope: an organ course (e.g. RMD 563, GI/metabolism) is only
+  // meant to cover its own systems, so coverage/gaps/heatmap are measured
+  // against those — everything else is "not in scope", not a gap. null = all.
+  const targetSystems = courseTargetSystems(course.code);
+  const inScope = (system: string) => !targetSystems || targetSystems.includes(system);
 
   const gapRows = await db
     .select()
@@ -154,6 +161,31 @@ export async function getCourseSummary(courseId: number) {
   const usmleAlignedCount = Number(
     (alignedUsmle.rows[0] as { cnt: number })?.cnt ?? 0,
   );
+
+  // Scope the "X of Y USMLE domains" totals to the target systems when curated.
+  let usmleTotal = totalUsmleLeafCount;
+  let usmleCovered = usmleAlignedCount;
+  if (targetSystems) {
+    const sysList = sql.join(
+      targetSystems.map((s) => sql`${s}`),
+      sql`, `,
+    );
+    const t = await db.execute(sql`
+      SELECT COUNT(*)::int AS cnt FROM usmle_domains
+      WHERE parent_stable_id IS NOT NULL AND domain IN (${sysList})
+    `);
+    usmleTotal = Number((t.rows[0] as { cnt: number })?.cnt ?? 0);
+    const cov = await db.execute(sql`
+      SELECT COUNT(DISTINCT a.framework_id)::int AS cnt
+      FROM alignments a
+      JOIN chunks c ON c.id = a.chunk_id
+      JOIN documents d ON d.id = c.document_id
+      WHERE d.course_id = ${courseId} AND a.framework = 'USMLE'
+        AND split_part(a.framework_label, ' — ', 1) IN (${sysList})
+    `);
+    usmleCovered = Number((cov.rows[0] as { cnt: number })?.cnt ?? 0);
+  }
+
   const aamcAligned = await db.execute(sql`
     SELECT COUNT(DISTINCT ac.stable_id)::int as cnt
     FROM aamc_competencies ac
@@ -180,18 +212,31 @@ export async function getCourseSummary(courseId: number) {
       Number(r.total ?? 0),
     ),
   }));
-  const usmleSystems = Array.from(new Set(heatmapData.map((h) => h.system))).sort();
+  const allSystems = Array.from(new Set(heatmapData.map((h) => h.system))).sort();
+  // Scope the heatmap rows + axis to the course's target systems (all if none).
+  const scopedHeatmap = heatmapData.filter((h) => inScope(h.system));
+  const usmleSystems = targetSystems
+    ? targetSystems.filter((s) => allSystems.includes(s))
+    : allSystems;
+
+  // In-scope gaps = target-system leaf domains with no alignment. Derived from
+  // the leaf totals (not the capped gap_summary snapshot, which undercounts).
+  // Unscoped courses keep the original gap_summary-based count.
+  const scopedUsmleGaps = targetSystems
+    ? Math.max(0, usmleTotal - usmleCovered)
+    : gaps.filter((g) => g.gap_summary.coverageStatus === "gap").length;
 
   return {
     course,
     documents: docs,
+    targetSystems,
     metrics: {
       aamcCoveragePercent: aamcPct,
-      usmleGaps: gaps.filter((g) => g.gap_summary.coverageStatus === "gap").length,
+      usmleGaps: scopedUsmleGaps,
       avgConfidence: Number(stats?.avg_confidence ?? 0),
       guidesProcessed: docs.length,
-      usmleDomainsCovered: usmleAlignedCount,
-      usmleDomainsTotal: totalUsmleLeafCount || 1,
+      usmleDomainsCovered: usmleCovered,
+      usmleDomainsTotal: usmleTotal || 1,
     },
     aamcDomainCoverage: (aamcCoverage.rows as { domain_name: string; total: number; covered: number }[]).map(
       (r) => ({
@@ -200,11 +245,18 @@ export async function getCourseSummary(courseId: number) {
         percent: r.total > 0 ? Math.round((r.covered / r.total) * 100) : 0,
       }),
     ),
-    heatmap: heatmapData,
+    heatmap: scopedHeatmap,
     usmleSystems,
-    gaps: gaps.map((g) => g.gap_summary),
+    // Out-of-scope USMLE systems aren't gaps for this course; keep all AAMC rows.
+    gaps: gaps
+      .filter(
+        (g) =>
+          g.gap_summary.framework !== "USMLE" ||
+          inScope(systemOfLabel(g.gap_summary.frameworkLabel)),
+      )
+      .map((g) => g.gap_summary),
     recentAlignments,
-    coveredDomains: usmleAlignedCount,
+    coveredDomains: usmleCovered,
   };
 }
 

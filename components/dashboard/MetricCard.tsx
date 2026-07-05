@@ -101,8 +101,20 @@ export function CoverageHeatmap({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between gap-3">
         <CardTitle>USMLE Domain Coverage Heatmap</CardTitle>
+        <div className="flex items-center gap-3 text-xs text-rush-medium">
+          {[
+            ["bg-covered-green", "Covered"],
+            ["bg-partial-yellow", "Partial"],
+            ["bg-gap-red", "Gap"],
+          ].map(([c, label]) => (
+            <span key={label} className="flex items-center gap-1">
+              <span className={`h-3 w-3 rounded-sm ${c}`} />
+              {label}
+            </span>
+          ))}
+        </div>
       </CardHeader>
       <CardContent className="overflow-x-auto">
         <div className="grid gap-1" style={{ gridTemplateColumns: `8rem repeat(${cases.length}, 1fr)` }}>

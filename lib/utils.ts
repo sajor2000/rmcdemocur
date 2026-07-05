@@ -24,3 +24,24 @@ export function coverageColor(status: string): string {
   if (status === "partial") return "bg-partial-yellow";
   return "bg-gap-red";
 }
+
+/**
+ * Collapse a framework label that had its own full text appended twice, e.g.
+ * "PC5: Patient Care — … judgment. — Patient Care — … judgment." -> the single
+ * "PC5: Patient Care — … judgment." Some gap rows were written with a doubled
+ * label; normalize at render instead of re-processing every alignment.
+ */
+export function cleanFrameworkLabel(label: string | null | undefined): string {
+  const s = (label ?? "").trim();
+  if (!s) return s;
+  const m = s.match(/^([A-Za-z]+\d*:\s+)([\s\S]*)$/);
+  const prefix = m ? m[1] : "";
+  const body = m ? m[2] : s;
+  const sep = " — ";
+  for (let i = body.indexOf(sep); i !== -1; i = body.indexOf(sep, i + 1)) {
+    if (body.slice(0, i) === body.slice(i + sep.length)) {
+      return prefix + body.slice(0, i);
+    }
+  }
+  return prefix + body;
+}

@@ -81,10 +81,7 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
     return (
       <div>
         <h1 className="font-heading text-2xl font-bold">Curriculum Map</h1>
-        <p className="mt-4 text-rush-medium">
-          Loading map data… Connect DATABASE_URL to load live alignments, or run seed +
-          process-documents.
-        </p>
+        <p className="mt-4 text-rush-medium">Loading the curriculum map…</p>
       </div>
     );
   }
