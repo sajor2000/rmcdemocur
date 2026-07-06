@@ -3,7 +3,7 @@
  * Pure — no DB, no LLM. Self-describing exports for spreadsheet audit.
  */
 export const OBJECTIVES_METHOD_NOTE =
-  "Objectives are extracted regex-first from self-study curriculum documents (EO-#### codes and verb-based learning statements). Self-study topic titles (TO-####) are study topics, not objectives, and are excluded. LLM cleanup runs only when regex misses or mangles text — it does not fabricate objectives. Faculty guides typically have zero objectives by design. Rows marked llm_cleanup in extraction_method were AI-assisted cleanup only.";
+  "Objectives are extracted directly from self-study curriculum documents' own text (EO-#### codes and verb-based learning statements). Self-study topic titles (TO-####) are study topics, not objectives, and are excluded. AI assistance is used only when direct extraction misses or mangles text — it does not fabricate objectives. Faculty guides typically have zero objectives by design. Rows marked llm_cleanup in extraction_method were AI-assisted cleanup only.";
 
 export type ObjectivesExportRow = {
   module: string;

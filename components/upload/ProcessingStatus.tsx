@@ -2,7 +2,7 @@ import { Progress } from "@/components/ui/progress";
 
 const STAGES = [
   "Parsing document...",
-  "Extracting learning objectives (regex-first)...",
+  "Extracting learning objectives...",
   "Chunking content into 500-token segments...",
   "Generating embeddings (Azure AI Foundry)...",
   "Running alignment analysis against AAMC PCRS...",

@@ -108,7 +108,7 @@ export function CaseAnalyticsView({ courseId, data }: Props) {
           <CardContent>
             <p className="font-heading text-3xl font-bold">{objectives.total}</p>
             <p className="mt-1 text-xs text-rush-medium">
-              {objectives.regex} regex · {objectives.llm} LLM cleanup
+              {objectives.regex} direct · {objectives.llm} AI-assisted
             </p>
           </CardContent>
         </Card>

@@ -185,7 +185,7 @@ export async function runFullPipeline(options: {
     // that crashed before objectives were written.
     const existingObjectiveCount = resuming ? await countCourseObjectives(documentId) : 0;
     if (!resuming || existingObjectiveCount === 0) {
-      await setStage("extracting_objectives", 18, "Extracting learning objectives (regex-first)...");
+      await setStage("extracting_objectives", 18, "Extracting learning objectives...");
       const { objectives, sectionsFound, llmUsed } = await extractAndCleanObjectives(parsed.text);
       if (resuming && objectives.length > 0) {
         await db.delete(courseObjectives).where(eq(courseObjectives.documentId, documentId));
@@ -205,7 +205,7 @@ export async function runFullPipeline(options: {
       }
       const objMsg =
         objectives.length > 0
-          ? `${objectives.length} objectives from ${sectionsFound} section(s)${llmUsed ? " (LLM cleanup applied)" : ""}`
+          ? `${objectives.length} objectives from ${sectionsFound} section(s)${llmUsed ? " (AI-assisted)" : ""}`
           : sectionsFound > 0
             ? "Objective sections found but none extracted"
             : "No objective sections detected";

@@ -82,19 +82,22 @@ export function ObjectivesExplorer({
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-rush-medium">
-              Regex Extracted
+              Directly Extracted
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="font-heading text-3xl font-bold text-covered-green">
               {summary.regexCount}
             </p>
+            <p className="mt-1 text-xs text-rush-medium">
+              Parsed straight from the document&apos;s own text
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-rush-medium">
-              LLM Cleanup
+              AI-Assisted
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -102,7 +105,7 @@ export function ObjectivesExplorer({
               {summary.llmCount}
             </p>
             <p className="mt-1 text-xs text-rush-medium">
-              Only when regex misses or mangles — never rewrites
+              Only used when direct extraction misses or mangles text — never rewrites
             </p>
           </CardContent>
         </Card>
@@ -162,8 +165,8 @@ export function ObjectivesExplorer({
               className="rounded-md border px-3 py-1.5 text-sm"
             >
               <option value="all">All methods</option>
-              <option value="regex">Regex only</option>
-              <option value="llm">LLM cleanup only</option>
+              <option value="regex">Directly extracted only</option>
+              <option value="llm">AI-assisted only</option>
             </select>
           </div>
         </CardHeader>
@@ -211,7 +214,7 @@ export function ObjectivesExplorer({
                             : "bg-gray-100 text-rush-dark"
                         }
                       >
-                        {obj.extractionMethod === "llm_cleanup" ? "LLM" : "Regex"}
+                        {obj.extractionMethod === "llm_cleanup" ? "AI-assisted" : "Direct"}
                       </Badge>
                     </td>
                   </tr>

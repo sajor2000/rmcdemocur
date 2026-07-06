@@ -30,7 +30,7 @@ const sampleRow = (overrides: Partial<ObjectivesExportRow> = {}): ObjectivesExpo
 describe("objectives export", () => {
   it("CSV leads with the method note, then header, then data rows", () => {
     const lines = objectivesRowsToCsv([sampleRow()]).split("\n");
-    expect(lines[0]).toMatch(/^"# .*regex-first/i);
+    expect(lines[0]).toMatch(/^"# .*extracted directly/i);
     expect(lines[1]).toContain("module,course_code,course_title");
     expect(lines[1]).toContain("objective,section,extraction_method");
     expect(lines[2]).toContain("EO-0001");

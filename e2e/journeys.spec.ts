@@ -146,7 +146,7 @@ test.describe("A5 — learning objectives export", () => {
     const res = await request.get("/api/courses/1/objectives/export?format=csv");
     expect(res.ok()).toBeTruthy();
     const body = await res.text();
-    expect(body).toMatch(/regex-first/i);
+    expect(body).toMatch(/extracted directly/i);
     expect(body).toContain("objective,section,extraction_method");
     expect(body).toContain("source_excerpt");
   });
