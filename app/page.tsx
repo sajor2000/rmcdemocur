@@ -57,7 +57,7 @@ async function getLandingStats(): Promise<LandingStat[]> {
 function VennDiagram() {
   return (
     <svg viewBox="0 0 420 220" className="mx-auto h-48 w-full max-w-lg" aria-hidden>
-      <circle cx="150" cy="110" r="70" fill="#00843D22" stroke="#00843D" strokeWidth="2" />
+      <circle cx="150" cy="110" r="70" fill="#00683722" stroke="#006837" strokeWidth="2" />
       <circle cx="210" cy="80" r="70" fill="#FFD10033" stroke="#D97706" strokeWidth="2" />
       <circle cx="270" cy="110" r="70" fill="#16A34A22" stroke="#16A34A" strokeWidth="2" />
       <text x="95" y="115" fontSize="11" fill="#353535">Rush Curriculum</text>
@@ -71,16 +71,16 @@ export default async function HomePage() {
   const stats = await getLandingStats();
   return (
     <div>
-      <section className="bg-gradient-to-br from-rush-green to-rush-green-dark px-4 py-16 text-white sm:px-6">
+      <section className="border-b border-rush-green/20 bg-rush-black px-4 py-16 text-white sm:px-6">
         <div className="mx-auto max-w-5xl text-center">
           <h1 className="font-heading text-4xl font-bold sm:text-5xl">
             Map Every Lesson. Close Every Gap.
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-green-50">
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-300">
             AI-powered curriculum intelligence for Rush Medical College — aligned to
             AAMC standards and USMLE objectives.
           </p>
-          <Button asChild size="lg" variant="outline" className="mt-8 border-white bg-white text-rush-green hover:bg-rush-light">
+          <Button asChild size="lg" className="mt-8 bg-rush-green text-white hover:bg-rush-green-dark">
             <Link href="/courses/1">Explore the Demo →</Link>
           </Button>
         </div>

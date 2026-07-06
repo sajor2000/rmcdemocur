@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --rush-green: #00843d;
+    --rush-green: #006837;
     --rush-dark: #353535;
     --rush-medium: #494949;
     --rush-light: #f5f5f5;
@@ -17,7 +17,7 @@
     --foreground: 0 0% 21%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 21%;
-    --primary: 145 100% 26%;
+    --primary: 152 100% 20%;
     --primary-foreground: 0 0% 100%;
     --muted: 0 0% 96%;
     --muted-foreground: 0 0% 29%;
