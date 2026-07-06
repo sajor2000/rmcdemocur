@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPdfPageTexts } from "@/lib/document-parser";
+import { buildPdfPageTexts, buildPptxSlideTexts } from "@/lib/document-parser";
 
 // Tests buildPdfPageTexts directly against a fake pdf.js-shaped document --
 // the seam extractPdfTextByPage's require("pdfjs-dist/...") call was split
@@ -47,5 +47,43 @@ describe("buildPdfPageTexts (per-page \\f marker source)", () => {
     const pages = await buildPdfPageTexts(doc);
     expect(pages).toHaveLength(3);
     expect(pages[1]).toBe("");
+  });
+});
+
+const slideXml = (text: string) => `<root><a:p><a:t>${text}</a:t></a:p></root>`;
+const emptySlideXml = `<root><a:p></a:p></root>`;
+
+describe("buildPptxSlideTexts (per-slide \\f marker source)", () => {
+  it("returns the single slide's text for a one-slide map", () => {
+    const slides = buildPptxSlideTexts(new Map([[1, slideXml("Hello slide")]]));
+    expect(slides).toHaveLength(1);
+    expect(slides[0]).toContain("Hello slide");
+  });
+
+  it("sorts numerically, not lexically, even when inserted out of order", () => {
+    // slide10 must sort after slide2 -- a lexical string sort would put it first.
+    const slides = buildPptxSlideTexts(
+      new Map([
+        [10, slideXml("Slide ten")],
+        [1, slideXml("Slide one")],
+        [2, slideXml("Slide two")],
+      ]),
+    );
+    expect(slides).toHaveLength(3);
+    expect(slides[0]).toContain("Slide one");
+    expect(slides[1]).toContain("Slide two");
+    expect(slides[2]).toContain("Slide ten");
+  });
+
+  it("still returns a (blank) entry for a slide with no text runs, not skipped", () => {
+    const slides = buildPptxSlideTexts(
+      new Map([
+        [1, slideXml("Slide one")],
+        [2, emptySlideXml],
+        [3, slideXml("Slide three")],
+      ]),
+    );
+    expect(slides).toHaveLength(3);
+    expect(slides[1]).toBe("");
   });
 });
