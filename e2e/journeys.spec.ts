@@ -113,7 +113,7 @@ test.describe("A4 — program coverage (intensity model)", () => {
     await expect(
       page.getByRole("button", { name: "Entire curriculum" }),
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: /CSV/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /CSV \(spreadsheet\)/i }).first()).toBeVisible();
   });
 
   test("coverage dataset export is a CSV led by the method note", async ({ request }) => {
@@ -128,5 +128,26 @@ test.describe("A4 — program coverage (intensity model)", () => {
     await page.goto(COURSE);
     await expect(page.getByText(/Coverage intensity/i)).toBeVisible();
     await expect(page.getByText(/How coverage is measured/i).first()).toBeVisible();
+  });
+});
+
+test.describe("A5 — learning objectives export", () => {
+  test("objectives page shows download links", async ({ page }) => {
+    await page.goto(`${COURSE}/objectives`);
+    await expect(
+      page.getByRole("heading", { name: "Learning Objectives", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: /CSV \(spreadsheet\)/i })).toBeVisible();
+  });
+
+  test("course objectives CSV is led by the method note and header columns", async ({
+    request,
+  }) => {
+    const res = await request.get("/api/courses/1/objectives/export?format=csv");
+    expect(res.ok()).toBeTruthy();
+    const body = await res.text();
+    expect(body).toMatch(/regex-first/i);
+    expect(body).toContain("objective,section,extraction_method");
+    expect(body).toContain("source_excerpt");
   });
 });
