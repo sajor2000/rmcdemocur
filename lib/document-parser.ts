@@ -10,13 +10,21 @@ export type ParsedDocument = {
   fileType: "pdf" | "docx" | "pptx";
 };
 
-// Page/slide boundary marker (form feed) inserted between pages (PDF) or
-// slides (PPTX) so lib/chunker.ts and lib/objective-extractor.ts can each
-// independently count markers up to their own text position to compute a
-// sourcePage, without a separate offset-map data structure. DOCX has no page
-// concept and never contains this marker. Never stored — every consumer
-// strips it before persisting content.
-export const PAGE_BREAK_MARKER = "\f";
+// Page/slide boundary marker inserted between pages (PDF) or slides (PPTX)
+// so lib/chunker.ts and lib/objective-extractor.ts can each independently
+// count markers up to their own text position to compute a sourcePage,
+// without a separate offset-map data structure. DOCX has no page concept and
+// never contains this marker. Never stored — every consumer strips it
+// before persisting content.
+//
+// A Unicode Private Use Area codepoint, not "\f" (form feed) -- \f is
+// whitespace per the JS spec, so a marker on its own "line" would be
+// silently deleted by String.trim() in lib/chunker.ts's sentence-splitting
+// (verified: "\f".trim() === "", and the chunker drops falsy/empty units)
+// before U4/U5 ever get to count it.  is guaranteed absent from real
+// document text, isn't whitespace, and isn't matched by any \s-based regex
+// in the chunker or objective extractor.
+export const PAGE_BREAK_MARKER = "";
 
 export async function parseDocument(
   filePath: string,
@@ -86,7 +94,11 @@ async function extractPdfTextByPage(data: Buffer): Promise<string> {
   const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js") as typeof import("pdfjs-dist/legacy/build/pdf.js");
   const doc = await pdfjsLib.getDocument({ data: new Uint8Array(data) }).promise;
   const pageTexts = await buildPdfPageTexts(doc as unknown as PdfjsDocument);
-  return pageTexts.join(PAGE_BREAK_MARKER);
+  // Surrounding newlines keep the last line of one page and the first line
+  // of the next from merging into a single line lib/chunker.ts's heading
+  // detection has to parse -- without them, a heading immediately after a
+  // page break could fail to be recognized as a heading.
+  return pageTexts.join(`\n${PAGE_BREAK_MARKER}\n`);
 }
 
 // Matches officeparser's own internal slide-discovery pattern exactly
@@ -140,5 +152,5 @@ async function extractPptxTextBySlide(data: Buffer): Promise<string> {
     slideXmlByNumber.set(slideNumber, await entry.async("string"));
   }
   const slideTexts = buildPptxSlideTexts(slideXmlByNumber);
-  return slideTexts.join(PAGE_BREAK_MARKER);
+  return slideTexts.join(`\n${PAGE_BREAK_MARKER}\n`);
 }

@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { buildPdfPageTexts, buildPptxSlideTexts } from "@/lib/document-parser";
+import { buildPdfPageTexts, buildPptxSlideTexts, PAGE_BREAK_MARKER } from "@/lib/document-parser";
+
+describe("PAGE_BREAK_MARKER", () => {
+  // Regression guard: an earlier version used "\f" (form feed), which is
+  // whitespace per the JS spec -- a marker sitting alone on its own "line"
+  // was silently deleted by String.trim() in lib/chunker.ts's sentence
+  // splitting before U4/U5 ever got to count it. Caught before it shipped;
+  // this pins the property so it can't regress back to a whitespace marker.
+  it("is not whitespace and survives String.trim()", () => {
+    expect(PAGE_BREAK_MARKER.trim()).toBe(PAGE_BREAK_MARKER);
+    expect(/\s/.test(PAGE_BREAK_MARKER)).toBe(false);
+  });
+});
 
 // Tests buildPdfPageTexts directly against a fake pdf.js-shaped document --
 // the seam extractPdfTextByPage's require("pdfjs-dist/...") call was split
@@ -17,7 +29,7 @@ function mockPdfDoc(pagesItems: { str: string; transform: number[] }[][]) {
 
 const item = (str: string, x: number, y: number) => ({ str, transform: [1, 0, 0, 1, x, y] });
 
-describe("buildPdfPageTexts (per-page \\f marker source)", () => {
+describe("buildPdfPageTexts (per-page marker source)", () => {
   it("returns one page text for a single-page document", async () => {
     const doc = mockPdfDoc([[item("Hello world", 10, 100)]]);
     const pages = await buildPdfPageTexts(doc);
@@ -53,7 +65,7 @@ describe("buildPdfPageTexts (per-page \\f marker source)", () => {
 const slideXml = (text: string) => `<root><a:p><a:t>${text}</a:t></a:p></root>`;
 const emptySlideXml = `<root><a:p></a:p></root>`;
 
-describe("buildPptxSlideTexts (per-slide \\f marker source)", () => {
+describe("buildPptxSlideTexts (per-slide marker source)", () => {
   it("returns the single slide's text for a one-slide map", () => {
     const slides = buildPptxSlideTexts(new Map([[1, slideXml("Hello slide")]]));
     expect(slides).toHaveLength(1);
