@@ -7,6 +7,7 @@ import {
   needsLlmCleanup,
 } from "@/lib/objective-extractor";
 import { validateCleanedObjectives } from "@/lib/objective-cleanup";
+import { PAGE_BREAK_MARKER } from "@/lib/document-parser";
 import fs from "fs";
 import path from "path";
 
@@ -80,7 +81,7 @@ describe("objective-extractor", () => {
       },
     ];
     const sections = findObjectiveSections(fixture);
-    expect(needsLlmCleanup(longEo, sections)).toBe(false);
+    expect(needsLlmCleanup(longEo, sections, fixture)).toBe(false);
   });
 
   it("flags LLM cleanup when section found but no objectives", () => {
@@ -90,7 +91,39 @@ describe("objective-extractor", () => {
     const objectives = extractObjectivesFromText(text);
     expect(sections.length).toBeGreaterThan(0);
     expect(objectives.length).toBe(0);
-    expect(needsLlmCleanup(objectives, sections)).toBe(true);
+    expect(needsLlmCleanup(objectives, sections, text)).toBe(true);
+  });
+
+  it("does not flag LLM cleanup when section is topics-only (no verb objectives)", () => {
+    const text = [
+      "Case Specific Objectives:",
+      "",
+      "Self-Study Topics:",
+      "",
+      "Posterior Abdominal Wall Contents (TO-0010)",
+    ].join("\n");
+    const sections = findObjectiveSections(text);
+    const objectives = extractObjectivesFromText(text);
+    expect(sections.length).toBeGreaterThan(0);
+    expect(objectives).toHaveLength(0);
+    expect(needsLlmCleanup(objectives, sections, text)).toBe(false);
+  });
+
+  it("assigns sourcePage from page markers in document text", () => {
+    const text = [
+      "Learning Objectives:",
+      "",
+      "Describe the foregut. (EO-0001)",
+      "",
+      PAGE_BREAK_MARKER,
+      "",
+      "Identify the midgut. (EO-0002)",
+    ].join("\n");
+    const objectives = extractObjectivesFromText(text);
+    expect(objectives).toHaveLength(2);
+    expect(objectives[0].sourcePage).toBe(1);
+    expect(objectives[1].sourcePage).toBe(2);
+    expect(objectives.every((o) => !o.text.includes(PAGE_BREAK_MARKER))).toBe(true);
   });
 
   it("filters bibliography noise from objectives", () => {
@@ -110,8 +143,8 @@ Explain how macronutrients are metabolized.`;
   });
 });
 
-describe("objective-extractor topic objectives (TO codes)", () => {
-  it("captures Self-Study Topics list items as objectives with TO codes", () => {
+describe("objective-extractor topic lines (TO codes)", () => {
+  it("skips Self-Study Topics list items — TO codes are study topics, not objectives", () => {
     const text = [
       "Case Specific Objectives* - Review prior to the case.",
       "",
@@ -123,13 +156,11 @@ describe("objective-extractor topic objectives (TO codes)", () => {
       "Superior and Inferior Mesenteric Vessels (TO-0011)",
     ].join("\n");
     const objectives = extractObjectivesFromText(text);
-    const to = objectives.filter((o) => o.eoCode?.startsWith("TO-"));
-    expect(to.map((o) => o.eoCode)).toEqual(["TO-0010", "TO-0011"]);
-    expect(to[0].text).toContain("Posterior Abdominal Wall Contents");
-    expect(to[0].confidence).toBe("high");
+    expect(objectives.filter((o) => o.eoCode?.startsWith("TO-"))).toHaveLength(0);
+    expect(objectives).toHaveLength(0);
   });
 
-  it("drops media-pointer variants and dedupes a topic by TO code", () => {
+  it("drops media-pointer topic rows", () => {
     const text = [
       "Case Specific Objectives:",
       "",
@@ -140,12 +171,10 @@ describe("objective-extractor topic objectives (TO codes)", () => {
       "SLIDES: Posterior Abdominal Wall Contents (TO-0010)",
     ].join("\n");
     const objectives = extractObjectivesFromText(text);
-    expect(objectives).toHaveLength(1);
-    expect(objectives[0].eoCode).toBe("TO-0010");
-    expect(objectives[0].text).toBe("Posterior Abdominal Wall Contents (TO-0010)");
+    expect(objectives).toHaveLength(0);
   });
 
-  it("captures EO objectives and topic objectives together", () => {
+  it("captures EO objectives but not adjacent topic titles", () => {
     const text = [
       "Case Specific Objectives:",
       "",
@@ -156,7 +185,7 @@ describe("objective-extractor topic objectives (TO codes)", () => {
       "Posterior Abdominal Wall Contents (TO-0010)",
     ].join("\n");
     const objectives = extractObjectivesFromText(text);
-    expect(objectives.map((o) => o.eoCode)).toEqual(["EO-0052", "TO-0010"]);
+    expect(objectives.map((o) => o.eoCode)).toEqual(["EO-0052"]);
   });
 
   it("regression: a (TO-####) line without a Topics header still ends the section", () => {

@@ -1,4 +1,5 @@
 import { encode, decode } from "gpt-tokenizer";
+import { PAGE_BREAK_MARKER } from "@/lib/document-parser";
 
 export type SectionBlock = {
   section: string;
@@ -271,34 +272,56 @@ export function buildChunksFromDocument(text: string, caseTitle?: string) {
     embedText: string;
     chunkIndex: number;
     blockIndex: number;
+    sourcePage: number | null;
   }[] = [];
   let index = 0;
   let blockIndex = 0;
+  // null (not 0) when the document has no page markers at all (DOCX has no
+  // page concept) -- every chunk's sourcePage stays null rather than
+  // incorrectly claiming page 1.
+  const documentHasPages = text.includes(PAGE_BREAK_MARKER);
+  let markersSeenSoFar = 0;
 
   for (const block of sections) {
-    const parts = chunkText(block.content);
+    // A section's own content routinely spans multiple pages (verified: 9 of
+    // 13 sections in a real 40-page faculty guide do). Split on the page
+    // marker BEFORE chunking so no chunk ever straddles a page boundary and
+    // each page-scoped piece has a definite page number -- chunkText's
+    // sentence-repacking doesn't preserve input offsets (and its overlap
+    // seeding would duplicate a marker left for it to see), so reconstructing
+    // a chunk's page after the fact would be unreliable.
+    const pageScopedContents = block.content.split(PAGE_BREAK_MARKER);
 
-    // Junk filter: drop page-number/ToC fragments outright (no retrievable
-    // meaning), then merge any remaining sub-floor fragment into an adjacent
-    // kept chunk so no tiny chunk is embedded on its own. A section's sole real
-    // chunk is always preserved.
-    const nonJunk = parts.filter(
-      (p) => !(encode(p).length < MIN_CHUNK_TOKENS && TOC_LINE.test(p.trim())),
-    );
-    const finalParts = mergeSubFloorParts(nonJunk);
+    for (let subIdx = 0; subIdx < pageScopedContents.length; subIdx++) {
+      const pageContent = pageScopedContents[subIdx];
+      if (!pageContent.trim()) continue;
+      const sourcePage = documentHasPages ? 1 + markersSeenSoFar + subIdx : null;
+      const parts = chunkText(pageContent);
 
-    for (const part of finalParts) {
-      const breadcrumb = caseTitle
-        ? `${caseTitle} › ${block.section}`
-        : block.section;
-      output.push({
-        section: block.section,
-        content: part,
-        embedText: `${breadcrumb}\n${part}`,
-        chunkIndex: index++,
-        blockIndex,
-      });
+      // Junk filter: drop page-number/ToC fragments outright (no retrievable
+      // meaning), then merge any remaining sub-floor fragment into an adjacent
+      // kept chunk so no tiny chunk is embedded on its own. A section's sole real
+      // chunk is always preserved.
+      const nonJunk = parts.filter(
+        (p) => !(encode(p).length < MIN_CHUNK_TOKENS && TOC_LINE.test(p.trim())),
+      );
+      const finalParts = mergeSubFloorParts(nonJunk);
+
+      for (const part of finalParts) {
+        const breadcrumb = caseTitle
+          ? `${caseTitle} › ${block.section}`
+          : block.section;
+        output.push({
+          section: block.section,
+          content: part,
+          embedText: `${breadcrumb}\n${part}`,
+          chunkIndex: index++,
+          blockIndex,
+          sourcePage,
+        });
+      }
     }
+    markersSeenSoFar += pageScopedContents.length - 1;
     blockIndex++;
   }
   return output;

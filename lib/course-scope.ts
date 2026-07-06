@@ -37,6 +37,18 @@ export function courseModule(courseCode: string | null | undefined): string {
   return COURSE_MODULE[courseCode] ?? "Unassigned";
 }
 
+/** Course codes curated to a module label (M1, M2, …). */
+export function courseCodesForModule(module: string): string[] {
+  return Object.entries(COURSE_MODULE)
+    .filter(([, m]) => m === module)
+    .map(([code]) => code);
+}
+
+/** Course codes with an explicit module assignment in the curated map. */
+export function curatedCourseCodesWithModule(): string[] {
+  return Object.keys(COURSE_MODULE);
+}
+
 /** Target USMLE systems for a course, or null when none are curated (= all).
  * An empty array normalizes to null too — every caller treats a truthy
  * targetSystems as a non-empty SQL `IN (...)` list (an empty array would

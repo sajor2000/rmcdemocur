@@ -59,6 +59,7 @@ async function main() {
       extractionMethod: obj.extractionMethod,
       confidence: obj.confidence,
       sourceExcerpt: obj.sourceExcerpt.slice(0, 500),
+      sourcePage: obj.sourcePage ?? null,
     }));
 
     // Replace atomically. The neon-http driver has no interactive transactions,

@@ -113,7 +113,7 @@ test.describe("A4 — program coverage (intensity model)", () => {
     await expect(
       page.getByRole("button", { name: "Entire curriculum" }),
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: /CSV/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /CSV \(spreadsheet\)/i }).first()).toBeVisible();
   });
 
   test("coverage dataset export is a CSV led by the method note", async ({ request }) => {
@@ -128,5 +128,60 @@ test.describe("A4 — program coverage (intensity model)", () => {
     await page.goto(COURSE);
     await expect(page.getByText(/Coverage intensity/i)).toBeVisible();
     await expect(page.getByText(/How coverage is measured/i).first()).toBeVisible();
+  });
+});
+
+test.describe("A5 — learning objectives export", () => {
+  test("objectives page shows download links", async ({ page }) => {
+    await page.goto(`${COURSE}/objectives`);
+    await expect(
+      page.getByRole("heading", { name: "Learning Objectives", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: /CSV \(spreadsheet\)/i })).toBeVisible();
+  });
+
+  test("course objectives CSV is led by the method note and header columns", async ({
+    request,
+  }) => {
+    const res = await request.get("/api/courses/1/objectives/export?format=csv");
+    expect(res.ok()).toBeTruthy();
+    const body = await res.text();
+    expect(body).toMatch(/extracted directly/i);
+    expect(body).toContain("objective,section,extraction_method");
+    expect(body).toContain("source_excerpt");
+  });
+
+  test("program objectives CSV accepts module filter", async ({ request }) => {
+    const res = await request.get("/api/program/objectives/export?format=csv&module=M1");
+    expect(res.ok()).toBeTruthy();
+    const body = await res.text();
+    expect(body).toMatch(/extracted directly/i);
+    expect(body).toContain("module,course_code");
+    expect(body).toContain("source_page");
+  });
+});
+
+test.describe("A6 — case analytics drill-down", () => {
+  test("sidebar case opens analytics with scope and drill-down links", async ({ page }) => {
+    await page.goto(COURSE);
+    await page.getByRole("link", { name: /Case 2: Jessica Donner/i }).click();
+    await expect(page.getByRole("heading", { name: /Jessica Donner/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /This case/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Entire curriculum/i })).toBeVisible();
+    await page.getByRole("button", { name: /Entire curriculum/i }).click();
+    await expect(page.getByText(/USMLE/i).first()).toBeVisible();
+    await page.getByRole("link", { name: "Learning objectives", exact: true }).click();
+    await expect(page).toHaveURL(/\/courses\/1\/objectives\?case=2/);
+  });
+
+  test("objectives filter table does not navigate away", async ({ page }) => {
+    await page.goto(`${COURSE}/objectives`);
+    await page
+      .locator("p", { hasText: "Filter table" })
+      .locator("..")
+      .getByRole("button", { name: "Case 2", exact: true })
+      .click();
+    await expect(page).toHaveURL(`${COURSE}/objectives`);
+    await expect(page.getByRole("cell", { name: "2" }).first()).toBeVisible();
   });
 });

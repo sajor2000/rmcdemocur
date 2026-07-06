@@ -58,6 +58,9 @@ export const chunks = pgTable("chunks", {
   // alignment rows. Distinguishes "not yet aligned" from "aligned to nothing"
   // for resume and completeness — see lib/pipeline.ts alignment loop.
   alignedAt: timestamp("aligned_at", { withTimezone: true }),
+  // Source page (PDF) or slide (PPTX) number. Null for DOCX (no page concept)
+  // and for any document not yet reprocessed after this column was added.
+  sourcePage: integer("source_page"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
@@ -157,6 +160,9 @@ export const courseObjectives = pgTable("course_objectives", {
   extractionMethod: varchar("extraction_method", { length: 20 }),
   confidence: varchar("confidence", { length: 10 }),
   sourceExcerpt: text("source_excerpt"),
+  // Source page (PDF) or slide (PPTX) number. Null for DOCX (no page concept)
+  // and for any document not yet reprocessed after this column was added.
+  sourcePage: integer("source_page"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 

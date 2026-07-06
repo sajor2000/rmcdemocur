@@ -1,0 +1,101 @@
+import { describe, expect, it } from "vitest";
+import { buildPdfPageTexts, buildPptxSlideTexts, PAGE_BREAK_MARKER } from "@/lib/document-parser";
+
+describe("PAGE_BREAK_MARKER", () => {
+  // Regression guard: an earlier version used "\f" (form feed), which is
+  // whitespace per the JS spec -- a marker sitting alone on its own "line"
+  // was silently deleted by String.trim() in lib/chunker.ts's sentence
+  // splitting before U4/U5 ever got to count it. Caught before it shipped;
+  // this pins the property so it can't regress back to a whitespace marker.
+  it("is not whitespace and survives String.trim()", () => {
+    expect(PAGE_BREAK_MARKER.trim()).toBe(PAGE_BREAK_MARKER);
+    expect(/\s/.test(PAGE_BREAK_MARKER)).toBe(false);
+  });
+});
+
+// Tests buildPdfPageTexts directly against a fake pdf.js-shaped document --
+// the seam extractPdfTextByPage's require("pdfjs-dist/...") call was split
+// out to, specifically so this doesn't need a real PDF binary fixture or a
+// mock of pdfjs-dist's CJS require (vi.mock does not reliably intercept a
+// runtime `require()` call — verified: it fell through to the real library).
+function mockPdfDoc(pagesItems: { str: string; transform: number[] }[][]) {
+  return {
+    numPages: pagesItems.length,
+    getPage: async (pageNum: number) => ({
+      getTextContent: async () => ({ items: pagesItems[pageNum - 1] }),
+    }),
+  };
+}
+
+const item = (str: string, x: number, y: number) => ({ str, transform: [1, 0, 0, 1, x, y] });
+
+describe("buildPdfPageTexts (per-page marker source)", () => {
+  it("returns one page text for a single-page document", async () => {
+    const doc = mockPdfDoc([[item("Hello world", 10, 100)]]);
+    const pages = await buildPdfPageTexts(doc);
+    expect(pages).toHaveLength(1);
+    expect(pages[0]).toContain("Hello world");
+  });
+
+  it("returns one text entry per page, in order, for a multi-page document", async () => {
+    const doc = mockPdfDoc([
+      [item("Page one text", 10, 100)],
+      [item("Page two text", 10, 100)],
+      [item("Page three text", 10, 100)],
+    ]);
+    const pages = await buildPdfPageTexts(doc);
+    expect(pages).toHaveLength(3);
+    expect(pages[0]).toContain("Page one");
+    expect(pages[1]).toContain("Page two");
+    expect(pages[2]).toContain("Page three");
+  });
+
+  it("still returns a (blank) entry for a page with no extractable text, not skipped", async () => {
+    const doc = mockPdfDoc([
+      [item("Page one text", 10, 100)],
+      [], // image-only page, no text runs
+      [item("Page three text", 10, 100)],
+    ]);
+    const pages = await buildPdfPageTexts(doc);
+    expect(pages).toHaveLength(3);
+    expect(pages[1]).toBe("");
+  });
+});
+
+const slideXml = (text: string) => `<root><a:p><a:t>${text}</a:t></a:p></root>`;
+const emptySlideXml = `<root><a:p></a:p></root>`;
+
+describe("buildPptxSlideTexts (per-slide marker source)", () => {
+  it("returns the single slide's text for a one-slide map", () => {
+    const slides = buildPptxSlideTexts(new Map([[1, slideXml("Hello slide")]]));
+    expect(slides).toHaveLength(1);
+    expect(slides[0]).toContain("Hello slide");
+  });
+
+  it("sorts numerically, not lexically, even when inserted out of order", () => {
+    // slide10 must sort after slide2 -- a lexical string sort would put it first.
+    const slides = buildPptxSlideTexts(
+      new Map([
+        [10, slideXml("Slide ten")],
+        [1, slideXml("Slide one")],
+        [2, slideXml("Slide two")],
+      ]),
+    );
+    expect(slides).toHaveLength(3);
+    expect(slides[0]).toContain("Slide one");
+    expect(slides[1]).toContain("Slide two");
+    expect(slides[2]).toContain("Slide ten");
+  });
+
+  it("still returns a (blank) entry for a slide with no text runs, not skipped", () => {
+    const slides = buildPptxSlideTexts(
+      new Map([
+        [1, slideXml("Slide one")],
+        [2, emptySlideXml],
+        [3, slideXml("Slide three")],
+      ]),
+    );
+    expect(slides).toHaveLength(3);
+    expect(slides[1]).toBe("");
+  });
+});

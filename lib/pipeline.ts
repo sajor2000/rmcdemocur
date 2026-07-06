@@ -185,7 +185,7 @@ export async function runFullPipeline(options: {
     // that crashed before objectives were written.
     const existingObjectiveCount = resuming ? await countCourseObjectives(documentId) : 0;
     if (!resuming || existingObjectiveCount === 0) {
-      await setStage("extracting_objectives", 18, "Extracting learning objectives (regex-first)...");
+      await setStage("extracting_objectives", 18, "Extracting learning objectives...");
       const { objectives, sectionsFound, llmUsed } = await extractAndCleanObjectives(parsed.text);
       if (resuming && objectives.length > 0) {
         await db.delete(courseObjectives).where(eq(courseObjectives.documentId, documentId));
@@ -200,11 +200,12 @@ export async function runFullPipeline(options: {
           extractionMethod: obj.extractionMethod,
           confidence: obj.confidence,
           sourceExcerpt: obj.sourceExcerpt.slice(0, 500),
+          sourcePage: obj.sourcePage ?? null,
         });
       }
       const objMsg =
         objectives.length > 0
-          ? `${objectives.length} objectives from ${sectionsFound} section(s)${llmUsed ? " (LLM cleanup applied)" : ""}`
+          ? `${objectives.length} objectives from ${sectionsFound} section(s)${llmUsed ? " (AI-assisted)" : ""}`
           : sectionsFound > 0
             ? "Objective sections found but none extracted"
             : "No objective sections detected";
@@ -255,6 +256,7 @@ export async function runFullPipeline(options: {
               chunkIndex: item.chunkIndex,
               section: item.section,
               content: item.content,
+              sourcePage: item.sourcePage ?? null,
             })
             .returning({ id: chunks.id });
           insertedChunkIds.push(row.id);

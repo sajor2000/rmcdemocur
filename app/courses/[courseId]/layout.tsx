@@ -1,12 +1,5 @@
 import { Sidebar } from "@/components/layout/Sidebar";
-import { getCourseWithDocuments } from "@/lib/queries";
-
-type CaseItem = {
-  id: number;
-  caseNumber: number;
-  caseTitle: string | null;
-  diagnosis?: string | null;
-};
+import { dedupeCaseList, getCourseWithDocuments } from "@/lib/queries";
 
 export default async function CourseLayout({
   children,
@@ -25,13 +18,15 @@ export default async function CourseLayout({
     director: "",
   };
 
-  const docs: CaseItem[] =
-    data?.documents.map((d) => ({
-      id: d.id,
-      caseNumber: d.caseNumber ?? 0,
-      caseTitle: d.caseTitle,
-      diagnosis: d.diagnosis,
-    })) ?? [];
+  const docs =
+    data?.documents != null
+      ? dedupeCaseList(data.documents).map((d) => ({
+          id: d.id,
+          caseNumber: d.caseNumber ?? 0,
+          caseTitle: d.caseTitle,
+          diagnosis: d.diagnosis,
+        }))
+      : [];
 
   return (
     <div className="flex min-h-[calc(100vh-8rem)]">

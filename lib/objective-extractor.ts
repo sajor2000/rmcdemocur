@@ -1,3 +1,9 @@
+import {
+  charOffsetAtLine,
+  sourcePageAtCharOffset,
+  stripPageBreakMarkers,
+} from "@/lib/source-page";
+
 export type ExtractedObjective = {
   text: string;
   ordinal: number;
@@ -7,6 +13,7 @@ export type ExtractedObjective = {
   extractionMethod: "regex" | "llm_cleanup";
   confidence: "high" | "medium" | "low";
   eoCode?: string;
+  sourcePage?: number | null;
 };
 
 export type ObjectiveSection = {
@@ -92,17 +99,9 @@ const NOISE_LINE_PATTERNS = [
 
 const BULLET_PREFIX = /^\s*(?:[-•▪●o*]|\d+[.)])\s+/;
 const EO_CODE_PATTERN = /\((EO-\d{4})\)\s*$/;
-// Topic-objective codes: captured anywhere in the line (some carry a trailing
-// timestamp like "(30:37)"). The end-anchored variant matches the section-end
-// shape in SECTION_END_PATTERNS so we can suppress it inside a topics subsection.
 const TO_CODE_PATTERN = /\((TO-\d{4})\)/;
 const TO_CODE_END_PATTERN = /\(TO-\d{4}\)\s*$/;
-// A "Self-Study Topics" sub-header flips subsequent (TO-####) lines from
-// section-enders into objectives (see Case 3 self-study).
 const TOPICS_SUBHEADER = /^Self-Study\s+Topics/i;
-// A topic can be listed several ways (the topic line, a "SLIDES:" pointer, a
-// video row with a "(30:37)" timestamp). Only the plain topic line is an
-// objective; drop the media-pointer variants and dedupe the rest by TO code.
 const MEDIA_REF_PATTERN = /^(?:SLIDES?\s*:|Slides?\s+\d)/i;
 const TIMESTAMP_END_PATTERN = /\(\d{1,2}:\d{2}\)\s*$/;
 const VERB_START =
@@ -142,20 +141,29 @@ function cleanObjectiveLine(line: string): string {
 }
 
 function isCompleteObjective(text: string): boolean {
-  if (EO_CODE_PATTERN.test(text) || TO_CODE_PATTERN.test(text)) return true;
+  if (EO_CODE_PATTERN.test(text)) return true;
   const trimmed = text.trim();
   return /[.!?)]$/.test(trimmed);
 }
 
+/** Self-study topic titles carry (TO-####) but lack student-action verbs. */
+function isStudyTopicLine(line: string): boolean {
+  const cleaned = cleanObjectiveLine(line);
+  if (!TO_CODE_PATTERN.test(cleaned)) return false;
+  if (MEDIA_REF_PATTERN.test(cleaned) || TIMESTAMP_END_PATTERN.test(cleaned)) {
+    return true;
+  }
+  return TO_CODE_END_PATTERN.test(cleaned) && !VERB_START.test(cleaned);
+}
+
 function looksLikeObjective(line: string): boolean {
   const cleaned = cleanObjectiveLine(line);
-  if (isNoiseLine(cleaned) || isIntroLine(cleaned)) return false;
-  const hasCode = EO_CODE_PATTERN.test(cleaned) || TO_CODE_PATTERN.test(cleaned);
-  if (cleaned.length > 800 && !hasCode) return false;
-  if (hasCode) {
-    if (MEDIA_REF_PATTERN.test(cleaned) || TIMESTAMP_END_PATTERN.test(cleaned)) return false;
-    return cleaned.length >= 20;
+  if (isNoiseLine(cleaned) || isIntroLine(cleaned) || isStudyTopicLine(cleaned)) {
+    return false;
   }
+  const hasEoCode = EO_CODE_PATTERN.test(cleaned);
+  if (cleaned.length > 800 && !hasEoCode) return false;
+  if (hasEoCode) return cleaned.length >= 20;
   if (!isCompleteObjective(cleaned)) return false;
   if (VERB_START.test(cleaned)) return cleaned.length >= 15;
   return false;
@@ -164,7 +172,7 @@ function looksLikeObjective(line: string): boolean {
 function scoreObjective(text: string): "high" | "medium" | "low" {
   if (text.length > 500 || text.split(/\.\s+/).length > 4) return "low";
   if (text.length < 20) return "low";
-  if (VERB_START.test(text) || EO_CODE_PATTERN.test(text) || TO_CODE_PATTERN.test(text)) return "high";
+  if (VERB_START.test(text) || EO_CODE_PATTERN.test(text)) return "high";
   return "medium";
 }
 
@@ -194,14 +202,12 @@ export function findObjectiveSections(text: string): ObjectiveSection[] {
       if (trimmed && TOPICS_SUBHEADER.test(trimmed)) {
         sawTopicsHeader = true;
       }
-      // Inside a "Self-Study Topics" subsection, (TO-####) lines are the
-      // objectives themselves — don't let them end the section.
-      const topicObjective = sawTopicsHeader && TO_CODE_END_PATTERN.test(trimmed);
+      const topicLine = sawTopicsHeader && TO_CODE_END_PATTERN.test(trimmed);
       if (
         trimmed &&
         isSectionEnd(trimmed) &&
         !isObjectiveSectionHeading(trimmed) &&
-        !topicObjective
+        !topicLine
       ) {
         break;
       }
@@ -234,6 +240,7 @@ function parseObjectiveLines(
   sectionHeading: string,
   startLineOffset: number,
   sourceExcerpt: string,
+  fullText: string,
 ): ExtractedObjective[] {
   const objectives: ExtractedObjective[] = [];
   let buffer: string[] = [];
@@ -247,16 +254,18 @@ function parseObjectiveLines(
       buffer = [];
       return;
     }
-    const codeMatch = text.match(EO_CODE_PATTERN) ?? text.match(TO_CODE_PATTERN);
+    const codeMatch = text.match(EO_CODE_PATTERN);
+    const charOffset = charOffsetAtLine(fullText, bufferStartLine);
     objectives.push({
-      text,
+      text: stripPageBreakMarkers(text),
       ordinal: objectives.length + 1,
       sectionHeading,
       sourceLineStart: bufferStartLine,
-      sourceExcerpt,
+      sourceExcerpt: stripPageBreakMarkers(sourceExcerpt),
       extractionMethod: "regex",
       confidence: scoreObjective(text),
       eoCode: codeMatch?.[1],
+      sourcePage: sourcePageAtCharOffset(fullText, charOffset),
     });
     buffer = [];
   };
@@ -270,20 +279,20 @@ function parseObjectiveLines(
       continue;
     }
 
-    if (isIntroLine(trimmed) || isNoiseLine(trimmed)) {
+    if (isIntroLine(trimmed) || isNoiseLine(trimmed) || isStudyTopicLine(trimmed)) {
       flushBuffer();
       continue;
     }
 
     const hasBullet = BULLET_PREFIX.test(trimmed);
     const cleanedLine = cleanObjectiveLine(trimmed);
-    const hasCode = EO_CODE_PATTERN.test(cleanedLine) || TO_CODE_PATTERN.test(cleanedLine);
+    const hasEoCode = EO_CODE_PATTERN.test(cleanedLine);
     const isStandaloneObjective =
-      looksLikeObjective(trimmed) && (hasBullet || VERB_START.test(cleanedLine) || hasCode);
+      looksLikeObjective(trimmed) &&
+      (hasBullet || VERB_START.test(cleanedLine) || hasEoCode);
 
     const bufferText = buffer.join(" ");
-    const bufferComplete =
-      EO_CODE_PATTERN.test(bufferText) || TO_CODE_PATTERN.test(bufferText);
+    const bufferComplete = EO_CODE_PATTERN.test(bufferText);
 
     if (hasBullet || isStandaloneObjective) {
       flushBuffer();
@@ -295,8 +304,6 @@ function parseObjectiveLines(
       !isSectionEnd(trimmed) &&
       !bufferComplete
     ) {
-      // A buffer that already ends in an (EO/TO) code is a complete objective;
-      // don't let a following media-pointer / timestamp line accrete onto it.
       buffer.push(trimmed);
     } else if (looksLikeObjective(trimmed)) {
       flushBuffer();
@@ -321,6 +328,7 @@ export function extractObjectivesFromText(text: string): ExtractedObjective[] {
       section.heading,
       section.startLine + 1,
       section.excerpt,
+      text,
     );
     for (const obj of parsed) {
       all.push({ ...obj, ordinal: all.length + 1 });
@@ -334,17 +342,11 @@ export function dedupeObjectives(
   objectives: ExtractedObjective[],
 ): ExtractedObjective[] {
   const seen = new Set<string>();
-  const seenTopicCode = new Set<string>();
   const result: ExtractedObjective[] = [];
 
   for (const obj of objectives) {
     const key = normalizeForMatch(obj.text);
     if (seen.has(key)) continue;
-    // Collapse multiple listings of the same topic (same TO-#### code) to one.
-    if (obj.eoCode?.startsWith("TO-")) {
-      if (seenTopicCode.has(obj.eoCode)) continue;
-      seenTopicCode.add(obj.eoCode);
-    }
     seen.add(key);
     result.push({ ...obj, ordinal: result.length + 1 });
   }
@@ -352,12 +354,34 @@ export function dedupeObjectives(
   return result;
 }
 
+function sectionsAreTopicsOnly(fullText: string, sections: ObjectiveSection[]): boolean {
+  let sawTopicsHeader = false;
+  let substantiveLines = 0;
+  const lines = fullText.split(/\r?\n/);
+  for (const section of sections) {
+    for (let i = section.startLine + 1; i <= section.endLine; i++) {
+      const trimmed = lines[i]?.trim() ?? "";
+      if (!trimmed || isIntroLine(trimmed) || isNoiseLine(trimmed)) continue;
+      if (TOPICS_SUBHEADER.test(trimmed)) {
+        sawTopicsHeader = true;
+        continue;
+      }
+      substantiveLines++;
+      if (!isStudyTopicLine(trimmed)) return false;
+    }
+  }
+  return sawTopicsHeader && substantiveLines > 0;
+}
+
 export function needsLlmCleanup(
   objectives: ExtractedObjective[],
   sections: ObjectiveSection[],
+  fullText: string,
 ): boolean {
   if (sections.length === 0) return false;
-  if (objectives.length === 0) return true;
+  if (objectives.length === 0) {
+    return !sectionsAreTopicsOnly(fullText, sections);
+  }
 
   const lowCount = objectives.filter((o) => o.confidence === "low").length;
   if (lowCount > 0 && lowCount >= objectives.length * 0.5) return true;
@@ -397,5 +421,7 @@ export function mergeCleanedWithRegex(
 export function getSourceExcerptForCleanup(
   sections: ObjectiveSection[],
 ): string {
-  return sections.map((s) => s.excerpt).join("\n\n---\n\n");
+  return stripPageBreakMarkers(
+    sections.map((s) => s.excerpt).join("\n\n---\n\n"),
+  );
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { formatSourcePageLabel } from "@/lib/source-page";
 
 export type ObjectiveRow = {
   id: number;
@@ -16,6 +18,7 @@ export type ObjectiveRow = {
   caseNumber: number;
   caseTitle: string | null;
   filename: string;
+  sourcePage: number | null;
 };
 
 export type ObjectivesSummary = {
@@ -28,10 +31,17 @@ export type ObjectivesSummary = {
 type Props = {
   objectives: ObjectiveRow[];
   summary: ObjectivesSummary;
+  courseId: number;
+  initialCaseFilter?: string;
 };
 
-export function ObjectivesExplorer({ objectives, summary }: Props) {
-  const [caseFilter, setCaseFilter] = useState<string>("all");
+export function ObjectivesExplorer({
+  objectives,
+  summary,
+  courseId,
+  initialCaseFilter = "all",
+}: Props) {
+  const [caseFilter, setCaseFilter] = useState<string>(initialCaseFilter);
   const [methodFilter, setMethodFilter] = useState<string>("all");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
@@ -72,19 +82,22 @@ export function ObjectivesExplorer({ objectives, summary }: Props) {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-rush-medium">
-              Regex Extracted
+              Directly Extracted
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="font-heading text-3xl font-bold text-covered-green">
               {summary.regexCount}
             </p>
+            <p className="mt-1 text-xs text-rush-medium">
+              Parsed straight from the document&apos;s own text
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-rush-medium">
-              LLM Cleanup
+              AI-Assisted
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -92,7 +105,7 @@ export function ObjectivesExplorer({ objectives, summary }: Props) {
               {summary.llmCount}
             </p>
             <p className="mt-1 text-xs text-rush-medium">
-              Only when regex misses or mangles — never rewrites
+              Only used when direct extraction misses or mangles text — never rewrites
             </p>
           </CardContent>
         </Card>
@@ -102,28 +115,57 @@ export function ObjectivesExplorer({ objectives, summary }: Props) {
         <CardHeader>
           <CardTitle>Objectives by Case</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {cases.map((c) => (
+        <CardContent className="space-y-4">
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-rush-medium">
+              View analytics
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {cases.map((c) => (
+                <Link
+                  key={c.caseNumber}
+                  href={`/courses/${courseId}/cases/${c.caseNumber}`}
+                  className="rounded-lg border px-3 py-2 text-left text-sm transition-colors hover:border-rush-green hover:bg-rush-green/5"
+                >
+                  <span className="font-medium">Case {c.caseNumber}</span>
+                  <span className="ml-2 text-rush-medium">{c.count} obj.</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-rush-medium">
+              Filter table
+            </p>
+            <div className="flex flex-wrap gap-2">
               <button
-                key={c.caseNumber}
                 type="button"
-                onClick={() =>
-                  setCaseFilter(
-                    caseFilter === String(c.caseNumber) ? "all" : String(c.caseNumber),
-                  )
-                }
+                onClick={() => setCaseFilter("all")}
                 className={cn(
-                  "rounded-lg border px-3 py-2 text-left text-sm transition-colors",
-                  caseFilter === String(c.caseNumber)
+                  "rounded-lg border px-3 py-2 text-sm transition-colors",
+                  caseFilter === "all"
                     ? "border-rush-green bg-rush-green/10"
                     : "hover:bg-gray-50",
                 )}
               >
-                <span className="font-medium">Case {c.caseNumber}</span>
-                <span className="ml-2 text-rush-medium">{c.count} obj.</span>
+                All cases
               </button>
-            ))}
+              {cases.map((c) => (
+                <button
+                  key={c.caseNumber}
+                  type="button"
+                  onClick={() => setCaseFilter(String(c.caseNumber))}
+                  className={cn(
+                    "rounded-lg border px-3 py-2 text-sm transition-colors",
+                    caseFilter === String(c.caseNumber)
+                      ? "border-rush-green bg-rush-green/10"
+                      : "hover:bg-gray-50",
+                  )}
+                >
+                  Case {c.caseNumber}
+                </button>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -157,8 +199,8 @@ export function ObjectivesExplorer({ objectives, summary }: Props) {
               className="rounded-md border px-3 py-1.5 text-sm"
             >
               <option value="all">All methods</option>
-              <option value="regex">Regex only</option>
-              <option value="llm">LLM cleanup only</option>
+              <option value="regex">Directly extracted only</option>
+              <option value="llm">AI-assisted only</option>
             </select>
           </div>
         </CardHeader>
@@ -171,6 +213,7 @@ export function ObjectivesExplorer({ objectives, summary }: Props) {
                 <th className="pb-2 pr-4">Objective</th>
                 <th className="pb-2 pr-4">Section</th>
                 <th className="pb-2 pr-4">EO Code</th>
+                <th className="pb-2 pr-4">Page/Slide</th>
                 <th className="pb-2">Method</th>
               </tr>
             </thead>
@@ -194,6 +237,9 @@ export function ObjectivesExplorer({ objectives, summary }: Props) {
                     <td className="py-3 pr-4 font-mono text-xs">
                       {obj.eoCode ?? "—"}
                     </td>
+                    <td className="py-3 pr-4 text-rush-medium whitespace-nowrap">
+                      {formatSourcePageLabel(obj.filename, obj.sourcePage) ?? "—"}
+                    </td>
                     <td className="py-3">
                       <Badge
                         className={
@@ -202,13 +248,13 @@ export function ObjectivesExplorer({ objectives, summary }: Props) {
                             : "bg-gray-100 text-rush-dark"
                         }
                       >
-                        {obj.extractionMethod === "llm_cleanup" ? "LLM" : "Regex"}
+                        {obj.extractionMethod === "llm_cleanup" ? "AI-assisted" : "Direct"}
                       </Badge>
                     </td>
                   </tr>
                   {expandedId === obj.id && (
                     <tr className="bg-gray-50">
-                      <td colSpan={6} className="px-4 py-3 text-xs text-rush-medium">
+                      <td colSpan={7} className="px-4 py-3 text-xs text-rush-medium">
                         <p>
                           <strong>Source file:</strong> {obj.filename}
                         </p>
@@ -222,7 +268,7 @@ export function ObjectivesExplorer({ objectives, summary }: Props) {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-rush-medium">
+                  <td colSpan={7} className="py-8 text-center text-rush-medium">
                     No objectives match the current filters.
                   </td>
                 </tr>

@@ -17,6 +17,7 @@ type Result = {
   section: string | null;
   content: string;
   similarity: number;
+  sourcePage?: number | null;
 };
 
 export default function SearchPage({

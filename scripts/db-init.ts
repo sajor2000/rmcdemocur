@@ -150,6 +150,10 @@ const DDL = [
   // Per-chunk marker: the alignment stage processed this chunk (whether or not
   // it produced alignment rows). Drives resume skip + completeness.
   `ALTER TABLE chunks ADD COLUMN IF NOT EXISTS aligned_at timestamptz`,
+  // Source page (PDF) / slide (PPTX) number, null for DOCX and for documents
+  // not yet reprocessed since this column was added.
+  `ALTER TABLE chunks ADD COLUMN IF NOT EXISTS source_page integer`,
+  `ALTER TABLE course_objectives ADD COLUMN IF NOT EXISTS source_page integer`,
   `CREATE TABLE IF NOT EXISTS figure_captions (
     id serial PRIMARY KEY,
     filename text NOT NULL,

@@ -11,7 +11,10 @@ const extractAndCleanObjectives = vi.hoisted(() =>
 );
 
 vi.mock("@/lib/azure-ai", () => ({ generateEmbedding, alignToFramework }));
-vi.mock("@/lib/document-parser", () => ({ parseDocument }));
+vi.mock("@/lib/document-parser", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/document-parser")>();
+  return { ...actual, parseDocument };
+});
 vi.mock("@/lib/objective-cleanup", () => ({ extractAndCleanObjectives }));
 vi.mock("@/lib/framework-rag", () => ({ retrieveKeywordCandidates }));
 // One linked media asset, csv-captioned, on chunk id 101 — the resume path
