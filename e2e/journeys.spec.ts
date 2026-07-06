@@ -160,3 +160,24 @@ test.describe("A5 — learning objectives export", () => {
     expect(body).toContain("source_page");
   });
 });
+
+test.describe("A6 — case analytics drill-down", () => {
+  test("sidebar case opens analytics with scope and drill-down links", async ({ page }) => {
+    await page.goto(COURSE);
+    await page.getByRole("link", { name: /Case 2: Jessica Donner/i }).click();
+    await expect(page.getByRole("heading", { name: /Jessica Donner/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /This case/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Entire curriculum/i })).toBeVisible();
+    await page.getByRole("button", { name: /Entire curriculum/i }).click();
+    await expect(page.getByText(/USMLE/i).first()).toBeVisible();
+    await page.getByRole("link", { name: /Learning objectives/i }).click();
+    await expect(page).toHaveURL(/\/courses\/1\/objectives\?case=2/);
+  });
+
+  test("objectives filter table does not navigate away", async ({ page }) => {
+    await page.goto(`${COURSE}/objectives`);
+    await page.getByRole("button", { name: "Case 2", exact: true }).click();
+    await expect(page).toHaveURL(`${COURSE}/objectives`);
+    await expect(page.getByRole("cell", { name: "2" }).first()).toBeVisible();
+  });
+});
