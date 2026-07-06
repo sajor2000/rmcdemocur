@@ -3,6 +3,7 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import { encode } from "gpt-tokenizer";
 import { splitIntoSections, buildChunksFromDocument, chunkText } from "@/lib/chunker";
+import { PAGE_BREAK_MARKER } from "@/lib/document-parser";
 
 const selfStudyFixture = fs.readFileSync(
   path.join(__dirname, "../fixtures/chunker/self-study-headings-snippet.txt"),
@@ -215,5 +216,24 @@ describe("buildChunksFromDocument (U2 junk filter + U3 embedText)", () => {
     const chunks = buildChunksFromDocument(text);
     expect(chunks.some((c) => c.content.includes("tiny lead-in"))).toBe(true);
     expect(chunks.every((c) => encode(c.content).length >= 40 || c.section === "Overview:")).toBe(true);
+  });
+
+  it("assigns sourcePage 1 for page-1 chunks and null when no markers", () => {
+    const withPages = buildChunksFromDocument(
+      `Activity 1: Test\n${"word ".repeat(80)}${PAGE_BREAK_MARKER}${"more ".repeat(80)}`,
+    );
+    expect(withPages.length).toBeGreaterThan(0);
+    expect(withPages[0].sourcePage).toBe(1);
+    expect(withPages.every((c) => !c.content.includes(PAGE_BREAK_MARKER))).toBe(true);
+
+    const docxLike = buildChunksFromDocument("Activity 1: Test\n" + "word ".repeat(80));
+    expect(docxLike.every((c) => c.sourcePage === null)).toBe(true);
+  });
+
+  it("assigns later sourcePage for chunks after a page marker", () => {
+    const text = `Intro\n${PAGE_BREAK_MARKER}\nActivity 1: Page two\n${"word ".repeat(80)}`;
+    const chunks = buildChunksFromDocument(text);
+    const pageTwo = chunks.find((c) => c.content.includes("Page two") || c.sourcePage === 2);
+    expect(pageTwo?.sourcePage).toBe(2);
   });
 });

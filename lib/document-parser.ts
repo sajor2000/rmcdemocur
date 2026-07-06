@@ -4,27 +4,14 @@ import mammoth from "mammoth";
 import JSZip from "jszip";
 import { DOMParser } from "@xmldom/xmldom";
 import { groupTextRunsIntoLines } from "@/lib/pdf-figure-images";
+import { PAGE_BREAK_MARKER } from "@/lib/source-page";
+
+export { PAGE_BREAK_MARKER };
 
 export type ParsedDocument = {
   text: string;
   fileType: "pdf" | "docx" | "pptx";
 };
-
-// Page/slide boundary marker inserted between pages (PDF) or slides (PPTX)
-// so lib/chunker.ts and lib/objective-extractor.ts can each independently
-// count markers up to their own text position to compute a sourcePage,
-// without a separate offset-map data structure. DOCX has no page concept and
-// never contains this marker. Never stored — every consumer strips it
-// before persisting content.
-//
-// A Unicode Private Use Area codepoint, not "\f" (form feed) -- \f is
-// whitespace per the JS spec, so a marker on its own "line" would be
-// silently deleted by String.trim() in lib/chunker.ts's sentence-splitting
-// (verified: "\f".trim() === "", and the chunker drops falsy/empty units)
-// before U4/U5 ever get to count it.  is guaranteed absent from real
-// document text, isn't whitespace, and isn't matched by any \s-based regex
-// in the chunker or objective extractor.
-export const PAGE_BREAK_MARKER = "";
 
 export async function parseDocument(
   filePath: string,

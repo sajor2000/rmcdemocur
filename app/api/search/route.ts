@@ -29,6 +29,7 @@ export async function POST(request: Request) {
       content: r.content as string,
       similarity: Number(r.similarity),
       chunkId: Number(r.id),
+      sourcePage: (r.source_page as number | null) ?? null,
     }));
 
     let answer = "Configure Azure OpenAI to generate synthesized answers.";

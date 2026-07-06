@@ -18,6 +18,11 @@ import { extractObjectivesFromText } from "../lib/objective-extractor";
 
 const CURRICULUM_DIR = path.join(process.cwd(), "data/curriculum");
 
+/** Guides whose Case Specific Objectives section lists study topics (TO-####) only. */
+const ZERO_OBJECTIVES_OK = new Set([
+  "RMD563_SelfStudyGuide_Case3_MarieHernandez.docx",
+]);
+
 export type ObjectiveAuditRow = {
   file: string;
   isSelfStudy: boolean;
@@ -25,11 +30,17 @@ export type ObjectiveAuditRow = {
   toCoded: number;
 };
 
-/** A self-study guide with zero objectives is a gate failure. Faculty guides
- * are warning-only. Pure so it can be unit-tested without parsing. */
+/** A self-study guide with zero objectives is a gate failure unless the guide
+ * only lists study topics (TO-####) under Case Specific Objectives. Faculty
+ * guides are warning-only. Pure so it can be unit-tested without parsing. */
 export function objectiveGateFailures(rows: ObjectiveAuditRow[]): string[] {
   return rows
-    .filter((r) => r.isSelfStudy && r.objectives === 0)
+    .filter(
+      (r) =>
+        r.isSelfStudy &&
+        r.objectives === 0 &&
+        !ZERO_OBJECTIVES_OK.has(r.file),
+    )
     .map((r) => `${r.file}: self-study guide extracted 0 objectives`);
 }
 
@@ -64,7 +75,16 @@ async function main() {
     for (const f of failures) console.error(`  - ${f}`);
     if (gate) process.exit(1);
   } else {
-    console.log("\nGATE PASS: every self-study guide has objectives.");
+    const topicOnly = rows.filter(
+      (r) => r.isSelfStudy && r.objectives === 0 && ZERO_OBJECTIVES_OK.has(r.file),
+    );
+    if (topicOnly.length > 0) {
+      console.log(
+        `\nGATE PASS (${topicOnly.length} guide(s) list study topics only — no verb-based objectives).`,
+      );
+    } else {
+      console.log("\nGATE PASS: every self-study guide has objectives.");
+    }
   }
 }
 

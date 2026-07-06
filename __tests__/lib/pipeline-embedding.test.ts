@@ -13,7 +13,10 @@ vi.mock("@/lib/azure-ai", () => ({
   alignToFramework: vi.fn().mockResolvedValue([]),
 }));
 
-vi.mock("@/lib/document-parser", () => ({ parseDocument }));
+vi.mock("@/lib/document-parser", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/document-parser")>();
+  return { ...actual, parseDocument };
+});
 vi.mock("@/lib/objective-cleanup", () => ({ extractAndCleanObjectives }));
 vi.mock("@/lib/framework-rag", () => ({
   retrieveKeywordCandidates: vi.fn().mockResolvedValue([]),

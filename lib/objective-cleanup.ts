@@ -1,5 +1,6 @@
 import { getAzureClient } from "@/lib/azure-ai";
 import type { ExtractedObjective } from "@/lib/objective-extractor";
+import { stripPageBreakMarkers } from "@/lib/source-page";
 import {
   extractObjectivesFromText,
   findObjectiveSections,
@@ -102,14 +103,15 @@ ${candidateBlock}`,
       (o) => normalizeForMatch(o.text) === normalizeForMatch(text),
     );
     return {
-      text,
+      text: stripPageBreakMarkers(text),
       ordinal: i + 1,
       sectionHeading: prior?.sectionHeading ?? regexCandidates[0]?.sectionHeading ?? "Learning Objectives",
       sourceLineStart: prior?.sourceLineStart ?? 0,
-      sourceExcerpt: prior?.sourceExcerpt ?? sourceExcerpt.slice(0, 2000),
+      sourceExcerpt: stripPageBreakMarkers(prior?.sourceExcerpt ?? sourceExcerpt.slice(0, 2000)),
       extractionMethod: "llm_cleanup" as const,
       confidence: "high" as const,
       eoCode: eoMatch?.[1] ?? prior?.eoCode,
+      sourcePage: prior?.sourcePage ?? null,
     };
   });
 }
@@ -123,7 +125,7 @@ export async function extractAndCleanObjectives(text: string): Promise<{
   let objectives = extractObjectivesFromText(text);
   let llmUsed = false;
 
-  if (needsLlmCleanup(objectives, sections)) {
+  if (needsLlmCleanup(objectives, sections, text)) {
     try {
       const sourceExcerpt = getSourceExcerptForCleanup(sections);
       const reason = objectives.length === 0 ? "missing" : "messy";

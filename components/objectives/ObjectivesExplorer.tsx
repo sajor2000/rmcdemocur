@@ -1,9 +1,11 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { formatSourcePageLabel } from "@/lib/source-page";
 
 export type ObjectiveRow = {
   id: number;
@@ -16,6 +18,7 @@ export type ObjectiveRow = {
   caseNumber: number;
   caseTitle: string | null;
   filename: string;
+  sourcePage: number | null;
 };
 
 export type ObjectivesSummary = {
@@ -28,10 +31,17 @@ export type ObjectivesSummary = {
 type Props = {
   objectives: ObjectiveRow[];
   summary: ObjectivesSummary;
+  courseId: number;
+  initialCaseFilter?: string;
 };
 
-export function ObjectivesExplorer({ objectives, summary }: Props) {
-  const [caseFilter, setCaseFilter] = useState<string>("all");
+export function ObjectivesExplorer({
+  objectives,
+  summary,
+  courseId,
+  initialCaseFilter = "all",
+}: Props) {
+  const [caseFilter, setCaseFilter] = useState<string>(initialCaseFilter);
   const [methodFilter, setMethodFilter] = useState<string>("all");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
@@ -105,24 +115,19 @@ export function ObjectivesExplorer({ objectives, summary }: Props) {
         <CardContent>
           <div className="flex flex-wrap gap-2">
             {cases.map((c) => (
-              <button
+              <Link
                 key={c.caseNumber}
-                type="button"
-                onClick={() =>
-                  setCaseFilter(
-                    caseFilter === String(c.caseNumber) ? "all" : String(c.caseNumber),
-                  )
-                }
+                href={`/courses/${courseId}/cases/${c.caseNumber}`}
                 className={cn(
-                  "rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                  "rounded-lg border px-3 py-2 text-left text-sm transition-colors hover:bg-gray-50",
                   caseFilter === String(c.caseNumber)
                     ? "border-rush-green bg-rush-green/10"
-                    : "hover:bg-gray-50",
+                    : "",
                 )}
               >
                 <span className="font-medium">Case {c.caseNumber}</span>
                 <span className="ml-2 text-rush-medium">{c.count} obj.</span>
-              </button>
+              </Link>
             ))}
           </div>
         </CardContent>
@@ -171,6 +176,7 @@ export function ObjectivesExplorer({ objectives, summary }: Props) {
                 <th className="pb-2 pr-4">Objective</th>
                 <th className="pb-2 pr-4">Section</th>
                 <th className="pb-2 pr-4">EO Code</th>
+                <th className="pb-2 pr-4">Page/Slide</th>
                 <th className="pb-2">Method</th>
               </tr>
             </thead>
@@ -194,6 +200,9 @@ export function ObjectivesExplorer({ objectives, summary }: Props) {
                     <td className="py-3 pr-4 font-mono text-xs">
                       {obj.eoCode ?? "—"}
                     </td>
+                    <td className="py-3 pr-4 text-rush-medium whitespace-nowrap">
+                      {formatSourcePageLabel(obj.filename, obj.sourcePage) ?? "—"}
+                    </td>
                     <td className="py-3">
                       <Badge
                         className={
@@ -208,7 +217,7 @@ export function ObjectivesExplorer({ objectives, summary }: Props) {
                   </tr>
                   {expandedId === obj.id && (
                     <tr className="bg-gray-50">
-                      <td colSpan={6} className="px-4 py-3 text-xs text-rush-medium">
+                      <td colSpan={7} className="px-4 py-3 text-xs text-rush-medium">
                         <p>
                           <strong>Source file:</strong> {obj.filename}
                         </p>
@@ -222,7 +231,7 @@ export function ObjectivesExplorer({ objectives, summary }: Props) {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-rush-medium">
+                  <td colSpan={7} className="py-8 text-center text-rush-medium">
                     No objectives match the current filters.
                   </td>
                 </tr>

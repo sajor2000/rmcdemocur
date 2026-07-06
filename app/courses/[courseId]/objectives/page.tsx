@@ -3,8 +3,10 @@ import { getCourseObjectivesSummary } from "@/lib/queries";
 
 export default async function ObjectivesPage({
   params,
+  searchParams,
 }: {
   params: { courseId: string };
+  searchParams?: { case?: string };
 }) {
   const courseId = Number(params.courseId);
   if (!Number.isFinite(courseId) || courseId <= 0) {
@@ -34,6 +36,7 @@ export default async function ObjectivesPage({
       caseNumber: r.document.caseNumber ?? 0,
       caseTitle: r.document.caseTitle,
       filename: r.document.filename,
+      sourcePage: r.objective.sourcePage,
     }));
     summary = {
       total: data.total,
@@ -67,9 +70,29 @@ export default async function ObjectivesPage({
           LLM cleanup runs only when regex misses objectives or produces garbled output —
           it never rewrites or fabricates objectives.
         </p>
+        <div className="mt-3 flex flex-wrap gap-2 text-sm">
+          <span className="text-rush-medium">Download dataset:</span>
+          <a
+            href={`/api/courses/${courseId}/objectives/export?format=csv`}
+            className="rounded border px-3 py-1 hover:bg-gray-50"
+          >
+            CSV (spreadsheet)
+          </a>
+          <a
+            href={`/api/courses/${courseId}/objectives/export?format=json`}
+            className="rounded border px-3 py-1 hover:bg-gray-50"
+          >
+            JSON
+          </a>
+        </div>
       </div>
 
-      <ObjectivesExplorer objectives={objectives} summary={summary} />
+      <ObjectivesExplorer
+        objectives={objectives}
+        summary={summary}
+        courseId={courseId}
+        initialCaseFilter={searchParams?.case ?? "all"}
+      />
     </div>
   );
 }

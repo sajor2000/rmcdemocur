@@ -200,6 +200,7 @@ export async function runFullPipeline(options: {
           extractionMethod: obj.extractionMethod,
           confidence: obj.confidence,
           sourceExcerpt: obj.sourceExcerpt.slice(0, 500),
+          sourcePage: obj.sourcePage ?? null,
         });
       }
       const objMsg =
@@ -255,6 +256,7 @@ export async function runFullPipeline(options: {
               chunkIndex: item.chunkIndex,
               section: item.section,
               content: item.content,
+              sourcePage: item.sourcePage ?? null,
             })
             .returning({ id: chunks.id });
           insertedChunkIds.push(row.id);

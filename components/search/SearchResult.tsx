@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { formatSourcePageLabel } from "@/lib/source-page";
 import { confidenceBadgeClass } from "@/lib/utils";
 
 type Props = {
@@ -7,6 +8,7 @@ type Props = {
     section: string | null;
     content: string;
     similarity: number;
+    sourcePage?: number | null;
   };
   query: string;
 };
@@ -26,10 +28,13 @@ export function SearchResult({ result, query }: Props) {
     );
   };
 
+  const pageLabel = formatSourcePageLabel(result.filename, result.sourcePage ?? null);
+
   return (
     <div className="rounded-lg border bg-white p-4 shadow-sm">
       <p className="text-xs text-rush-medium">
         {result.filename} › {result.section ?? "Section"}
+        {pageLabel ? ` · ${pageLabel}` : ""}
       </p>
       <p className="mt-2 text-sm">{highlight(result.content.slice(0, 300))}</p>
       <div className="mt-3 flex gap-2">
