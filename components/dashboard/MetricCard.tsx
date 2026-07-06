@@ -75,7 +75,7 @@ export function AamcBarChart({
               interval={0}
             />
             <Tooltip />
-            <Bar dataKey="percent" fill="#00843D" radius={4} />
+            <Bar dataKey="percent" fill="#006837" radius={4} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

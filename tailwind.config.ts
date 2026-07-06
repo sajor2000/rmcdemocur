@@ -24,8 +24,10 @@ const config: Config = {
       // built-in gray/neutral scale, never a new decorative color.
       colors: {
         rush: {
-          green: "#00843D",
-          "green-dark": "#006B30",
+          // Matches the official Rush wordmark / emblem asset (rush-logo.png).
+          green: "#006837",
+          "green-dark": "#004d28",
+          black: "#000000",
           dark: "#353535",
           medium: "#494949",
           light: "#f5f5f5",
