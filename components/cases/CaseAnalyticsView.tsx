@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { CoverageSpectrum } from "@/components/coverage/CoverageSpectrum";
 import { MethodExplainer } from "@/components/coverage/MethodExplainer";
 import { CASE_SCOPE_NOTE } from "@/lib/coverage";
-import type { CaseAnalyticsData } from "@/lib/queries";
+import type { CaseAnalyticsData, CaseLensKey } from "@/lib/queries";
 import { CaseScopeBar, type CaseScopeKey } from "@/components/cases/CaseScopeBar";
+import { CaseDocumentLens } from "@/components/cases/CaseDocumentLens";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -24,15 +25,23 @@ const HEATMAP_COLORS: Record<string, string> = {
 
 export function CaseAnalyticsView({ courseId, data }: Props) {
   const [scope, setScope] = useState<CaseScopeKey>("case");
-  const { case: caseMeta, documents, objectives, alignments, scopes, heatmap, targetSystems } =
-    data;
+  const [documentLens, setDocumentLens] = useState<CaseLensKey>("all");
+  const { case: caseMeta, documents, scopes, targetSystems, lenses } = data;
+
+  const caseLens = lenses[documentLens];
+  const objectives = caseLens.objectives;
+  const alignments = caseLens.alignments;
+  const heatmap = caseLens.heatmap;
 
   const activeSpectrum =
     scope === "case"
-      ? { usmle: scopes.case.usmle, aamc: scopes.case.aamc }
+      ? { usmle: caseLens.usmle, aamc: caseLens.aamc }
       : scope === "module"
         ? { usmle: scopes.module.usmle, aamc: scopes.module.aamc }
         : { usmle: scopes.entire.usmle, aamc: scopes.entire.aamc };
+
+  const hasFaculty = documents.some((d) => d.guideKind === "faculty");
+  const hasSelfStudy = documents.some((d) => d.guideKind === "self_study");
 
   const base = `/courses/${courseId}`;
 
@@ -75,6 +84,21 @@ export function CaseAnalyticsView({ courseId, data }: Props) {
         moduleLabel={caseMeta.module}
         onChange={setScope}
       />
+
+      {scope === "case" && (
+        <CaseDocumentLens
+          lens={documentLens}
+          onChange={setDocumentLens}
+          hasFaculty={hasFaculty}
+          hasSelfStudy={hasSelfStudy}
+        />
+      )}
+
+      {scope === "case" && documentLens !== "all" && (
+        <p className="-mt-2 text-xs text-rush-medium">
+          Faculty guide = in-class case materials; self-study = pre-session guides.
+        </p>
+      )}
 
       {scope === "module" && (
         <p className="-mt-2 text-xs text-rush-medium">
@@ -194,14 +218,14 @@ export function CaseAnalyticsView({ courseId, data }: Props) {
         </Card>
       )}
 
-      {scope === "case" && scopes.case.topTopics.length > 0 && (
+      {scope === "case" && caseLens.topTopics.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Top framework topics (this case)</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2 text-sm">
-              {scopes.case.topTopics.map((t) => (
+              {caseLens.topTopics.map((t) => (
                 <li key={t.label} className="flex justify-between gap-4">
                   <span className="truncate">{t.label}</span>
                   <span className="shrink-0 text-rush-medium">{t.chunks} passages</span>

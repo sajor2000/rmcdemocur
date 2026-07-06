@@ -115,23 +115,57 @@ export function ObjectivesExplorer({
         <CardHeader>
           <CardTitle>Objectives by Case</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {cases.map((c) => (
-              <Link
-                key={c.caseNumber}
-                href={`/courses/${courseId}/cases/${c.caseNumber}`}
+        <CardContent className="space-y-4">
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-rush-medium">
+              View analytics
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {cases.map((c) => (
+                <Link
+                  key={c.caseNumber}
+                  href={`/courses/${courseId}/cases/${c.caseNumber}`}
+                  className="rounded-lg border px-3 py-2 text-left text-sm transition-colors hover:border-rush-green hover:bg-rush-green/5"
+                >
+                  <span className="font-medium">Case {c.caseNumber}</span>
+                  <span className="ml-2 text-rush-medium">{c.count} obj.</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-rush-medium">
+              Filter table
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setCaseFilter("all")}
                 className={cn(
-                  "rounded-lg border px-3 py-2 text-left text-sm transition-colors hover:bg-gray-50",
-                  caseFilter === String(c.caseNumber)
+                  "rounded-lg border px-3 py-2 text-sm transition-colors",
+                  caseFilter === "all"
                     ? "border-rush-green bg-rush-green/10"
-                    : "",
+                    : "hover:bg-gray-50",
                 )}
               >
-                <span className="font-medium">Case {c.caseNumber}</span>
-                <span className="ml-2 text-rush-medium">{c.count} obj.</span>
-              </Link>
-            ))}
+                All cases
+              </button>
+              {cases.map((c) => (
+                <button
+                  key={c.caseNumber}
+                  type="button"
+                  onClick={() => setCaseFilter(String(c.caseNumber))}
+                  className={cn(
+                    "rounded-lg border px-3 py-2 text-sm transition-colors",
+                    caseFilter === String(c.caseNumber)
+                      ? "border-rush-green bg-rush-green/10"
+                      : "hover:bg-gray-50",
+                  )}
+                >
+                  Case {c.caseNumber}
+                </button>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
