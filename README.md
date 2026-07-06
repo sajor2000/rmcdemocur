@@ -7,7 +7,8 @@ Maps faculty guides and self-study materials to the official **AAMC PCRS (2013 �
 > Framework provenance: PCRS is the 2013 AAMC Physician Competency Reference Set (the AAMC Curriculum Inventory mapping standard); its successor "Foundational Competencies for UME" was released Dec 2024. Competency/EPA text is committed as attributed authority JSON under `data/frameworks/` (see `aamc-pcrs-2013.json`, `aamc-core-epas.json`).
 
 **Repository:** [github.com/sajor2000/rmcdemocur](https://github.com/sajor2000/rmcdemocur)  
-**Default branch:** `main`
+**Default branch:** `main`  
+**Demo:** [rushmap-ai.vercel.app](https://rushmap-ai.vercel.app/courses/1) (requires populated Neon DB)
 
 ---
 
@@ -15,16 +16,20 @@ Maps faculty guides and self-study materials to the official **AAMC PCRS (2013 �
 
 | Area | Route | Description |
 |------|-------|-------------|
-| Landing | `/` | Hero, stats, Rush branding |
+| Landing | `/` | Hero, live stats, Rush branding |
+| Program | `/program` | M1 curriculum coverage rollup, intensity spectrum, CSV exports |
 | Upload | `/upload` | Drag-drop upload with SSE processing status |
 | Dashboard | `/courses/1` | Metrics, AAMC bar chart, USMLE heatmap, recent alignments |
-| Curriculum map | `/courses/1/map` | Tri-directional trees, case filters (1–7), alignment drawer |
-| Learning objectives | `/courses/1/objectives` | Regex extraction + optional LLM cleanup; filter by case, confidence, section |
-| Gap analysis | `/courses/1/gaps` | Gap cards, coverage table, CSV export |
+| Curriculum map | `/courses/1/map` | Tri-directional trees, case filters (1–7), alignment drawer, figures |
+| Case analytics | `/courses/1/cases/{1–7}` | Per-case coverage, faculty vs self-study lens, drill-down links |
+| Learning objectives | `/courses/1/objectives` | Regex extraction + optional LLM cleanup; filters; CSV export |
+| Gap analysis | `/courses/1/gaps` | Gap cards, intensity coverage table, CSV export |
 | Search | `/courses/1/search` | Natural-language Q&A with cited chunks |
 | About | `/about` | Product explainer |
 
-Human-in-the-loop: alignments can be **approved** or **rejected** from the map drawer.
+Human-in-the-loop: alignments can be **approved** or **rejected** from the map drawer. Faculty review checklist: [docs/DEMO_REVIEW.md](docs/DEMO_REVIEW.md).
+
+**Brand:** Official Rush wordmark in `public/rush-logo.png` — forest green (`#006837`) on black header/footer chrome.
 
 ---
 
@@ -147,7 +152,7 @@ Framework binaries live under `data/frameworks/` (see `npm run copy:frameworks`)
 |---------|-------------|
 | `npm run dev` | Start dev server |
 | `npm run build` | Production build |
-| `npm test` | Vitest unit tests |
+| `npm test` | Vitest unit tests (315+) |
 | `npm run setup` | Full local bootstrap (files → seed → process) |
 | `npm run setup:files` | Copy curriculum + framework files only |
 | `npm run copy:frameworks` | Copy USMLE/AAMC authority files |
@@ -169,14 +174,15 @@ Framework binaries live under `data/frameworks/` (see `npm run copy:frameworks`)
 
 ```
 app/                  Next.js routes and API handlers
-components/           UI (map, gaps, objectives, layout)
+components/           UI (map, gaps, objectives, program, layout)
 drizzle/              Schema and migrations
-lib/                  Pipeline, parsers, Azure AI, objective extraction
-scripts/              Seed, process, and setup CLIs
+lib/                  Pipeline, parsers, Azure AI, coverage, exports
+scripts/              Seed, process, bootstrap, and audit CLIs
+public/               Static assets (rush-logo.png)
 data/                 Local curriculum + frameworks (gitignored binaries)
-AGENTS.md             Canonical agent entry — read order, git/CE policy ([CLAUDE.md](CLAUDE.md) points here)
+AGENTS.md             Canonical agent entry — read order, git/CE policy
 CONCEPTS.md           Domain vocabulary
-docs/                 Architecture, schema, plans, solutions, ideation
+docs/                 Architecture, schema, plans, solutions, contributing
 ```
 
 ---
@@ -200,10 +206,12 @@ docs/                 Architecture, schema, plans, solutions, ideation
 | [docs/solutions/](docs/solutions/) | Searchable learnings from past fixes (bugs, conventions, workflow) |
 | [CONCEPTS.md](CONCEPTS.md) | Shared domain vocabulary for bootstrap, pipeline, and curriculum terms |
 | [docs/plans/](docs/plans/) | Implementation plans |
-| [docs/ideation/](docs/ideation/) | Curriculum map UX ideation |
+| [docs/ideation/](docs/ideation/) | Curriculum map UX ideation (historical snapshots) |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Git workflow, quality gates, branch hygiene |
+| [docs/DEMO_REVIEW.md](docs/DEMO_REVIEW.md) | Faculty stakeholder sanity-check checklist |
 
 ---
 
 ## Branches
 
-**`main`** is the only active branch. Feature work is merged via pull request.
+**`main`** is the production branch. Feature work branches from `main` and merges via pull request. Delete merged branches after push — see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).

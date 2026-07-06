@@ -110,6 +110,11 @@ Framework parsers ([`lib/framework-parsers.ts`](../lib/framework-parsers.ts)) ar
 | `GET` | `/api/courses/{courseId}/summary` | Dashboard metrics |
 | `GET` | `/api/courses/{courseId}/map` | Chunks, alignments, framework trees |
 | `GET` | `/api/courses/{courseId}/objectives` | Objectives grouped by document/case |
+| `GET` | `/api/courses/{courseId}/objectives/export` | Learning objectives CSV |
+| `GET` | `/api/program/export` | Program coverage CSV |
+| `GET` | `/api/program/objectives/export` | Program objectives CSV (`?module=M1\|all`) |
+| `GET` | `/api/courses/{courseId}/cases/{caseNumber}/analytics` | Per-case analytics payload |
+| `GET` | `/api/media/{assetId}` | Serve extracted figure binary (Blob or local) |
 | `GET` | `/api/courses/{courseId}/export` | Gap report CSV |
 | `POST` | `/api/search` | Vector search + cited AI answer (rate limited) |
 | `POST` | `/api/upload` | Save file to `data/curriculum/`, create job |
@@ -130,10 +135,14 @@ Framework parsers ([`lib/framework-parsers.ts`](../lib/framework-parsers.ts)) ar
 
 | Path | Component area | Data source |
 |------|----------------|-------------|
+| `/` | Landing hero, live stats | `getCourseSummary` |
+| `/program` | Program coverage rollup, exports | `getProgramSummary` |
+| `/about` | Product explainer | Static |
 | `/courses/{id}` | Dashboard metrics, heatmap | `getCourseSummary` |
 | `/courses/{id}/map` | Curriculum + framework trees | `GET .../map` |
-| `/courses/{id}/objectives` | Filterable objectives table | `getCourseObjectivesSummary` |
-| `/courses/{id}/gaps` | Gap cards + coverage table | `getCourseSummary`, `getGapExportRows` |
+| `/courses/{id}/cases/{n}` | Case analytics, document lens | `GET .../cases/{n}/analytics` |
+| `/courses/{id}/objectives` | Filterable objectives table + CSV link | `getCourseObjectivesSummary` |
+| `/courses/{id}/gaps` | Gap cards + intensity coverage table | `getCourseSummary`, `getGapExportRows` |
 | `/courses/{id}/search` | NL Q&A | `POST /api/search` |
 | `/upload` | Drop zone + SSE status | Upload API |
 
@@ -161,7 +170,11 @@ Pages require a seeded database — empty DB shows bootstrap instructions instea
 | `lib/objective-cleanup.ts` | Optional LLM cleanup + merge |
 | `lib/azure-ai.ts` | Embeddings, alignment, search synthesis |
 | `lib/framework-parsers.ts` | USMLE PDF + AAMC xlsx → JSON |
-| `lib/gap-analyzer.ts` | Coverage status derivation |
+| `lib/coverage.ts` | Canonical intensity coverage model + distribution |
+| `lib/coverage-export.ts` | Coverage CSV serializer |
+| `lib/objectives-export.ts` | Objectives CSV serializer |
+| `lib/course-scope.ts` | Organ-scoped USMLE filters, module codes |
+| `lib/gap-analyzer.ts` | Gap card suggested actions (coverage counts from `lib/coverage.ts`) |
 
 ---
 

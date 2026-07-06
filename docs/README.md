@@ -3,7 +3,7 @@
 Central index for architecture, schema, plans, and bootstrap.
 
 **Production branch:** `main`  
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-06
 
 ---
 
@@ -17,6 +17,8 @@ Central index for architecture, schema, plans, and bootstrap.
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | How the app works — pipeline, APIs, modules, data flow |
 | [SCHEMA.md](./SCHEMA.md) | Postgres tables, relationships, bootstrap order |
 | [solutions/README.md](./solutions/README.md) | Index of documented fixes and conventions |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | Git workflow, quality gates, branch hygiene |
+| [DEMO_REVIEW.md](./DEMO_REVIEW.md) | Faculty stakeholder demo sanity-check list |
 | [../.env.local.example](../.env.local.example) | Required environment variables |
 
 ---
@@ -40,7 +42,12 @@ Central index for architecture, schema, plans, and bootstrap.
 | [2026-07-04-003 — Page-journey audit](plans/2026-07-04-003-feat-page-journey-audit-plan.md) | Done | Manual QA pass (PR #13) → fixes landed in #14, #15, #16 |
 | [2026-07-05-001 — Program view + map UX](plans/2026-07-05-001-feat-program-view-and-map-ux-plan.md) | Done | Program view, selection-linked map, P3 polish — PR #17, #19–#21 |
 | [2026-07-05-002 — Intensity coverage model](plans/2026-07-05-002-feat-intensity-coverage-model-plan.md) | Done | Introduced→Reinforced→Mastered model, program+course+gaps — PR #20, #21, #23–#26 |
-| [2026-07-05-003 — Demo-readiness coverage/visual audit](plans/2026-07-05-003-fix-demo-readiness-coverage-visual-audit-plan.md) | Partial | PR #27 distinguishes the two coverage methodologies; gap_summary retirement, editorial visual redesign, and visual-regression baselines in progress |
+| [2026-07-05-003 — Demo-readiness coverage/visual audit](plans/2026-07-05-003-fix-demo-readiness-coverage-visual-audit-plan.md) | Done | Unified coverage engine, editorial visual redesign, Playwright baselines — PR #35, #39 |
+| [2026-07-05-004 — Source page numbers](plans/2026-07-05-004-feat-source-page-numbers-plan.md) | Done | PDF/PPTX page threading to chunks and objectives — PR #40 |
+| [2026-07-05-005 — Objectives CSV export](plans/2026-07-05-005-feat-objectives-csv-export-plan.md) | Done | Course + program objectives export — PR #40 |
+| [2026-07-05-006 — Case analytics drill-down](plans/2026-07-05-006-feat-case-analytics-drilldown-plan.md) | Done | Per-case analytics, faculty/self-study lens — PR #40 |
+| [2026-07-06-001 — Case analytics completion](plans/2026-07-06-001-feat-case-analytics-completion-plan.md) | Done | Merged into case analytics drill-down work — PR #40 |
+| Brand refresh | Done | Official Rush logo + black chrome — PR #41 |
 | Objectives + upload hardening | Done | Merged via PR #2 |
 
 ---

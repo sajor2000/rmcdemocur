@@ -36,22 +36,27 @@ Full spec: `docs/plans/2026-07-05-002-feat-intensity-coverage-model-plan.md`.
 
 ---
 
-## Current state (feature branch)
+## Current state (`main`)
 
-Active branch: `feat/worldclass-chunking-goal-accuracy` (PR → `main`). Recent shipped work on this branch:
+Production demo on **`main`** (course id **1**, 14 documents, 7 cases). Shipped capabilities:
 
 | Area | Status | Notes |
 |------|--------|-------|
 | Semantic chunking | Shipped | Section-aware splitter, ToC/junk filter, heading breadcrumbs in `embedText` |
-| Pipeline hardening | Shipped | Per-document failure isolation; Case 2 faculty guide fixed (PDF, not corrupt DOCX) |
-| Framework authority | Shipped | Real AAMC PCRS 2013 + Core EPAs JSON; stub catalog removed |
+| Framework authority | Shipped | AAMC PCRS 2013 + Core EPAs JSON; USMLE 2025 parser |
+| Intensity coverage | Shipped | Document-count spectrum — `lib/coverage.ts` is canonical everywhere |
+| Program view | Shipped | `/program` — M1 rollup, coverage + objectives CSV exports |
+| Case analytics | Shipped | `/courses/1/cases/{n}` — faculty/self-study lens, drill-down |
+| Objectives export | Shipped | Course + program CSV via `/objectives` and `/program` |
+| Source pages | Shipped | PDF/PPTX page numbers on chunks and objectives where available |
+| Image ingestion | Shipped | Faculty DOCX + self-study + PDF figures; map drawer previews; Vercel Blob in prod |
 | Auth | Shipped | Optional `API_SECRET` — all `/api/*` require Bearer or HMAC session cookie |
-| Retrieval floors | Shipped | `RETRIEVAL_MAX_DISTANCE` / `SEARCH_MIN_SIMILARITY` (calibrate via `scripts/calibrate-thresholds.ts`) |
-| Image ingestion (MVP) | Shipped | Figure registry, faculty DOCX extract, map drawer previews, `media_assets` schema |
-| Concept Bridge graph | Deferred | Plan 006 — spreadsheet/graph UX on `/map` not built yet |
-| Image Full phase | Deferred | Plan 009 U8–U10 — self-study extract, PDF raster, vision OCR |
+| Retrieval floors | Shipped | `RETRIEVAL_MAX_DISTANCE` / `SEARCH_MIN_SIMILARITY` — calibrate via `scripts/calibrate-thresholds.ts` |
+| Brand | Shipped | Official Rush logo (`public/rush-logo.png`), black chrome, `#006837` green |
+| Concept Bridge graph | Deferred | Original spreadsheet/graph UX on `/map` not built — selection-linked highlighting instead |
+| Visual regression | Partial | Playwright baselines exist; refresh after UI changes (`e2e/visual.spec.ts`) |
 
-Demo course id is **1**. Curriculum files live under `data/curriculum/` (gitignored). Full plan status: [docs/README.md](docs/README.md).
+Curriculum files live under `data/curriculum/` (gitignored). Full plan status: [docs/README.md](docs/README.md). Faculty review checklist: [docs/DEMO_REVIEW.md](docs/DEMO_REVIEW.md).
 
 ---
 
@@ -63,6 +68,7 @@ Demo course id is **1**. Curriculum files live under `data/curriculum/` (gitigno
 | 2 | [docs/README.md](docs/README.md) | Doc index, plan status, bootstrap checklist |
 | 3 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Pipeline stages, API routes, module map |
 | 4 | [docs/SCHEMA.md](docs/SCHEMA.md) | Postgres tables and framework ID conventions |
+| 5 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Git workflow, branch hygiene, quality gates |
 
 Before debugging bootstrap, pipeline, chunking, or media: search [docs/solutions/](docs/solutions/) by `module`, `tags`, or `problem_type` in YAML frontmatter.
 
@@ -81,12 +87,14 @@ lib/              Pipeline, parsers, chunker, Azure AI, bootstrap state, media l
   pipeline.ts     Parse → chunk → embed → align (+ media upsert/link)
 scripts/          CLIs — bootstrap, seed, process, audit, extract-media, calibrate-thresholds
 drizzle/          Schema (documents, chunks, alignments, media_assets, chunk_media, frameworks)
-__tests__/        Vitest — mirror lib/ and scripts/ coverage (120 tests)
+__tests__/        Vitest — mirror lib/ and scripts/ coverage (315+ tests)
 docs/
   ARCHITECTURE.md SCHEMA.md   Engineering truth
+  CONTRIBUTING.md DEMO_REVIEW.md  Workflow + faculty checklist
   plans/                      Implementation plans (ce-plan / ce-work)
   solutions/                  Past fixes and conventions (ce-compound)
-  ideation/                   UX exploration HTML
+  ideation/                   UX exploration HTML (historical)
+public/           Static assets (rush-logo.png)
 data/             Local only (gitignored) — curriculum copies, frameworks, media binaries, bootstrap state
 .compound-engineering/
   config.example.yaml         Committed template
@@ -98,7 +106,7 @@ data/             Local only (gitignored) — curriculum copies, frameworks, med
 ## Commands (common)
 
 ```bash
-npm test                          # Vitest (120 tests) — run after lib/ or scripts/ changes
+npm test                          # Vitest (315+ tests) — run after lib/ or scripts/ changes
 npm run lint
 npm run db:push                   # Push Drizzle schema to Neon
 npm run db:bootstrap:smoke        # Case 1 gate (schema + Azure + verify)
@@ -169,7 +177,7 @@ After a `ce-code-review` or `ce-work` session: commit new/updated plans and opti
 - Curriculum PDFs/DOCX, framework PDFs, and extracted media live under `data/` locally — not in git.
 - Framework **authority text** is committed as attributed JSON under `data/frameworks/` (`aamc-pcrs-2013.json`, `aamc-core-epas.json`) — the source `loadAamcPcrsCatalog` reads. `data/frameworks/parsed/` is a regenerated debug dump, not the authority.
 - Upload SSE and API auth have special cases — read `docs/ARCHITECTURE.md` before changing middleware or upload routes.
-- Do not commit regenerated framework JSON or ideation HTML unless the user asks — check `git status` before staging.
+- Rush logo: `public/rush-logo.png` (official wordmark; do not commit regenerated framework PDFs or ideation HTML unless asked)
 
 ---
 
