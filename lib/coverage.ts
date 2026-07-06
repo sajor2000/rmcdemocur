@@ -183,3 +183,7 @@ export function heatmapTakeaway(
  */
 export const METHOD_NOTE =
   "Coverage is AI-assisted: curriculum passages are aligned to framework topics, then a topic's level is the number of distinct course documents that address it (Introduced 1, Reinforced 2-3, Strong 4-7, Heavily covered 8+; none = gap). AI alignments support, and require, faculty review.";
+
+/** Shown on case-scoped analytics — at most two documents per case, so spectra are thin by design. */
+export const CASE_SCOPE_NOTE =
+  "At case scope, a topic appears in at most two documents (faculty + self-study). Read Introduced/Reinforced counts as contribution breadth; the organ-system heatmap strip shows how widely this case touches each system.";

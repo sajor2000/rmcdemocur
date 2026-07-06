@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Slider } from "@/components/ui/slider";
 import { CurriculumTree } from "@/components/map/CurriculumTree";
 import { FrameworkTree } from "@/components/map/FrameworkTree";
@@ -18,6 +19,8 @@ type Alignment = {
 };
 
 export default function MapPage({ params }: { params: { courseId: string } }) {
+  const searchParams = useSearchParams();
+  const initialCase = searchParams.get("case");
   const [data, setData] = useState<{
     documents: { id: number; caseNumber: number | null; caseTitle: string | null }[];
     chunks: { chunk: { id: number; section: string | null; content: string; documentId: number | null }; document: { caseNumber: number | null; caseTitle: string | null } }[];
@@ -43,7 +46,9 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
   } | null>(null);
   const [selectedChunkId, setSelectedChunkId] = useState<number | null>(null);
   const [selectedFrameworkId, setSelectedFrameworkId] = useState<string | null>(null);
-  const [caseFilter, setCaseFilter] = useState<string>("all");
+  const [caseFilter, setCaseFilter] = useState<string>(
+    initialCase && initialCase !== "all" ? initialCase : "all",
+  );
   const [frameworkFilter, setFrameworkFilter] = useState<string>("all");
   const [confidenceMin, setConfidenceMin] = useState(0.5);
   const [keywordFilter, setKeywordFilter] = useState<string>("all");
@@ -59,7 +64,7 @@ export default function MapPage({ params }: { params: { courseId: string } }) {
   // Alignments passing the filters (case/framework/confidence) — the pool the
   // map reasons over, independent of the current selection.
   const baseAlignments =
-    data?.alignments.filter((a) => {
+    (data?.alignments ?? []).filter((a) => {
       const conf = Number(a.alignment.confidence ?? 0);
       if (conf < confidenceMin) return false;
       if (frameworkFilter === "AAMC" && !a.alignment.framework?.startsWith("AAMC"))

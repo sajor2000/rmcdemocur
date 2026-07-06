@@ -20,7 +20,12 @@ import {
 } from "@/lib/course-scope";
 import { distribution, heatmapCellStatus, type CoverageDist } from "@/lib/coverage";
 import { type CoverageExportRow } from "@/lib/coverage-export";
+import {
+  sortObjectivesExportRows,
+  type ObjectivesExportRow,
+} from "@/lib/objectives-export";
 import { passesSimilarity, resolveMinSimilarity } from "@/lib/retrieval-config";
+import { inferGuideKind } from "@/lib/media-types";
 
 /**
  * Map raw (case, system, domains_touched) rows to heatmap cells via
@@ -824,5 +829,247 @@ export async function getCourseObjectivesSummary(courseId: number) {
     llmCount,
     byCase: Array.from(byCase.values()).sort((a, b) => a.caseNumber - b.caseNumber),
     rows,
+  };
+}
+
+export async function getObjectivesExportRows(opts: {
+  courseId?: number;
+  module?: string;
+}): Promise<ObjectivesExportRow[]> {
+  const db = getDb();
+  const conditions = [];
+  if (opts.courseId != null) {
+    conditions.push(eq(documents.courseId, opts.courseId));
+  }
+
+  const raw = await db
+    .select({
+      objective: courseObjectives,
+      document: documents,
+      course: courses,
+    })
+    .from(courseObjectives)
+    .innerJoin(documents, eq(documents.id, courseObjectives.documentId))
+    .innerJoin(courses, eq(courses.id, documents.courseId))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(courses.code, documents.caseNumber, courseObjectives.ordinal);
+
+  let rows: ObjectivesExportRow[] = raw.map((r) => ({
+    module: courseModule(r.course.code),
+    courseCode: r.course.code,
+    courseTitle: r.course.title,
+    caseNumber: r.document.caseNumber ?? 0,
+    caseTitle: r.document.caseTitle,
+    ordinal: r.objective.ordinal ?? 0,
+    objectiveCode: r.objective.eoCode,
+    objective: r.objective.text,
+    section: r.objective.sectionHeading,
+    extractionMethod: r.objective.extractionMethod,
+    confidence: r.objective.confidence,
+    sourceFilename: r.document.filename,
+    sourcePage: r.objective.sourcePage,
+    sourceExcerpt: r.objective.sourceExcerpt,
+    objectiveId: r.objective.id,
+    documentId: r.document.id,
+  }));
+
+  if (opts.module && opts.module !== "all") {
+    rows = rows.filter((row) => row.module === opts.module);
+  }
+
+  return sortObjectivesExportRows(rows);
+}
+
+export type CaseAnalyticsData = {
+  case: { number: number; title: string | null; diagnosis: string | null; module: string };
+  documents: { id: number; filename: string; guideKind: "faculty" | "self_study" }[];
+  objectives: { total: number; regex: number; llm: number };
+  alignments: { total: number; reviewed: number; avgConfidence: number };
+  scopes: {
+    case: {
+      usmle: CoverageDist;
+      aamc: CoverageDist;
+      topTopics: { label: string; framework: string; chunks: number }[];
+    };
+    module: { label: string; usmle: CoverageDist; aamc: CoverageDist };
+    entire: { usmle: CoverageDist; aamc: CoverageDist };
+  };
+  heatmap: { system: string; status: ReturnType<typeof heatmapCellStatus> }[];
+  targetSystems: string[] | null;
+};
+
+/** One heatmap row for a single case — pure, exported for tests. */
+export function filterHeatmapForCase(
+  heatmap: { caseNumber: number; system: string; status: ReturnType<typeof heatmapCellStatus> }[],
+  caseNumber: number,
+): { system: string; status: ReturnType<typeof heatmapCellStatus> }[] {
+  return heatmap
+    .filter((h) => h.caseNumber === caseNumber)
+    .map(({ system, status }) => ({ system, status }));
+}
+
+/** Sidebar list: one row per case_number, faculty title preferred. */
+export function dedupeCaseList<
+  T extends { caseNumber: number | null; caseTitle: string | null; filename: string },
+>(docs: T[]): T[] {
+  const byCase = new Map<number, T>();
+  for (const d of docs) {
+    const n = d.caseNumber ?? 0;
+    if (n <= 0) continue;
+    const existing = byCase.get(n);
+    if (!existing || d.filename.includes("FacultyGuide")) {
+      byCase.set(n, d);
+    }
+  }
+  return Array.from(byCase.values()).sort((a, b) => (a.caseNumber ?? 0) - (b.caseNumber ?? 0));
+}
+
+export async function getCaseAnalytics(
+  courseId: number,
+  caseNumber: number,
+): Promise<CaseAnalyticsData | null> {
+  const { course, documents: allDocs } = await getCourseWithDocuments(courseId);
+  if (!course) return null;
+
+  const caseDocs = allDocs.filter((d) => d.caseNumber === caseNumber);
+  if (caseDocs.length === 0) return null;
+
+  const primaryDoc =
+    caseDocs.find((d) => d.filename.includes("FacultyGuide")) ?? caseDocs[0];
+  const moduleLabel = courseModule(course.code);
+  const targetSystems = courseTargetSystems(course.code);
+  const sysList = targetSystems
+    ? sql.join(targetSystems.map((s) => sql`${s}`), sql`, `)
+    : null;
+
+  const [
+    program,
+    courseSummary,
+    caseStats,
+    usmleDocRows,
+    aamcTotal,
+    aamcDocRows,
+    topTopicRows,
+    objectiveRows,
+  ] = await Promise.all([
+    getProgramSummary(),
+    getCourseSummary(courseId),
+    getDb().execute(sql`
+      SELECT AVG(a.confidence::numeric) as avg_confidence,
+             COUNT(*)::int as total,
+             COUNT(*) FILTER (WHERE a.status IN ('approved','rejected'))::int as reviewed
+      FROM alignments a
+      JOIN chunks c ON c.id = a.chunk_id
+      JOIN documents d ON d.id = c.document_id
+      WHERE d.course_id = ${courseId} AND d.case_number = ${caseNumber}
+    `),
+    getDb().execute(sql`
+      SELECT COUNT(DISTINCT c.document_id)::int AS docs
+      FROM alignments a
+      JOIN chunks c ON c.id = a.chunk_id
+      JOIN documents d ON d.id = c.document_id
+      ${targetSystems ? sql`JOIN usmle_domains ud ON ud.stable_id = a.framework_id` : sql``}
+      WHERE d.course_id = ${courseId} AND d.case_number = ${caseNumber} AND a.framework = 'USMLE'
+        ${sysList ? sql`AND ud.domain IN (${sysList})` : sql``}
+      GROUP BY a.framework_id
+    `),
+    getDb().select().from(aamcCompetencies),
+    getDb().execute(sql`
+      SELECT COUNT(DISTINCT c.document_id)::int AS docs
+      FROM alignments a
+      JOIN chunks c ON c.id = a.chunk_id
+      JOIN documents d ON d.id = c.document_id
+      WHERE d.course_id = ${courseId} AND d.case_number = ${caseNumber}
+        AND a.framework IN ('AAMC_PCRS','AAMC_EPA')
+      GROUP BY a.framework_id
+    `),
+    getDb().execute(sql`
+      SELECT MIN(a.framework_label) AS label,
+             MIN(a.framework) AS framework,
+             COUNT(DISTINCT a.chunk_id)::int AS chunks
+      FROM alignments a
+      JOIN chunks c ON c.id = a.chunk_id
+      JOIN documents d ON d.id = c.document_id
+      WHERE d.course_id = ${courseId} AND d.case_number = ${caseNumber}
+      GROUP BY a.framework_id
+      ORDER BY chunks DESC
+      LIMIT 8
+    `),
+    getCourseObjectives(courseId),
+  ]);
+
+  const stats = caseStats.rows[0] as {
+    avg_confidence: string | null;
+    total: number;
+    reviewed: number;
+  };
+
+  const usmleTotal = courseSummary?.metrics.usmleDomainsTotal ?? 1;
+  const caseUsmleSpectrum = distribution(
+    (usmleDocRows.rows as { docs: number }[]).map((r) => r.docs),
+    usmleTotal,
+  );
+  const caseAamcSpectrum = distribution(
+    (aamcDocRows.rows as { docs: number }[]).map((r) => r.docs),
+    aamcTotal.length || 1,
+  );
+
+  let regexCount = 0;
+  let llmCount = 0;
+  let objTotal = 0;
+  for (const row of objectiveRows) {
+    if (row.document.caseNumber !== caseNumber) continue;
+    objTotal++;
+    if (row.objective.extractionMethod === "llm_cleanup") llmCount++;
+    else regexCount++;
+  }
+
+  const heatmap = courseSummary
+    ? filterHeatmapForCase(courseSummary.heatmap, caseNumber)
+    : [];
+
+  const moduleUsmle =
+    program.usmle.byScope[moduleLabel] ?? program.usmle.byScope["Entire curriculum"];
+  const moduleAamc =
+    program.aamc.byScope[moduleLabel] ?? program.aamc.byScope["Entire curriculum"];
+
+  return {
+    case: {
+      number: caseNumber,
+      title: primaryDoc.caseTitle,
+      diagnosis: primaryDoc.diagnosis,
+      module: moduleLabel,
+    },
+    documents: caseDocs.map((d) => ({
+      id: d.id,
+      filename: d.filename,
+      guideKind: inferGuideKind(d.filename),
+    })),
+    objectives: { total: objTotal, regex: regexCount, llm: llmCount },
+    alignments: {
+      total: Number(stats?.total ?? 0),
+      reviewed: Number(stats?.reviewed ?? 0),
+      avgConfidence: Number(stats?.avg_confidence ?? 0),
+    },
+    scopes: {
+      case: {
+        usmle: caseUsmleSpectrum,
+        aamc: caseAamcSpectrum,
+        topTopics: (
+          topTopicRows.rows as { label: string; framework: string; chunks: number }[]
+        ).map((r) => ({
+          label: r.label,
+          framework: r.framework ?? "",
+          chunks: r.chunks,
+        })),
+      },
+      module: { label: moduleLabel, usmle: moduleUsmle, aamc: moduleAamc },
+      entire: {
+        usmle: program.usmle.byScope["Entire curriculum"],
+        aamc: program.aamc.byScope["Entire curriculum"],
+      },
+    },
+    heatmap,
+    targetSystems,
   };
 }

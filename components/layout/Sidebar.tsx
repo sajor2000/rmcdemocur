@@ -108,14 +108,27 @@ export function Sidebar({
             Cases
           </p>
           <ul className="space-y-2 text-sm">
-            {cases.map((c) => (
-              <li key={c.id} className="flex items-start gap-2">
-                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-covered-green" />
-                <span>
-                  Case {c.caseNumber}: {c.caseTitle}
-                </span>
-              </li>
-            ))}
+            {cases.map((c) => {
+              const caseHref = `${base}/cases/${c.caseNumber}`;
+              const caseActive = pathname === caseHref;
+              return (
+                <li key={c.caseNumber}>
+                  <Link
+                    href={caseHref}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "flex items-start gap-2 rounded px-1 py-0.5 transition-colors hover:bg-rush-medium/40",
+                      caseActive && "bg-rush-medium/60",
+                    )}
+                  >
+                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-covered-green" />
+                    <span>
+                      Case {c.caseNumber}: {c.caseTitle}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </aside>

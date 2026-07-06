@@ -27,6 +27,8 @@ export type ProgramData = {
 export function ProgramView({ program }: { program: ProgramData }) {
   const [scope, setScope] = useState(program.scopes[0]);
   const { metrics, usmle, aamc, systems, mostCovered } = program;
+  const objectivesModuleQuery =
+    scope === "Entire curriculum" ? "" : `&module=${encodeURIComponent(scope)}`;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6">
@@ -41,13 +43,33 @@ export function ProgramView({ program }: { program: ProgramData }) {
           are scoped to their own organ systems; this program view is not.
         </p>
         <div className="mt-3 flex flex-wrap gap-2 text-sm">
-          <span className="text-rush-medium">Download dataset:</span>
+          <span className="text-rush-medium">Download coverage:</span>
           <a href="/api/program/export?format=csv" className="rounded border px-3 py-1 hover:bg-gray-50">
             CSV (spreadsheet)
           </a>
           <a href="/api/program/export?format=json" className="rounded border px-3 py-1 hover:bg-gray-50">
             JSON
           </a>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2 text-sm">
+          <span className="text-rush-medium">Download objectives:</span>
+          <a
+            href={`/api/program/objectives/export?format=csv${objectivesModuleQuery}`}
+            className="rounded border px-3 py-1 hover:bg-gray-50"
+          >
+            CSV (spreadsheet)
+          </a>
+          <a
+            href={`/api/program/objectives/export?format=json${objectivesModuleQuery}`}
+            className="rounded border px-3 py-1 hover:bg-gray-50"
+          >
+            JSON
+          </a>
+          {scope !== "Entire curriculum" && (
+            <span className="self-center text-xs text-rush-medium">
+              scoped to {scope}
+            </span>
+          )}
         </div>
       </div>
 
