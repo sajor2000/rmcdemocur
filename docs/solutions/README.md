@@ -8,6 +8,7 @@ Searchable learnings from `/ce-compound`. Each file has YAML frontmatter: `modul
 |-----|------|----------------|---------|
 | [logic-errors/bootstrap-resume-false-complete-and-destructive-rerun.md](logic-errors/bootstrap-resume-false-complete-and-destructive-rerun.md) | bug | 2026-07-03 | Smoke/skip-complete false positives, destructive re-seed, atomic bootstrap state |
 | [conventions/ce-artifacts-git-vs-local.md](conventions/ce-artifacts-git-vs-local.md) | convention | 2026-07-03 | What to commit vs keep local for CE skills |
+| [tooling-decisions/vercel-first-deploy-and-branch-verification.md](tooling-decisions/vercel-first-deploy-and-branch-verification.md) | workflow | 2026-07-05 | Vercel CLI setup, Blob, branch verification before prod deploy |
 
 ## How to search
 
