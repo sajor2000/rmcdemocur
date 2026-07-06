@@ -150,4 +150,13 @@ test.describe("A5 — learning objectives export", () => {
     expect(body).toContain("objective,section,extraction_method");
     expect(body).toContain("source_excerpt");
   });
+
+  test("program objectives CSV accepts module filter", async ({ request }) => {
+    const res = await request.get("/api/program/objectives/export?format=csv&module=M1");
+    expect(res.ok()).toBeTruthy();
+    const body = await res.text();
+    expect(body).toMatch(/extracted directly/i);
+    expect(body).toContain("module,course_code");
+    expect(body).toContain("source_page");
+  });
 });

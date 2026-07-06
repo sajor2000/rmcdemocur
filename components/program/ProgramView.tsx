@@ -50,6 +50,9 @@ export function ProgramView({ program }: { program: ProgramData }) {
           <a href="/api/program/export?format=json" className="rounded border px-3 py-1 hover:bg-gray-50">
             JSON
           </a>
+          <span className="self-center text-xs text-rush-medium">
+            (entire curriculum — not scoped by selector below)
+          </span>
         </div>
         <div className="mt-2 flex flex-wrap gap-2 text-sm">
           <span className="text-rush-medium">Download objectives:</span>

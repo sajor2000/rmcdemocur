@@ -1,4 +1,4 @@
-import { sql, eq, desc, and, inArray } from "drizzle-orm";
+import { sql, eq, desc, and, inArray, notInArray } from "drizzle-orm";
 import {
   alignments,
   aamcCompetencies,
@@ -17,6 +17,8 @@ import { getDb } from "@/lib/db";
 import {
   courseTargetSystems,
   courseModule,
+  courseCodesForModule,
+  curatedCourseCodesWithModule,
 } from "@/lib/course-scope";
 import { distribution, heatmapCellStatus, type CoverageDist } from "@/lib/coverage";
 import { type CoverageExportRow } from "@/lib/coverage-export";
@@ -841,6 +843,20 @@ export async function getObjectivesExportRows(opts: {
   if (opts.courseId != null) {
     conditions.push(eq(documents.courseId, opts.courseId));
   }
+  if (opts.module && opts.module !== "all") {
+    if (opts.module === "Unassigned") {
+      const curated = curatedCourseCodesWithModule();
+      if (curated.length > 0) {
+        conditions.push(notInArray(courses.code, curated));
+      }
+    } else {
+      const codes = courseCodesForModule(opts.module);
+      if (codes.length === 0) {
+        return [];
+      }
+      conditions.push(inArray(courses.code, codes));
+    }
+  }
 
   const raw = await db
     .select({
@@ -854,7 +870,7 @@ export async function getObjectivesExportRows(opts: {
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(courses.code, documents.caseNumber, courseObjectives.ordinal);
 
-  let rows: ObjectivesExportRow[] = raw.map((r) => ({
+  const rows: ObjectivesExportRow[] = raw.map((r) => ({
     module: courseModule(r.course.code),
     courseCode: r.course.code,
     courseTitle: r.course.title,
@@ -872,10 +888,6 @@ export async function getObjectivesExportRows(opts: {
     objectiveId: r.objective.id,
     documentId: r.document.id,
   }));
-
-  if (opts.module && opts.module !== "all") {
-    rows = rows.filter((row) => row.module === opts.module);
-  }
 
   return sortObjectivesExportRows(rows);
 }
