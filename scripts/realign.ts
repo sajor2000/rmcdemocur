@@ -2,7 +2,22 @@ import "./load-env";
 import { eq } from "drizzle-orm";
 import { alignments, chunks, documents } from "../drizzle/schema";
 import { alignToFramework } from "../lib/azure-ai";
+import { hasReviewedAlignment } from "../lib/alignment-review";
 import { getDb } from "../lib/db";
+
+/** A chunk that already carries a faculty decision (approved/rejected) must not
+ * be re-aligned — realignment deletes and re-inserts rows at the default
+ * 'pending' status, which would silently discard the review. Coverage treats
+ * faculty rejection as authoritative (see lib/queries.ts), so wiping it here
+ * would reintroduce the exact defect. Returns true when the chunk is safe to
+ * realign (no reviewed alignment present). */
+async function chunkIsReviewed(db: ReturnType<typeof getDb>, chunkId: number): Promise<boolean> {
+  const rows = await db
+    .select({ status: alignments.status })
+    .from(alignments)
+    .where(eq(alignments.chunkId, chunkId));
+  return hasReviewedAlignment(rows.map((r) => r.status));
+}
 
 async function realignDocument(documentId: number) {
   const db = getDb();
@@ -12,7 +27,17 @@ async function realignDocument(documentId: number) {
     .where(eq(chunks.documentId, documentId))
     .orderBy(chunks.chunkIndex);
 
+  let skipped = 0;
   for (const chunk of chunkRows) {
+    if (await chunkIsReviewed(db, chunk.id)) {
+      skipped++;
+      continue;
+    }
+    // chunkIsReviewed already guaranteed this chunk carries no approved/rejected
+    // alignment, so every remaining row (pending, or a legacy NULL status) is
+    // safe to clear before re-aligning. Delete by chunk directly — a `<>`
+    // status guard would leak NULL-status rows (SQL `NULL <> x` is not TRUE),
+    // duplicating them against the re-inserted rows.
     await db.delete(alignments).where(eq(alignments.chunkId, chunk.id));
 
     const embedding = chunk.embedding ?? undefined;
@@ -45,6 +70,11 @@ async function realignDocument(documentId: number) {
         rationale: u.rationale,
       });
     }
+  }
+  if (skipped > 0) {
+    console.log(
+      `  Preserved ${skipped} reviewed chunk(s) in document ${documentId} (skipped realignment to keep faculty decisions).`,
+    );
   }
 }
 

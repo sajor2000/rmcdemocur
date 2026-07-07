@@ -25,6 +25,26 @@ export function confidenceBadgeClass(confidence: number): string {
  * "PC5: Patient Care — … judgment." Some gap rows were written with a doubled
  * label; normalize at render instead of re-processing every alignment.
  */
+/**
+ * A short scope hint for a framework leaf, derived from its fullText, so a terse
+ * subdomain label on a gap card is not misread. The USMLE node whose subdomain
+ * is just "pancreas" actually scopes "metastatic neoplasms" — showing that
+ * stops faculty reading "pancreas — Not addressed" as "pancreatitis missing"
+ * (pancreatitis lives in the covered "Disorders of the pancreas" node). Returns
+ * undefined when fullText is empty or merely restates the label.
+ */
+export function frameworkScopeDetail(
+  subdomain: string | null | undefined,
+  fullText: string | null | undefined,
+  maxLen = 120,
+): string | undefined {
+  const ft = (fullText ?? "").trim();
+  if (!ft) return undefined;
+  const sub = (subdomain ?? "").trim().toLowerCase();
+  if (sub && ft.toLowerCase().startsWith(sub)) return undefined;
+  return ft.length > maxLen ? `${ft.slice(0, maxLen).trimEnd()}…` : ft;
+}
+
 export function cleanFrameworkLabel(label: string | null | undefined): string {
   const s = (label ?? "").trim();
   if (!s) return s;

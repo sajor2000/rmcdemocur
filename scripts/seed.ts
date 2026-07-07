@@ -15,7 +15,7 @@ import {
 } from "../drizzle/schema";
 import { getDb } from "../lib/db";
 
-const DEMO_DOCUMENTS = [
+export const DEMO_DOCUMENTS = [
   {
     filename: "RMD563_FacultyGuide_Case1_DavidTilo.pdf",
     fileType: "pdf",
@@ -35,7 +35,7 @@ const DEMO_DOCUMENTS = [
     fileType: "docx",
     caseNumber: 3,
     caseTitle: "Marie Hernandez",
-    diagnosis: "Bacterial meningitis",
+    diagnosis: "Glutaric acidemia",
   },
   {
     filename: "RMD563_FacultyGuide_Case4_JohnJackson.docx",
@@ -84,7 +84,7 @@ const DEMO_DOCUMENTS = [
     fileType: "docx",
     caseNumber: 3,
     caseTitle: "Marie Hernandez (Self-Study)",
-    diagnosis: "Bacterial meningitis",
+    diagnosis: "Glutaric acidemia",
   },
   {
     filename: "RMD563_SelfStudyGuide_Case4_JohnJackson.docx",

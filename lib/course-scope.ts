@@ -66,3 +66,41 @@ export function courseTargetSystems(
 export function systemOfLabel(label: string | null | undefined): string {
   return (label ?? "").split(" — ")[0].trim();
 }
+
+/**
+ * A human-asserted, UNVERIFIED note that an in-scope framework topic — a real
+ * gap for THIS single course — is taught elsewhere in the curriculum. The
+ * single-course tool has no live data from other courses to verify this, so it
+ * is presented as a dated curatorial note, never as coverage (KTD3). Carries
+ * who asserted it and when so a committee can audit and re-confirm it.
+ */
+export type CoveredElsewhere = {
+  /** Where it is taught, e.g. "M2 Heme/Onc". */
+  course: string;
+  assertedBy: string;
+  /** ISO date the assertion was made/last confirmed. */
+  assertedOn: string;
+};
+
+/**
+ * Curated cross-course notes, keyed by USMLE leaf stableId. Each entry is an
+ * unverified human assertion — keep the list short and re-confirm on a review
+ * cadence, since a stale note rendered on an accreditor-facing surface is worse
+ * than an honest bare gap. MEN1/MEN2 is a real gap for RMD 563 (endocrine is in
+ * scope) but is taught in the M2 Heme/Onc course.
+ */
+const COVERED_ELSEWHERE: Record<string, CoveredElsewhere> = {
+  "usmle:endocrine-system:multiple-endocrine-neoplasia-men1-men2": {
+    course: "M2 Heme/Onc",
+    assertedBy: "Course director (demo feedback)",
+    assertedOn: "2026-07-07",
+  },
+};
+
+/** The unverified cross-course note for a framework topic, or undefined. */
+export function coveredElsewhere(
+  stableId: string | null | undefined,
+): CoveredElsewhere | undefined {
+  if (!stableId) return undefined;
+  return COVERED_ELSEWHERE[stableId];
+}
