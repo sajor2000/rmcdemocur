@@ -77,7 +77,10 @@ export function buildUsmleChildStableId(
 
 function isBulletLine(line: string): boolean {
   const t = line.trim();
-  return /^[•o▪]/.test(t) || /^\d+\s*$/.test(t);
+  // `o` is only a level-2 bullet marker when it stands alone (followed by
+  // space) — otherwise a wrapped continuation starting with a word like
+  // "onychomycosis" or "osteoporosis" would be mis-stripped as a bullet.
+  return /^[•▪]/.test(t) || /^o\s/.test(t) || /^\d+\s*$/.test(t);
 }
 
 function isNoiseLine(line: string): boolean {
@@ -118,24 +121,61 @@ function findUsmleContentStart(lines: string[]): number {
   return 0;
 }
 
-function isSubsectionHeader(line: string): boolean {
-  return (
-    line.length > 0 &&
-    line.length < 160 &&
-    !line.includes("©") &&
-    !isUsmleSystemHeader(line) &&
-    !isBulletLine(line)
-  );
+/**
+ * True when a non-bullet line is a genuine outline subsection header (a leaf's
+ * label) rather than a wrapped continuation of the previous bullet.
+ *
+ * pdf-parse emits the outline with `•`/`o`/`▪` bullet markers, but long bullets
+ * wrap across physical lines and the continuations carry no marker. The old
+ * `isSubsectionHeader` accepted any non-bullet line, so every wrap fragment
+ * became a bogus leaf (599 leaves vs ~200 real). Real headers are short
+ * Title-case noun phrases that START uppercase, END clean (no trailing
+ * comma/semicolon/colon/slash/open-paren/hyphen), and have balanced parens.
+ * Continuations fail at least one: they start lowercase or punctuation
+ * (`gastroenteritis)`, `(eg, thiazide diuretics)`) or end mid-phrase with a
+ * list comma even when they start with a capitalized genus name
+ * (`Yersinia enterocolitica, Campylobacter species,`).
+ */
+function looksLikeHeader(line: string): boolean {
+  const t = line.trim();
+  // A real header is a phrase, not a stray token: reject too-short fragments
+  // (e.g. a bare "B" left when a vitamin subscript was split onto its own line)
+  // and over-long lines (those are wrapped bullet prose, not headers). The
+  // upper bound accommodates the genuinely long recurring header "Infectious,
+  // immunologic, and inflammatory disorders, including microbiologic and host
+  // response to insult" (~104 chars).
+  if (t.length < 4 || t.length > 130) return false;
+  if (t.includes("©") || isUsmleSystemHeader(t) || isBulletLine(t)) return false;
+  if (!/^[A-Z]/.test(t)) return false; // must start with an uppercase letter
+  const last = t[t.length - 1];
+  if (",;:/(-".includes(last)) return false; // ends mid-phrase → continuation
+  let depth = 0;
+  for (const ch of t) {
+    if (ch === "(") depth++;
+    else if (ch === ")") depth = Math.max(0, depth - 1);
+  }
+  return depth === 0; // no unclosed parenthetical
 }
 
 export function parseUsmleOutlineText(
   text: string,
   sourceDoc = "usmle-content-outline-2025.pdf",
 ): ParsedUsmleRow[] {
-  const lines = text
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => !isNoiseLine(l));
+  // Reconstruct subscripts before noise-filtering: pdf-parse splits "vitamin B₃"
+  // into a "B" line then a "3" line. A lone 1-2 digit line right after a line
+  // that ends in a letter is a subscript (merge it), not a page number (those
+  // follow blank/footer lines and are still dropped by isNoiseLine below).
+  const reflowed: string[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const l = raw.trim();
+    const prev = reflowed[reflowed.length - 1];
+    if (/^\d{1,2}$/.test(l) && prev !== undefined && /[A-Za-z]$/.test(prev)) {
+      reflowed[reflowed.length - 1] = prev + l;
+    } else {
+      reflowed.push(l);
+    }
+  }
+  const lines = reflowed.filter((l) => !isNoiseLine(l));
 
   const contentStart = findUsmleContentStart(lines);
   const contentLines = lines.slice(contentStart);
@@ -145,6 +185,26 @@ export function parseUsmleOutlineText(
   let currentSub: string | null = null;
   let subBuffer: string[] = [];
   let systemLines: string[] = [];
+  // Whether a bullet has appeared under the current subsection yet. Once it has,
+  // an unmarked non-header line is a wrapped continuation of that bullet; before
+  // it, an unmarked non-header line is a continuation of the header text itself.
+  let bulletSeen = false;
+  // Running paren depth and mid-phrase flag over the current subsection's text.
+  // A new header can only begin from a clean phrase boundary: not inside an open
+  // parenthetical (e.g. a wrapped "(Acanthamoeba, … procyonis)" list) and not
+  // right after a line that ended on a list comma. This is what stops an
+  // uppercase-starting continuation like "Naegleria fowleri, …" from being
+  // misread as a header.
+  let parenDepth = 0;
+  let lastMidPhrase = false;
+
+  const track = (text: string) => {
+    for (const ch of text) {
+      if (ch === "(") parenDepth++;
+      else if (ch === ")") parenDepth = Math.max(0, parenDepth - 1);
+    }
+    lastMidPhrase = ",;:/-(".includes(text.trim().slice(-1));
+  };
 
   const systemStableId = (name: string) => `usmle:${slugify(name)}`;
 
@@ -163,6 +223,9 @@ export function parseUsmleOutlineText(
     });
     subBuffer = [];
     currentSub = null;
+    bulletSeen = false;
+    parenDepth = 0;
+    lastMidPhrase = false;
   };
 
   const flushSystem = () => {
@@ -216,17 +279,35 @@ export function parseUsmleOutlineText(
     systemLines.push(line);
 
     if (isBulletLine(line)) {
-      subBuffer.push(line.replace(/^[•o▪]\s*/, ""));
+      const text = line.replace(/^(?:[•▪]\s*|o\s+)/, "");
+      subBuffer.push(text);
+      bulletSeen = true;
+      track(text);
       continue;
     }
 
-    if (isSubsectionHeader(line)) {
+    // A genuine header must both look like one AND begin at a clean phrase
+    // boundary — not inside an open parenthetical and not right after a list
+    // comma — otherwise it is a wrapped continuation.
+    if (looksLikeHeader(line) && parenDepth === 0 && !lastMidPhrase) {
       flushSub();
       currentSub = line;
+      bulletSeen = false;
+      track(line);
       continue;
     }
 
-    subBuffer.push(line);
+    // Unmarked, non-header line = a wrapped continuation. Append it to the
+    // current bullet's text (once bullets have started) or to the header text
+    // (a header that wrapped). A stray fragment before any header is ignored as
+    // a leaf — it still lives in the system's fullText via systemLines.
+    if (currentSub === null) continue;
+    if (bulletSeen) {
+      subBuffer.push(line);
+    } else {
+      currentSub = `${currentSub} ${line}`.trim();
+    }
+    track(line);
   }
 
   flushSystem();
