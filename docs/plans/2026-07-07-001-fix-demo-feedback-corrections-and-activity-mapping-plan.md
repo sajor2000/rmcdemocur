@@ -133,31 +133,42 @@ Directional guidance for reviewers, not an implementation spec. Target for Case 
   - Each case_number 1–7 has a non-null, non-placeholder diagnosis after verified values are applied.
 - **Verification:** every `/courses/1/cases/{1..7}` page shows a specific diagnosis; checklist in `docs/DEMO_REVIEW.md` is complete.
 
-### U3. Gap-detection audit — distinguish true gaps from detection misses; resolve pancreas
+### U3a. Gap-detection audit + pancreas diagnosis (read-only, increment 1)
 
-- **Goal:** For every in-scope "Not addressed" node, determine whether it is a genuine gap or a false negative (content exists but wasn't aligned), fix the Case 2 pancreas miss, and surface the audit so faculty can trust the gap list.
-- **Requirements:** R3.
-- **Dependencies:** none (read-only diagnostics + targeted realign).
+- **Goal:** Determine, for every in-scope "Not addressed" node, whether it is a genuine gap or a false negative, and diagnose the Case 2 pancreas report — **without any engine change or re-align**, so this lands in increment 1 with zero external gates.
+- **Requirements:** R3 (diagnosis half).
+- **Dependencies:** none — truly dependency-free (read-only SELECTs + a pure audit script).
 - **Files:**
-  - `scripts/audit-gap-detection.ts` (new) — the deterministic false-negative triage detector
-  - `lib/framework-rag.ts`, `lib/framework-catalog.ts`, `lib/azure-ai.ts` (read to confirm the failure point; only touch if the fix is a retrieval/threshold change)
+  - `scripts/audit-gap-detection.ts` (new) — deterministic false-negative triage detector (read-only)
+  - `lib/gap-audit.ts` (new) — pure keyword-presence core
   - `scripts/audit-chunks.ts`, `scripts/calibrate-thresholds.ts` (existing — run-only diagnostics for H3/H4)
-  - `scripts/realign.ts` (existing — but see the review-preservation caveat below; do **not** run it as-is on a reviewed document)
-  - `__tests__/lib/` — a test for the audit's pure keyword-presence logic
-- **Approach:** Investigate the four ranked hypotheses for the pancreas miss, in order:
-  - **H1 (most likely) — retrieval top-20 miss.** The node `usmle:gastrointestinal-system:disorders-of-the-pancreas` competes with 20 other subdomains for a candidate slot. Its `fullText` *does* contain "pancreatitis" verbatim, so if retrieval still misses it the cause is embedding quality / cosine ranking, not missing lexical content — meaning "enrich the embed text" may not move it. Run the top-20 candidate retrieval for Case 2's pancreatitis chunk embedding and confirm whether the node appears. If not, prefer a **keyword-anchored candidate** (guarantee strong verbatim lexical matches enter the candidate set) over re-embedding; fall back to raising `DEFAULT_K` or enriching embed text only if that's insufficient. Re-embedding all frameworks is Azure-gated and there is no single-node re-embed script today — weigh that cost.
-  - **H2 — confidence < 0.60 or aligned to a sibling pancreas node.** Query `alignments` for `frameworkId LIKE '%pancrea%'` on Case 2 chunks; inspect stableId + confidence + rationale. If it landed on a different pancreas node, that's a labeling issue, not a true gap.
-  - **H3 — content lost in chunking.** Run `scripts/audit-chunks.ts` on Case 2; confirm a chunk contains the pancreatitis text and has an embedding, and isn't permanently `aligned_at`-skipped.
-  - **H4 — a distance floor is set in the deployed env.** Check `RETRIEVAL_MAX_DISTANCE`; if set, run `scripts/calibrate-thresholds.ts`.
-  - **Generalize (the "find similar" ask):** `scripts/audit-gap-detection.ts` iterates every in-scope gap node, checks whether the node's distinctive keywords appear in any in-scope chunk's content, and emits a ranked *triage* list of candidate false-negative gaps (gap node + matching chunk excerpt + document) for human/LLM confirmation — not a verdict (KTD2). Confirmed misses are then closed by re-running the aligner.
-  - **Review-preservation caveat (do this before any realign):** `scripts/realign.ts` today **deletes every alignment for a document and re-inserts rows at the default `status = 'pending'`**, silently discarding any faculty `approved`/`rejected` decisions — which would erase the very review signal U5 exists to honor. Before using it in this flow, make realignment review-preserving: only delete/replace alignments whose `status = 'pending'`, and skip chunks that already carry a reviewed alignment. This is a prerequisite edit to `scripts/realign.ts`, not an incidental run.
-- **Execution note:** Start by reproducing the pancreas miss with a read-only diagnostic before changing any engine code — confirm the failure point, then fix the narrowest cause.
+  - `__tests__/lib/gap-audit.test.ts` — the pure triage logic
+- **Approach:** Reproduce the pancreas report with read-only diagnostics before touching any engine code. Ranked hypotheses: **H1** retrieval top-20 miss; **H2** confidence < 0.60 or aligned to a *sibling* pancreas node (labeling artifact, not a miss); **H3** content lost in chunking; **H4** a distance floor drops candidates pre-LLM.
+  - **Confirmed outcome (this investigation):** the pancreatitis topic **is covered** — `disorders-of-the-pancreas` has 32 Case-2 alignments (conf 0.95) and 7 documents course-wide. What shows 0 docs is the *narrow* `usmle:gastrointestinal-system:pancreas` node (subdomain literally "pancreas", content "metastatic neoplasms"). So the pancreas report is a **node-label artifact (H2 shape), not a detection miss** — no re-align needed. Separately, **`RETRIEVAL_MAX_DISTANCE=0.88` is set locally**, so H4 is live in general (a distance floor is active) and should be checked in the deployed env; it did not affect the (already-covered) pancreas topic.
+  - **Generalize (the "find similar" ask):** the audit iterates every in-scope gap node and emits a ranked *triage* list of candidate false negatives for human/LLM confirmation — never a verdict (KTD2). Its precision is honestly limited: most flags on the biostatistics nodes are generic-token noise, which is why the output is a review queue, not an answer.
 - **Test scenarios:**
-  - Audit logic (pure): given a gap node whose keyword appears in a supplied chunk, it is flagged as a likely false negative; given a node with no keyword match, it is not flagged. *Covers R3.*
+  - Audit logic (pure): a gap node whose keyword appears in a supplied chunk is flagged; a node with no match is not. *Covers R3.*
   - Edge: node with empty `fullText` still produces usable keywords from its `subdomain`.
-  - Post-fix integration: after the chosen fix + review-preserving realign on Case 2, the pancreas topic shows `docs >= 1` under *some* GI pancreas node in `getGapExportRows(1, targetSystems)`; if the original alignment landed on a sibling node, that node — not necessarily `disorders-of-the-pancreas` — carries the coverage, and the "topic covered" criterion is met.
   - Regression: the audit run is idempotent and side-effect-free (no writes).
-- **Verification:** pancreas node no longer "Not addressed" on `/courses/1/gaps`; audit report lists any other likely false-negative gaps for faculty review.
+- **Verification:** audit report lists likely false-negative candidates for faculty review; the pancreas conclusion (topic covered; 0-doc node is the metastatic-neoplasms label) is recorded.
+
+### U3b. Realign hardening + optional re-align (gated — NOT increment 1)
+
+- **Goal:** Make re-alignment safe to run, and close any *confirmed* real miss the U3a audit surfaces — explicitly gated on approval because the fix path may need Azure.
+- **Requirements:** R3 (fix half), and a data-integrity prerequisite for R5.
+- **Dependencies:** **U5 must land first** (rejected-is-authoritative semantics), so the review-preservation guard has a meaning to protect. Any re-embed/re-align is gated on explicit approval + cost (AGENTS.md).
+- **Files:**
+  - `scripts/realign.ts` — the review-preservation edit (below)
+  - `lib/alignment-review.ts` (new) — pure `hasReviewedAlignment` / `countsTowardCoverage` seam
+  - `__tests__/lib/alignment-review.test.ts` — the selection + coverage rules
+  - `lib/framework-rag.ts` / `lib/framework-catalog.ts` (only if a confirmed miss needs a keyword-anchored candidate)
+- **Approach — realign review-preservation (highest-risk item in the plan):** `scripts/realign.ts` as written **deletes every alignment for a chunk and re-inserts at default `status = 'pending'`**, silently discarding faculty `approved`/`rejected` decisions — erasing the exact signal U5 honors. Fix: skip any chunk that carries a reviewed alignment (`hasReviewedAlignment`), and delete-by-chunk only for unreviewed chunks (a `<>` status guard leaks NULL rows). This is a prerequisite edit, not an incidental run, and it must land **after** U5. For a confirmed real miss (none found for pancreas), prefer a keyword-anchored candidate over Azure re-embedding.
+- **Execution note:** Gated. Do not run any re-align/re-embed without explicit approval; re-embedding all frameworks is Azure-gated and there is no single-node re-embed script today.
+- **Test scenarios:**
+  - Realign preservation (pure, via `hasReviewedAlignment`): a chunk with any approved/rejected alignment is skipped; a pending-only or NULL-only chunk is eligible for re-align. *Covers the R5 data-integrity prerequisite.*
+  - Coverage rule (pure, `countsTowardCoverage`): only explicit `rejected` is excluded; pending/approved/NULL count.
+  - Post-fix (only when a real miss is confirmed): after a review-preserving realign, the topic shows `docs >= 1` under *some* node; a reviewed chunk's decisions are unchanged.
+- **Verification:** `hasReviewedAlignment`/`countsTowardCoverage` unit-tested; a dry-run of realign leaves reviewed chunks untouched.
 
 ### U4. "Covered in another course" annotation for in-scope gaps
 
@@ -185,23 +196,20 @@ Directional guidance for reviewers, not an implementation spec. Target for Case 
 - **Requirements:** R5.
 - **Dependencies:** none (but overlaps U3/U4 query edits — sequence together).
 - **Files:**
-  - `lib/queries.ts` — add `a.status IS DISTINCT FROM 'rejected'` to **every** coverage-counting join (KTD4): `getGapExportRows` (USMLE + AAMC subqueries); `getCourseSummary` `usmleDocRows`, `aamcDocRows`, `aamcCoverage`, and the `heatmapTouched` subquery; `getCaseAnalytics` spectra rollups **and** `heatmapFrameworkRows`; and `getProgramSummary`'s per-topic doc count. Grep `COUNT(DISTINCT c.document_id)` / `COUNT(DISTINCT sub.id)` over the file to be sure none are missed.
-  - `__tests__/lib/` — coverage-count tests with a rejected alignment present, asserting the gap list, heatmap, and program count all agree
-- **Approach:** The `reviewed` stat already keys on `status IN ('approved','rejected')`, so the column is populated. Rejected means faculty said "this passage does not cover this topic" — it must not count. Enumerate every counting site (see KTD4) rather than trusting a "canonical join" shorthand — coverage math is duplicated across course, case, heatmap, and program surfaces, and a partial fix makes them disagree. Use the null-safe operator so any legacy NULL-status row still counts. Confirm no surface expects rejected-inclusive counts (search results and the map confidence slider are unaffected — they don't use these joins).
-- **Test scenarios:**
-  - A node with only a `rejected` alignment reads as `docs = 0` (gap); with a `pending` or `approved` alignment reads as covered. *Covers R5.*
-  - Mixed: a node with one approved + one rejected alignment on distinct documents counts 1 distinct document, not 2.
-  - Regression: `usmleGaps` and the intensity spectrum recompute consistently across gaps page, CSV export, and dashboard (one-engine invariant holds).
-- **Verification:** seeding a rejected alignment and reloading `/courses/1/gaps` moves that node into the gap bucket; CSV export agrees.
+  - `lib/queries.ts` — a single shared `NOT_REJECTED` SQL fragment (`a.status IS DISTINCT FROM 'rejected'`) applied to **every** coverage-counting join (KTD4). The full enumerated set: `getGapExportRows` (USMLE + AAMC subqueries); `getCourseSummary` `usmleDocRows`, `aamcDocRows`, `aamcCoverage`, `heatmapTouched`; `getCaseAnalytics` `usmleFrameworkRows`, `aamcFrameworkRows`, **`topTopicRows`** (top-topics-by-chunk *is* a counting site and is filtered — a rejected topic must not headline), and `heatmapFrameworkRows`; and `getProgramSummary`'s per-topic doc count. The **review-STAT** queries (`alignmentStats`, `alignByDocRows` — `avg_confidence`, `reviewed`) are intentionally **not** filtered; they report review progress over all alignments.
+  - `lib/alignment-review.ts` (new) + `__tests__/lib/alignment-review.test.ts` — the pure `countsTowardCoverage(status)` rule that the SQL mirrors, unit-tested.
+- **Approach:** Rejected means faculty said "this passage does not cover this topic" — it must not count. Single-source the predicate (`NOT_REJECTED`) so a new coverage query omitting it is a visible choice, not a silent miss. Null-safe so legacy NULL-status rows still count.
+- **Testability (honest):** the exclusion lives in raw SQL inside DB-coupled functions, which Vitest cannot exercise without a live DB — **`npm test` does NOT gate the SQL predicate.** What is automated: the pure **rule** (`countsTowardCoverage`) is unit-tested. What is NOT unit-tested: that the gap list, heatmap, and program counts agree end-to-end — that is verified by a **live-DB smoke test** (run all coverage queries and confirm sane, consistent output) and the manual demo check below. Do not claim `npm test` proves U5's SQL.
+- **Verification:** live smoke test — run `getGapExportRows`/`getCourseSummary`/`getCaseAnalytics`/`getProgramSummary` against the DB and confirm consistent counts; and seeding a rejected alignment then reloading `/courses/1/gaps` moves that node to the gap bucket with the CSV export agreeing.
 
 ### U6. Activity-level mapping dimension
 
 - **Goal:** Faculty can see curriculum coverage/alignments grouped by **activity** (Brett's idea), built from data already ingested.
 - **Requirements:** R6.
-- **Dependencies:** U5 (so activity coverage inherits the corrected, rejected-excluded counts).
+- **Dependencies:** U5 — but note `getActivityCoverage` is a **new** alignments query and does **not** inherit U5's rejected exclusion automatically. It must apply `NOT_REJECTED` itself (see the reminder comment in `lib/activities.ts`); otherwise a rejected alignment silently counts toward an activity, regressing the invariant U5 established.
 - **Files:**
   - `lib/activities.ts` (new) — a pure `activityKeyOf(section: string)` normalizer ("Activity 3: Metabolism" → "Activity 3") and per-activity rollup helpers
-  - `lib/queries.ts` (a `getActivityCoverage(courseId)` reading `chunks.section` + `alignments`, rolling up per activity)
+  - `lib/queries.ts` (a `getActivityCoverage(courseId)` reading `chunks.section` + `alignments`, rolling up per activity — **apply `NOT_REJECTED`**)
   - `app/courses/[courseId]/` (a read-only activity view, or an activity lens on the existing map/case-analytics page — see Open Questions)
   - `components/` (activity list/coverage component)
   - `__tests__/lib/activities.test.ts`
@@ -212,6 +220,7 @@ Directional guidance for reviewers, not an implementation spec. Target for Case 
   - Rollup: chunks across two activities produce two activity rows with correct distinct-topic counts.
   - Edge: a case whose sections carry no "Activity N" heading yields a single "Unassigned" bucket, and the view renders a **designed** inline note ("This case is not organized into activities") rather than a lone unlabeled row that reads as broken.
   - Integration: per-activity counts sum consistently with the case-level counts already shown on `/courses/1/cases/{n}`.
+  - **Rejected-exclusion (guards the U5 invariant):** a faculty-rejected alignment does not count toward its activity's coverage — verifies `getActivityCoverage` carries `NOT_REJECTED`.
 - **Verification:** an activity view renders per-activity coverage for at least one case, numbers reconcile with the case page.
 
 ### U7. Ingestion readiness for Histology Lab and Role guides
@@ -254,7 +263,7 @@ Directional guidance for reviewers, not an implementation spec. Target for Case 
 
 The units are independently deliverable and should **not** ride one timeline. The trust-restoring corrections are dependency-free or nearly so; the additive capability (U6) and input-blocked prep (U7) are not. Ship in increments:
 
-1. **Increment 1 — restore credibility now:** U1 (Case 3), then U3–U5 (gap-label accuracy). This is what the demo feedback actually asked for and should land before anything else — a visibly wrong diagnosis persisting while U6/U7 are built is the failure mode to avoid.
+1. **Increment 1 — restore credibility now:** U1 (Case 3); **U3a** (read-only audit + pancreas diagnosis — dependency-free); **U5** (rejected exclusion); then **U3b's realign hardening** (which must follow U5, so "rejected is authoritative" has meaning to protect). U3b's *re-align/re-embed* stays out of increment 1 — it is Azure-gated and only runs for a confirmed miss (the pancreas turned out covered, so none is needed now). This ordering fixes the earlier "U1 then U3–U5" inversion, which put the realign fix before the U5 semantics it depends on.
 2. **Increment 2 — faculty-blocked data:** U2 once Katie returns verified diagnoses; U4 once the covered-elsewhere assertions are confirmed.
 3. **Increment 3 — new capability & inputs:** U6 (data layer first, view after Brett confirms the surface) and U7 (on file arrival).
 
@@ -285,9 +294,10 @@ The Definition of Done covers all increments; it does not imply a single PR.
 
 ## Verification Contract
 
-- `npm test` (Vitest, 315+ tests) green after each unit; new tests per unit above.
+- `npm test` (Vitest) green after each unit; new tests per unit above. **Scope caveat:** Vitest covers pure logic only (gap-audit triage, activity rollup, the `alignment-review` rules, seed-data guards). It does **not** exercise the coverage SQL — U5's rejected-exclusion, the heatmap/program agreement, and any realign DB behavior are **not** gated by `npm test`. Do not read a green suite as proof of those.
+- **Live-DB smoke test** (the actual gate for the SQL-level work): run `getGapExportRows`/`getCourseSummary`/`getCaseAnalytics`/`getProgramSummary` against the DB and confirm consistent, sane counts, and that the course JSON/CSV export shape carries only the canonical columns (no leaked UI fields).
 - `npm run lint` clean.
-- Manual demo checks: `/courses/1/cases/3` (U1), `/courses/1/cases/{1..7}` diagnoses (U2), `/courses/1/gaps` pancreas resolved + MEN annotated (U3/U4), rejected-alignment gap behavior (U5), activity view reconciles with case page (U6), `npm run db:audit-bootstrap` shows pending new docs (U7).
+- Manual demo checks: `/courses/1/cases/3` (U1), `/courses/1/cases/{1..7}` diagnoses (U2), `/courses/1/gaps` pancreas resolved + MEN annotated (U3a/U4), rejected-alignment gap behavior (U5), activity view reconciles with case page (U6), `npm run db:audit-bootstrap` shows pending new docs (U7).
 - No new lone "% covered" figures introduced; intensity spectrum vocabulary preserved (AGENTS.md coverage doctrine).
 
 ## Definition of Done

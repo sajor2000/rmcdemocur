@@ -1,7 +1,8 @@
 import "./load-env";
-import { and, eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { alignments, chunks, documents } from "../drizzle/schema";
 import { alignToFramework } from "../lib/azure-ai";
+import { hasReviewedAlignment } from "../lib/alignment-review";
 import { getDb } from "../lib/db";
 
 /** A chunk that already carries a faculty decision (approved/rejected) must not
@@ -11,17 +12,11 @@ import { getDb } from "../lib/db";
  * would reintroduce the exact defect. Returns true when the chunk is safe to
  * realign (no reviewed alignment present). */
 async function chunkIsReviewed(db: ReturnType<typeof getDb>, chunkId: number): Promise<boolean> {
-  const reviewed = await db
-    .select({ id: alignments.id })
+  const rows = await db
+    .select({ status: alignments.status })
     .from(alignments)
-    .where(
-      and(
-        eq(alignments.chunkId, chunkId),
-        inArray(alignments.status, ["approved", "rejected"]),
-      ),
-    )
-    .limit(1);
-  return reviewed.length > 0;
+    .where(eq(alignments.chunkId, chunkId));
+  return hasReviewedAlignment(rows.map((r) => r.status));
 }
 
 async function realignDocument(documentId: number) {

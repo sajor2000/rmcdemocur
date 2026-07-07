@@ -31,6 +31,12 @@ export function activityKeyOf(section: string | null | undefined): string | null
   return `Activity ${number}${letter}`;
 }
 
+// NOTE for whoever builds getActivityCoverage (the SQL query feeding these
+// rows): it is a NEW alignments query — it does NOT inherit U5's rejected
+// exclusion automatically. Apply the `NOT_REJECTED` predicate
+// (`a.status IS DISTINCT FROM 'rejected'`, see lib/queries.ts) in that query,
+// or a faculty-rejected alignment will silently count toward an activity's
+// coverage, regressing the invariant U5 established.
 export type ActivityAlignmentRow = {
   section: string | null;
   chunkId: number;
