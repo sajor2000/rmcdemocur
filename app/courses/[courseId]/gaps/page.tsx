@@ -32,6 +32,7 @@ function GapCard({
     system: string;
     topic: string;
     coveredElsewhere?: CoveredElsewhere;
+    detail?: string;
   };
 }) {
   const label = cleanFrameworkLabel(gap.topic);
@@ -39,7 +40,15 @@ function GapCard({
   return (
     <Card key={`${gap.framework}-${gap.system}-${label}`} className="border-l-4 border-gap-red">
       <CardHeader className="flex flex-row items-start justify-between gap-3">
-        <CardTitle className="text-base font-semibold">{label}</CardTitle>
+        <div className="min-w-0">
+          <CardTitle className="text-base font-semibold">{label}</CardTitle>
+          {/* Scope hint from the node's fullText so a terse label (e.g.
+              "pancreas", scope "metastatic neoplasms") is not misread as the
+              whole organ topic. */}
+          {gap.detail && (
+            <p className="mt-0.5 text-xs text-rush-medium">Scope: {gap.detail}</p>
+          )}
+        </div>
         {/* "Not addressed" stays the primary status — this IS a gap for this
             course. A covered-elsewhere note is rendered as a subordinate line
             below, never as a competing status. */}

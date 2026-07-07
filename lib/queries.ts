@@ -29,6 +29,7 @@ import {
 } from "@/lib/objectives-export";
 import { passesSimilarity, resolveMinSimilarity } from "@/lib/retrieval-config";
 import { inferGuideKind } from "@/lib/media-types";
+import { frameworkScopeDetail } from "@/lib/utils";
 
 /**
  * Faculty-rejected alignments must never count toward coverage — a rejection is
@@ -754,6 +755,7 @@ export async function getGapExportRows(
 
   const usmleRows = await db.execute(sql`
     SELECT ud.stable_id AS id, ud.domain AS system, ud.subdomain AS subdomain,
+           ud.full_text AS full_text,
            COALESCE(doc.docs, 0)::int AS docs
     FROM usmle_domains ud
     LEFT JOIN (
@@ -786,7 +788,9 @@ export async function getGapExportRows(
   `);
 
   const usmle: CoverageExportRow[] = (
-    usmleRows.rows as { id: string; system: string; subdomain: string | null; docs: number }[]
+    usmleRows.rows as {
+      id: string; system: string; subdomain: string | null; full_text: string | null; docs: number;
+    }[]
   ).map((r) => ({
     framework: "USMLE",
     system: r.system,
@@ -797,6 +801,9 @@ export async function getGapExportRows(
     // Unverified cross-course note (KTD3). Only meaningful for gaps (docs === 0),
     // but harmless to attach always — the gaps page renders it only on gap cards.
     coveredElsewhere: coveredElsewhere(r.id),
+    // Short scope hint so a terse subdomain (e.g. "pancreas", whose real scope
+    // is "metastatic neoplasms") is not misread as the whole organ topic.
+    detail: frameworkScopeDetail(r.subdomain, r.full_text),
   }));
   const aamc: CoverageExportRow[] = (
     aamcRows.rows as { id: string; sub_id: string | null; system: string; description: string; docs: number }[]

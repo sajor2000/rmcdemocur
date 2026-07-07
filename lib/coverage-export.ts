@@ -14,6 +14,7 @@ export type CoverageExportRow = {
   courses: number; // distinct courses addressing it
   stableId?: string; // framework leaf stableId (USMLE), when the source carries it
   coveredElsewhere?: CoveredElsewhere; // unverified cross-course note (gaps only)
+  detail?: string; // short scope hint from the node's fullText (disambiguates terse labels)
 };
 
 // Project only the canonical export columns — never spread the row. UI-only
