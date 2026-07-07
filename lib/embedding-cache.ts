@@ -78,3 +78,46 @@ export async function appendCachedEmbedding(
 export async function countCachedEmbeddings(): Promise<number> {
   return (await loadEmbeddingCache()).size;
 }
+
+/**
+ * Split raw cache-file lines into the ones to keep and a removed-count, dropping
+ * entries whose stableId starts with `stableIdPrefix`. Pure and exported for
+ * testing. Unparseable lines are kept untouched. Used by `seed-frameworks
+ * --force` so a re-parse that reuses a stableId but changes its text does not
+ * serve a stale cached vector.
+ */
+export function partitionCacheLinesByPrefix(
+  raw: string,
+  stableIdPrefix: string,
+): { kept: string[]; removed: number } {
+  const kept: string[] = [];
+  let removed = 0;
+  for (const line of raw.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const parsed = JSON.parse(line) as { stableId?: string };
+      if (parsed.stableId && parsed.stableId.startsWith(stableIdPrefix)) {
+        removed++;
+        continue;
+      }
+    } catch {
+      // keep lines we cannot parse rather than silently dropping them
+    }
+    kept.push(line);
+  }
+  return { kept, removed };
+}
+
+/** Rewrite the cache file dropping entries whose stableId starts with the
+ * prefix (e.g. "usmle:"). Returns how many entries were removed. */
+export async function purgeCachedEmbeddings(stableIdPrefix: string): Promise<number> {
+  let raw: string;
+  try {
+    raw = await fs.readFile(CACHE_PATH, "utf8");
+  } catch {
+    return 0; // no cache file yet
+  }
+  const { kept, removed } = partitionCacheLinesByPrefix(raw, stableIdPrefix);
+  await fs.writeFile(CACHE_PATH, kept.length ? `${kept.join("\n")}\n` : "", "utf8");
+  return removed;
+}

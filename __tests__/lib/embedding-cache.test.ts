@@ -51,4 +51,33 @@ describe("embedding-cache", () => {
 
     expect(cache.get("usmle:abc")).toEqual([1]);
   });
+
+  it("partitions cache lines by stableId prefix (U3)", async () => {
+    const mod = await loadModule();
+    const raw = [
+      JSON.stringify({ stableId: "usmle:a", model: "m", dimensions: 1, vector: [1] }),
+      JSON.stringify({ stableId: "aamc:b", model: "m", dimensions: 1, vector: [2] }),
+      "not json",
+      JSON.stringify({ stableId: "usmle:c", model: "m", dimensions: 1, vector: [3] }),
+    ].join("\n");
+    const { kept, removed } = mod.partitionCacheLinesByPrefix(raw, "usmle:");
+    expect(removed).toBe(2);
+    expect(kept).toHaveLength(2); // aamc entry + the unparseable line are kept
+    expect(kept.some((l) => l.includes("aamc:b"))).toBe(true);
+    expect(kept.some((l) => l === "not json")).toBe(true);
+  });
+
+  it("purges only USMLE cache entries on --force (U3)", async () => {
+    const mod = await loadModule();
+    const cache = await mod.loadEmbeddingCache();
+    await mod.appendCachedEmbedding("usmle:x", [1], cache);
+    await mod.appendCachedEmbedding("aamc:y", [2], cache);
+
+    const removed = await mod.purgeCachedEmbeddings("usmle:");
+    expect(removed).toBe(1);
+
+    const reloaded = await mod.loadEmbeddingCache();
+    expect(reloaded.has("usmle:x")).toBe(false);
+    expect(reloaded.get("aamc:y")).toEqual([2]); // AAMC untouched
+  });
 });

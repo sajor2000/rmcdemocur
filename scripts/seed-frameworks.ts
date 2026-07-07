@@ -17,6 +17,7 @@ import {
 import {
   appendCachedEmbedding,
   loadEmbeddingCache,
+  purgeCachedEmbeddings,
 } from "../lib/embedding-cache";
 import { getDb } from "../lib/db";
 import { generateEmbedding } from "../lib/azure-ai";
@@ -301,11 +302,30 @@ async function seedKeywords(
 export async function seedFrameworks(options?: {
   skipEmbeddings?: boolean;
   trackBootstrap?: boolean;
+  force?: boolean;
 }) {
   requireAzureForEmbeddings(options?.skipEmbeddings);
 
   const db = getDb();
   await db.execute(sql`CREATE EXTENSION IF NOT EXISTS vector`);
+
+  if (options?.force) {
+    // A plain re-seed is a no-op for USMLE: seedUsmle skips rows that already
+    // have an embedding, and the embedding cache is keyed by stableId. To truly
+    // re-seed a corrected taxonomy we must (1) delete the old rows (defeats
+    // skip-if-embedded and removes stale stableIds so they can't linger as
+    // orphan alignment targets), (2) reset the framework bootstrap state
+    // UNCONDITIONALLY — seedFrameworks only writes state when trackBootstrap is
+    // set, so a --force run without --track-bootstrap would otherwise read a
+    // stale "complete: true" — and (3) purge USMLE cache entries so a reused
+    // stableId whose text changed re-embeds instead of serving a stale vector.
+    await db.delete(usmleDomains);
+    const forcedState = await loadBootstrapState();
+    forcedState.frameworks.usmle = { embedded: 0, total: 0, complete: false };
+    await saveBootstrapState(forcedState);
+    const purged = await purgeCachedEmbeddings("usmle:");
+    console.log(`--force: cleared usmle_domains, reset bootstrap USMLE state, purged ${purged} cached USMLE embeddings.`);
+  }
 
   const bundle = await parseAllFrameworkSources(FRAMEWORKS_DIR);
   // Dedupe before totals/asserts so `total` matches the insertable-row count.
@@ -372,7 +392,8 @@ export async function seedFrameworks(options?: {
 async function main() {
   const skipEmbeddings = process.argv.includes("--skip-embeddings");
   const trackBootstrap = process.argv.includes("--track-bootstrap");
-  await seedFrameworks({ skipEmbeddings, trackBootstrap });
+  const force = process.argv.includes("--force");
+  await seedFrameworks({ skipEmbeddings, trackBootstrap, force });
 }
 
 const isCli = path.basename(process.argv[1] ?? "") === "seed-frameworks.ts";
