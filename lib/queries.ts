@@ -19,6 +19,7 @@ import {
   courseModule,
   courseCodesForModule,
   curatedCourseCodesWithModule,
+  coveredElsewhere,
 } from "@/lib/course-scope";
 import { distribution, heatmapCellStatus, type CoverageDist } from "@/lib/coverage";
 import { type CoverageExportRow } from "@/lib/coverage-export";
@@ -28,6 +29,17 @@ import {
 } from "@/lib/objectives-export";
 import { passesSimilarity, resolveMinSimilarity } from "@/lib/retrieval-config";
 import { inferGuideKind } from "@/lib/media-types";
+
+/**
+ * Faculty-rejected alignments must never count toward coverage — a rejection is
+ * authoritative (see AGENTS.md). Single-sourced so every coverage-counting query
+ * applies the identical predicate and a new query that omits it is a visible
+ * choice, not a silent copy-paste miss. Null-safe: pending/approved/NULL count,
+ * only explicit rejections drop. Assumes the alignments table is aliased `a`
+ * (every coverage query does). Review-STAT queries (avg_confidence, reviewed)
+ * intentionally do NOT use this — they count all alignments.
+ */
+const NOT_REJECTED = sql`a.status IS DISTINCT FROM 'rejected'`;
 
 /**
  * Map raw (case, system, domains_touched) rows to heatmap cells via
@@ -109,6 +121,7 @@ export async function getCourseSummary(courseId: number) {
       LEFT JOIN alignments a ON (
         a.framework_id = ac.stable_id
         AND a.framework IN ('AAMC_PCRS','AAMC_EPA')
+        AND ${NOT_REJECTED}
         AND EXISTS (
           SELECT 1 FROM chunks c
           JOIN documents d ON d.id = c.document_id
@@ -135,6 +148,7 @@ export async function getCourseSummary(courseId: number) {
         JOIN documents d ON d.id = c.document_id
         LEFT JOIN usmle_domains ud ON ud.stable_id = a.framework_id
         WHERE d.course_id = ${courseId} AND a.framework = 'USMLE' AND d.case_number IS NOT NULL
+          AND ${NOT_REJECTED}
         GROUP BY d.case_number, a.framework_id
       ) sub
       GROUP BY sub.case_number, sub.system
@@ -176,6 +190,7 @@ export async function getCourseSummary(courseId: number) {
       JOIN documents d ON d.id = c.document_id
       ${targetSystems ? sql`JOIN usmle_domains ud ON ud.stable_id = a.framework_id` : sql``}
       WHERE d.course_id = ${courseId} AND a.framework = 'USMLE'
+        AND ${NOT_REJECTED}
         ${sysList ? sql`AND ud.domain IN (${sysList})` : sql``}
       GROUP BY a.framework_id
     `),
@@ -193,7 +208,7 @@ export async function getCourseSummary(courseId: number) {
       INNER JOIN alignments a ON a.framework_id = ac.stable_id
       INNER JOIN chunks c ON c.id = a.chunk_id
       INNER JOIN documents d ON d.id = c.document_id
-      WHERE d.course_id = ${courseId}
+      WHERE d.course_id = ${courseId} AND ${NOT_REJECTED}
     `),
     db.select().from(aamcCompetencies),
     db.execute(sql`
@@ -202,6 +217,7 @@ export async function getCourseSummary(courseId: number) {
       JOIN chunks c ON c.id = a.chunk_id
       JOIN documents d ON d.id = c.document_id
       WHERE d.course_id = ${courseId} AND a.framework IN ('AAMC_PCRS','AAMC_EPA')
+        AND ${NOT_REJECTED}
       GROUP BY a.framework_id
     `),
     // Same per-topic rows the course CSV export serializes (KTD3) — one
@@ -388,6 +404,7 @@ export async function getProgramSummary() {
       JOIN documents d ON d.id = c.document_id
       LEFT JOIN usmle_domains ud ON ud.stable_id = a.framework_id
       WHERE a.framework IN ('USMLE','AAMC_PCRS','AAMC_EPA')
+        AND ${NOT_REJECTED}
       GROUP BY fw, a.framework_id, d.course_id
     `)
   ).rows as {
@@ -465,6 +482,7 @@ export async function getProgramSummary() {
       JOIN chunks c ON c.id = a.chunk_id
       JOIN documents d ON d.id = c.document_id
       WHERE a.framework = 'USMLE' AND a.framework_id IN (${ids}) AND d.case_number IS NOT NULL
+        AND ${NOT_REJECTED}
       GROUP BY a.framework_id, d.case_number
       ORDER BY a.framework_id, d.case_number
     `);
@@ -510,7 +528,7 @@ export async function getCoverageExportRows() {
     LEFT JOIN (
       SELECT a.framework_id, COUNT(DISTINCT c.document_id) AS docs, COUNT(DISTINCT d.course_id) AS courses
       FROM alignments a JOIN chunks c ON c.id = a.chunk_id JOIN documents d ON d.id = c.document_id
-      WHERE a.framework = 'USMLE' GROUP BY a.framework_id
+      WHERE a.framework = 'USMLE' AND ${NOT_REJECTED} GROUP BY a.framework_id
     ) cov ON cov.framework_id = ud.stable_id
     WHERE ud.parent_stable_id IS NOT NULL
     UNION ALL
@@ -521,7 +539,7 @@ export async function getCoverageExportRows() {
     LEFT JOIN (
       SELECT a.framework_id, COUNT(DISTINCT c.document_id) AS docs, COUNT(DISTINCT d.course_id) AS courses
       FROM alignments a JOIN chunks c ON c.id = a.chunk_id JOIN documents d ON d.id = c.document_id
-      WHERE a.framework IN ('AAMC_PCRS','AAMC_EPA') GROUP BY a.framework_id
+      WHERE a.framework IN ('AAMC_PCRS','AAMC_EPA') AND ${NOT_REJECTED} GROUP BY a.framework_id
     ) cov ON cov.framework_id = ac.stable_id
     ORDER BY framework, system, topic
   `);
@@ -744,6 +762,7 @@ export async function getGapExportRows(
       JOIN chunks c ON c.id = a.chunk_id
       JOIN documents d ON d.id = c.document_id
       WHERE d.course_id = ${courseId} AND a.framework = 'USMLE'
+        AND ${NOT_REJECTED}
       GROUP BY a.framework_id
     ) doc ON doc.id = ud.stable_id
     WHERE ud.parent_stable_id IS NOT NULL
@@ -760,6 +779,7 @@ export async function getGapExportRows(
       JOIN chunks c ON c.id = a.chunk_id
       JOIN documents d ON d.id = c.document_id
       WHERE d.course_id = ${courseId} AND a.framework IN ('AAMC_PCRS','AAMC_EPA')
+        AND ${NOT_REJECTED}
       GROUP BY a.framework_id
     ) doc ON doc.id = ac.stable_id
     WHERE ac.stable_id IS NOT NULL
@@ -773,6 +793,10 @@ export async function getGapExportRows(
     topic: r.subdomain ? `${r.system} — ${r.subdomain}` : r.system,
     docs: r.docs,
     courses: r.docs > 0 ? 1 : 0,
+    stableId: r.id,
+    // Unverified cross-course note (KTD3). Only meaningful for gaps (docs === 0),
+    // but harmless to attach always — the gaps page renders it only on gap cards.
+    coveredElsewhere: coveredElsewhere(r.id),
   }));
   const aamc: CoverageExportRow[] = (
     aamcRows.rows as { id: string; sub_id: string | null; system: string; description: string; docs: number }[]
@@ -1178,6 +1202,7 @@ export async function getCaseAnalytics(
       JOIN documents d ON d.id = c.document_id
       ${targetSystems ? sql`JOIN usmle_domains ud ON ud.stable_id = a.framework_id` : sql``}
       WHERE d.course_id = ${courseId} AND d.case_number = ${caseNumber} AND a.framework = 'USMLE'
+        AND ${NOT_REJECTED}
         ${sysList ? sql`AND ud.domain IN (${sysList})` : sql``}
       GROUP BY a.framework_id, c.document_id
     `),
@@ -1189,6 +1214,7 @@ export async function getCaseAnalytics(
       JOIN documents d ON d.id = c.document_id
       WHERE d.course_id = ${courseId} AND d.case_number = ${caseNumber}
         AND a.framework IN ('AAMC_PCRS','AAMC_EPA')
+        AND ${NOT_REJECTED}
       GROUP BY a.framework_id, c.document_id
     `),
     getDb().execute(sql`
@@ -1201,6 +1227,7 @@ export async function getCaseAnalytics(
       JOIN chunks c ON c.id = a.chunk_id
       JOIN documents d ON d.id = c.document_id
       WHERE d.course_id = ${courseId} AND d.case_number = ${caseNumber}
+        AND ${NOT_REJECTED}
       GROUP BY a.framework_id, c.document_id
     `),
     getDb().execute(sql`
@@ -1212,6 +1239,7 @@ export async function getCaseAnalytics(
       JOIN documents d ON d.id = c.document_id
       LEFT JOIN usmle_domains ud ON ud.stable_id = a.framework_id
       WHERE d.course_id = ${courseId} AND d.case_number = ${caseNumber} AND a.framework = 'USMLE'
+        AND ${NOT_REJECTED}
       GROUP BY d.id, a.framework_id
     `),
     getDb().execute(sql`

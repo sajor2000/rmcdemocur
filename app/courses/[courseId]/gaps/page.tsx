@@ -5,6 +5,7 @@ import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { suggestedGapAction } from "@/lib/gap-analyzer";
 import { getCourseSummary } from "@/lib/queries";
 import { levelLabel, levelOf } from "@/lib/coverage";
+import { type CoveredElsewhere } from "@/lib/course-scope";
 import { cleanFrameworkLabel } from "@/lib/utils";
 import { CoverageIntensityCard } from "@/components/coverage/CoverageIntensityCard";
 
@@ -21,17 +22,43 @@ const ROW_TINT: Record<string, string> = {
 // Shared by the USMLE and AAMC "not addressed" sections — one gap-card shape
 // so an actionable CTA (suggestedGapAction + search link) isn't tied to a
 // single framework (ultrareview finding: AAMC gaps had silently lost this).
-function GapCard({ courseId, gap }: { courseId: number; gap: { framework: string; system: string; topic: string } }) {
+function GapCard({
+  courseId,
+  gap,
+}: {
+  courseId: number;
+  gap: {
+    framework: string;
+    system: string;
+    topic: string;
+    coveredElsewhere?: CoveredElsewhere;
+  };
+}) {
   const label = cleanFrameworkLabel(gap.topic);
+  const elsewhere = gap.coveredElsewhere;
   return (
     <Card key={`${gap.framework}-${gap.system}-${label}`} className="border-l-4 border-gap-red">
       <CardHeader className="flex flex-row items-start justify-between gap-3">
         <CardTitle className="text-base font-semibold">{label}</CardTitle>
+        {/* "Not addressed" stays the primary status — this IS a gap for this
+            course. A covered-elsewhere note is rendered as a subordinate line
+            below, never as a competing status. */}
         <span className="shrink-0 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
           Not addressed
         </span>
       </CardHeader>
       <CardContent className="space-y-3">
+        {elsewhere && (
+          // Distinguished by an icon + text, not color alone (accessibility):
+          // an unverified curatorial note, explicitly labeled as such (KTD3).
+          <p className="flex items-start gap-1.5 text-sm text-rush-medium">
+            <span aria-hidden="true">↪</span>
+            <span>
+              Noted as taught in <span className="font-medium text-rush-dark">{elsewhere.course}</span> — not
+              verified by this tool ({elsewhere.assertedBy}, {elsewhere.assertedOn}).
+            </span>
+          </p>
+        )}
         <p className="text-sm text-rush-medium">{suggestedGapAction(label)}</p>
         <Button asChild variant="outline" size="sm">
           <Link href={`/courses/${courseId}/search?q=${encodeURIComponent(label)}`}>

@@ -1,4 +1,5 @@
 import { levelLabel, METHOD_NOTE } from "@/lib/coverage";
+import { type CoveredElsewhere } from "@/lib/course-scope";
 
 /**
  * Deterministic serializers for the coverage dataset the education team downloads
@@ -11,9 +12,22 @@ export type CoverageExportRow = {
   topic: string; // framework label
   docs: number; // distinct documents addressing it
   courses: number; // distinct courses addressing it
+  stableId?: string; // framework leaf stableId (USMLE), when the source carries it
+  coveredElsewhere?: CoveredElsewhere; // unverified cross-course note (gaps only)
 };
 
-const withLevel = (r: CoverageExportRow) => ({ ...r, level: levelLabel(r.docs) });
+// Project only the canonical export columns — never spread the row. UI-only
+// fields on CoverageExportRow (stableId, and the unverified coveredElsewhere
+// note, KTD3) must not leak into the downloadable dataset: the export stays the
+// deterministic counts dataset (R11), and CSV/JSON keep an identical shape.
+const withLevel = (r: CoverageExportRow) => ({
+  framework: r.framework,
+  system: r.system,
+  topic: r.topic,
+  docs: r.docs,
+  courses: r.courses,
+  level: levelLabel(r.docs),
+});
 
 function csvCell(value: string | number): string {
   const s = String(value);
